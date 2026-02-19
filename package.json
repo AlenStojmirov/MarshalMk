@@ -6,9 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate:sale": "tsx scripts/migrate-sale-fields.ts",
+    "sale:set": "tsx scripts/set-products-on-sale.ts"
   },
   "dependencies": {
+    "@radix-ui/react-slider": "^1.3.6",
+    "firebase": "^12.7.0",
+    "firebase-admin": "^13.6.1",
+    "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"
@@ -18,9 +24,11 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",
+    "tsx": "^4",
     "typescript": "^5"
   }
 }

@@ -104,7 +104,7 @@ async function migrateSaleFields() {
         percentageOff
       };
       saleCount++;
-      console.log(`🏷️  Marking "${data.name || productId}" ON SALE: ${percentageOff}% off ($${price} → $${salePrice})`);
+      console.log(`🏷️  Marking "${data.name || productId}" ON SALE: ${percentageOff}% off (${price} ден. → ${salePrice} ден.)`);
     } else {
       // Default: not on sale
       saleInfo = {

@@ -72,7 +72,7 @@ async function setProductOnSale(
   });
 
   console.log(`✅ "${data.name || productId}" is now ON SALE!`);
-  console.log(`   Original: $${price} → Sale: $${salePrice} (${percentageOff}% off)`);
+  console.log(`   Original: ${price} ден. → Sale: ${salePrice} ден. (${percentageOff}% off)`);
   return true;
 }
 
@@ -116,7 +116,7 @@ async function listProducts(db: ReturnType<typeof getFirestore>) {
     console.log(
       docSnap.id.padEnd(25) +
       (data.name || 'N/A').substring(0, 38).padEnd(40) +
-      `$${data.price || 0}`.padEnd(10) +
+      `${data.price || 0} ден.`.padEnd(10) +
       onSale
     );
   });
