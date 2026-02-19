@@ -25,7 +25,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 const LANGUAGE_STORAGE_KEY = 'ecommerce-language';
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('en');
+  const [language, setLanguageState] = useState<Language>('mk');
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load language from localStorage on mount

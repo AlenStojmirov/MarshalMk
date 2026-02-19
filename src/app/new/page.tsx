@@ -24,8 +24,18 @@ export default async function NewPage({ searchParams }: NewPageProps) {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="min-h-screen bg-white">
+          {/* Hero skeleton */}
+          <div className="w-full bg-stone-100 py-20 md:py-28 lg:py-36">
+            <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 animate-pulse">
+              <div className="h-3 bg-stone-200 w-20 mb-5" />
+              <div className="h-12 bg-stone-200 w-80 mb-5" />
+              <div className="h-4 bg-stone-200 w-64 mb-10" />
+              <div className="h-12 bg-stone-200 w-36" />
+            </div>
+          </div>
+          {/* Product grid skeleton */}
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-16 md:py-20">
             <ProductGrid products={[]} loading />
           </div>
         </div>

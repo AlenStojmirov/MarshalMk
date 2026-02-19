@@ -61,7 +61,7 @@ export default function CartPage() {
             <div className="space-y-3 mb-6">
               <div className="flex justify-between text-gray-600">
                 <span>{t('cart.items')} ({totalItems})</span>
-                <span>${totalPrice.toFixed(2)}</span>
+                <span>{totalPrice.toFixed(2)} ден.</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>{t('common.shipping')}</span>
@@ -70,7 +70,7 @@ export default function CartPage() {
               <hr />
               <div className="flex justify-between text-lg font-bold text-gray-900">
                 <span>{t('common.total')}</span>
-                <span>${totalPrice.toFixed(2)}</span>
+                <span>{totalPrice.toFixed(2)} ден.</span>
               </div>
             </div>
 

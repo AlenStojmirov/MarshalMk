@@ -188,7 +188,7 @@ function RecordSaleModal({
                         >
                           <span className="font-medium text-gray-900">{product.name}</span>
                           <span className="text-sm text-gray-500">
-                            ${product.price.toFixed(2)} ({product.stock} {t('inStoreSales.inStock')})
+                            {product.price.toFixed(2)} ден. ({product.stock} {t('inStoreSales.inStock')})
                           </span>
                         </button>
                       )}
@@ -226,7 +226,7 @@ function RecordSaleModal({
                           <span className="ml-2 text-sm text-gray-500">({item.size})</span>
                         )}
                       </div>
-                      <div className="text-sm text-gray-500">${item.price.toFixed(2)} each</div>
+                      <div className="text-sm text-gray-500">{item.price.toFixed(2)} ден. each</div>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -246,7 +246,7 @@ function RecordSaleModal({
                       </button>
                     </div>
                     <div className="w-24 text-right font-medium">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      {(item.price * item.quantity).toFixed(2)} ден.
                     </div>
                     <button
                       type="button"
@@ -259,7 +259,7 @@ function RecordSaleModal({
                 ))}
                 <div className="flex justify-between items-center pt-3 border-t mt-3">
                   <span className="text-lg font-bold text-gray-900">{t('inStoreSales.total')}</span>
-                  <span className="text-xl font-bold text-gray-900">${total.toFixed(2)}</span>
+                  <span className="text-xl font-bold text-gray-900">{total.toFixed(2)} ден.</span>
                 </div>
               </div>
             ) : (
@@ -427,7 +427,7 @@ function SalesByDateView() {
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 ml-13 sm:ml-0">
                     <div className="text-left sm:text-right">
-                      <p className="text-base sm:text-lg font-bold text-gray-900">${dailyTotal.toFixed(2)}</p>
+                      <p className="text-base sm:text-lg font-bold text-gray-900">{dailyTotal.toFixed(2)} ден.</p>
                       <p className="text-xs sm:text-sm text-gray-500">{t('inStoreSales.totalSales')}</p>
                     </div>
                     {isExpanded ? (
@@ -453,7 +453,7 @@ function SalesByDateView() {
                             <p className="font-medium text-gray-900 text-sm truncate">{data.name}</p>
                             <div className="flex justify-between text-xs sm:text-sm text-gray-500 mt-1">
                               <span>{data.quantity} {t('inStoreSales.sold')}</span>
-                              <span>${data.revenue.toFixed(2)}</span>
+                              <span>{data.revenue.toFixed(2)} ден.</span>
                             </div>
                           </div>
                         ))}
@@ -476,7 +476,7 @@ function SalesByDateView() {
                                   minute: '2-digit',
                                 })}
                               </p>
-                              <p className="font-bold text-gray-900 text-sm sm:text-base">${sale.total.toFixed(2)}</p>
+                              <p className="font-bold text-gray-900 text-sm sm:text-base">{sale.total.toFixed(2)} ден.</p>
                             </div>
                             <div className="space-y-1">
                               {sale.items.map((item, idx) => (
@@ -486,7 +486,7 @@ function SalesByDateView() {
                                     {item.size && ` (${item.size})`}
                                   </span>
                                   <span className="text-gray-900 shrink-0">
-                                    ${(item.price * item.quantity).toFixed(2)}
+                                    {(item.price * item.quantity).toFixed(2)} ден.
                                   </span>
                                 </div>
                               ))}

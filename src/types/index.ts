@@ -31,6 +31,7 @@ export interface Product {
   brand?: string;
   color?: string;
   featured: boolean;
+  isVisible?: boolean;
   sale?: SaleInfo;
   createdAt: Date;
   updatedAt: Date;

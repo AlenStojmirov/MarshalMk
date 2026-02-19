@@ -9,9 +9,9 @@ export default function Footer() {
   return (
     <footer>
       {/* Main footer content */}
-      <div className="bg-zinc-800 text-white py-12">
+      <div className="bg-stone-900 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-16">
             {/* Column 1 - Logo */}
             <div>
               <Image
@@ -19,21 +19,21 @@ export default function Footer() {
                 alt="footer_logo"
                 width={120}
                 height={40}
-                className="h-20 w-auto"
+                className="w-auto"
                 priority
               />
             </div>
 
             {/* Column 2 - Support */}
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider mb-4">
+              <h3 className="text-xs font-medium uppercase tracking-[0.2em] mb-6 text-gray-400">
                 ПОДДРШКА
               </h3>
-              <ul className="space-y-2 text-gray-300 text-sm">
+              <ul className="space-y-3 text-gray-300 text-sm">
                 <li>
                   <a
                     href="mailto:marshalvinica@gmail.com"
-                    className="hover:text-white transition-colors"
+                    className="hover:text-white transition-colors duration-200"
                   >
                     marshalvinica@gmail.com
                   </a>
@@ -41,7 +41,7 @@ export default function Footer() {
                 <li>
                   <a
                     href="tel:+38970000000"
-                    className="hover:text-white transition-colors"
+                    className="hover:text-white transition-colors duration-200"
                   >
                     +389 70 000 000
                   </a>
@@ -51,7 +51,7 @@ export default function Footer() {
 
             {/* Column 3 - Social Media */}
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider mb-4">
+              <h3 className="text-xs font-medium uppercase tracking-[0.2em] mb-6 text-gray-400">
                 нашите социјални мрежи
               </h3>
               <div className="flex gap-4">
@@ -60,12 +60,12 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Facebook"
-                  className="text-gray-300 hover:text-white transition-colors"
+                  className="text-gray-500 hover:text-white transition-colors duration-200"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
+                    width="20"
+                    height="20"
                     viewBox="0 0 24 24"
                     fill="currentColor"
                     aria-hidden="true"
@@ -78,12 +78,12 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Instagram"
-                  className="text-gray-300 hover:text-white transition-colors"
+                  className="text-gray-500 hover:text-white transition-colors duration-200"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
+                    width="20"
+                    height="20"
                     viewBox="0 0 24 24"
                     fill="currentColor"
                     aria-hidden="true"
@@ -98,9 +98,9 @@ export default function Footer() {
       </div>
 
       {/* Bottom copyright bar */}
-      <div className="bg-zinc-900 text-gray-400 text-sm py-4">
+      <div className="bg-stone-950 text-gray-500 text-[11px] py-6 tracking-wide">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          Copyright &copy; 2024 Marshal | Powered by <Link className='text-white' target='_blank' href="https://github.com/AlenStojmirov">Alen</Link>
+          &copy; 2025 Marshal | Powered by <Link className='text-gray-300 hover:text-white transition-colors duration-200' target='_blank' href="https://github.com/AlenStojmirov">Alen</Link>
         </div>
       </div>
     </footer>

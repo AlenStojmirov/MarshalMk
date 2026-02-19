@@ -241,11 +241,11 @@ export default function TrackOrderPage() {
                         <p className="text-sm text-gray-500">{t('tracking.size')}: {item.size}</p>
                       )}
                       <p className="text-sm text-gray-500">
-                        {t('tracking.qty')}: {item.quantity} × ${item.price.toFixed(2)}
+                        {t('tracking.qty')}: {item.quantity} × {item.price.toFixed(2)} ден.
                       </p>
                     </div>
                     <p className="font-medium text-gray-900">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      {(item.price * item.quantity).toFixed(2)} ден.
                     </p>
                   </div>
                 ))}
@@ -270,7 +270,7 @@ export default function TrackOrderPage() {
             <div className="p-6 bg-gray-50">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-gray-900">{t('tracking.total')}</span>
-                <span className="text-2xl font-bold text-gray-900">${order.total.toFixed(2)}</span>
+                <span className="text-2xl font-bold text-gray-900">{order.total.toFixed(2)} ден.</span>
               </div>
             </div>
           </div>

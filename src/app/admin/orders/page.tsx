@@ -97,7 +97,7 @@ function OrderCard({
               {t(statusInfo.labelKey)}
             </span>
             <span className="font-semibold text-gray-900">
-              ${order.total.toFixed(2)}
+              {order.total.toFixed(2)} ден.
             </span>
             {expanded ? (
               <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -195,19 +195,19 @@ function OrderCard({
                       {item.productName}
                     </p>
                     <p className="text-xs sm:text-sm text-gray-500">
-                      ${item.price.toFixed(2)} x {item.quantity}
+                      {item.price.toFixed(2)} ден. x {item.quantity}
                       <span className="ml-2">({item.size})</span>
                     </p>
                   </div>
                   <p className="font-medium text-gray-900 text-sm sm:text-base">
-                    ${(item.price * item.quantity).toFixed(2)}
+                    {(item.price * item.quantity).toFixed(2)} ден.
                   </p>
                 </div>
               ))}
             </div>
             <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t flex justify-between font-semibold text-gray-900">
               <span className="text-sm sm:text-base">{t('orders.total')}</span>
-              <span className="text-sm sm:text-base">${order.total.toFixed(2)}</span>
+              <span className="text-sm sm:text-base">{order.total.toFixed(2)} ден.</span>
             </div>
           </div>
         </div>

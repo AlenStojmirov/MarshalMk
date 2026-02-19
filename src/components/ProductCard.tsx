@@ -2,9 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ShoppingCart } from 'lucide-react';
 import { Product } from '@/types';
-import { useCart } from '@/context/CartContext';
 import { useTranslation } from '@/lib/i18n';
 
 interface ProductCardProps {
@@ -12,14 +10,7 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const { addToCart } = useCart();
   const { t } = useTranslation();
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addToCart(product, 1);
-  };
 
   const isValidImageUrl = product.imageUrl && (
                   product.imageUrl.startsWith('http://') ||
@@ -29,67 +20,58 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Link href={`/product/${product.id}`}>
-      <div className="group bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+      <div className="group">
         {/* Product Image */}
-        <div className="relative aspect-square overflow-hidden bg-gray-100">
+        <div className="relative aspect-[3/4] overflow-hidden bg-stone-100 mb-3">
           {isValidImageUrl ? (
             <Image
               src={product.imageUrl}
               alt={product.name}
               fill
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+              className="object-cover transition-opacity duration-200 group-hover:opacity-90"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400">
+            <div className="w-full h-full flex items-center justify-center text-stone-400 text-xs uppercase tracking-wider">
               {t('common.noImage')}
             </div>
           )}
-          {product.sale?.isActive && (
-            <span className="absolute top-2 left-2 bg-red-600 text-white text-xs font-semibold px-2 py-1 rounded">
-              -{product.sale.percentageOff}% {t('sale.off')}
-            </span>
-          )}
-          {product.featured && !product.sale?.isActive && (
-            <span className="absolute top-2 left-2 bg-blue-600 text-white text-xs font-semibold px-2 py-1 rounded">
-              {t('common.featured')}
-            </span>
-          )}
           {product.stock === 0 && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <span className="text-white font-semibold text-lg">{t('common.outOfStock')}</span>
+            <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+              <span className="text-stone-900 text-[11px] uppercase tracking-[0.2em] font-medium">
+                {t('common.outOfStock')}
+              </span>
+            </div>
+          )}
+          {/* View product overlay */}
+          {product.stock > 0 && (
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-stone-900/90 text-white text-[11px] uppercase tracking-[0.15em] py-3.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-center"
+            >
+              {t('common.viewProduct')}
             </div>
           )}
         </div>
 
         {/* Product Info */}
-        <div className="p-4">
-          <p className="text-sm text-gray-500 mb-1">{product.category}</p>
-          <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">{product.name}</h3>
-          <div className="flex items-center justify-between">
-            {product.sale?.isActive ? (
-              <div className="flex flex-col">
-                <span className="text-lg font-bold text-red-600">
-                  ${product.sale.salePrice.toFixed(2)}
-                </span>
-                <span className="text-sm text-gray-400 line-through">
-                  ${product.price.toFixed(2)}
-                </span>
-              </div>
-            ) : (
-              <span className="text-lg font-bold text-blue-600">
-                ${product.price.toFixed(2)}
+        <div>
+          <h3 className="text-[13px] text-stone-900 leading-snug mb-1.5 tracking-wide">
+            {product.name}
+          </h3>
+          {product.sale?.isActive ? (
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] text-stone-900">
+                {product.sale.salePrice.toFixed(2)} ден.
               </span>
-            )}
-            <button
-              onClick={handleAddToCart}
-              disabled={product.stock === 0}
-              className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-              title={t('common.addToCart')}
-            >
-              <ShoppingCart className="h-5 w-5" />
-            </button>
-          </div>
+              <span className="text-[13px] text-stone-400 line-through">
+                {product.price.toFixed(2)} ден.
+              </span>
+            </div>
+          ) : (
+            <span className="text-[13px] text-stone-900">
+              {product.price.toFixed(2)} ден.
+            </span>
+          )}
         </div>
       </div>
     </Link>

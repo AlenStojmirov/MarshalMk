@@ -55,7 +55,7 @@ export default function CartItem({ item }: CartItemProps) {
             {t('cart.size')}: <span className="font-medium">{selectedSize}</span>
           </p>
         )}
-        <p className="text-blue-600 font-semibold mt-1">${product.price.toFixed(2)}</p>
+        <p className="text-blue-600 font-semibold mt-1">{product.price.toFixed(2)} ден.</p>
       </div>
 
       {/* Quantity Controls */}
@@ -84,7 +84,7 @@ export default function CartItem({ item }: CartItemProps) {
           <Trash2 className="h-5 w-5" />
         </button>
         <p className="text-sm font-semibold text-gray-900">
-          {t('common.subtotal')}: ${(product.price * quantity).toFixed(2)}
+          {t('common.subtotal')}: {(product.price * quantity).toFixed(2)} ден.
         </p>
       </div>
     </div>

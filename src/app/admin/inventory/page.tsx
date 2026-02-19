@@ -83,6 +83,10 @@ function InventoryManagement() {
     const sizes = Array.isArray(product.sizes) ? product.sizes : Object.values(product.sizes || {});
     return sum + sizes.reduce((s, size) => s + (size.quantity || 0), 0);
   }, 0);
+  const totalItemsPrice = Object.values(inventory).reduce((sum, product) => {
+    const sizes = Array.isArray(product.sizes) ? product.sizes : Object.values(product.sizes || {});
+    return sum + sizes.reduce((s, size) => s + (size.quantity * ((product.purchasePrice || 0)/2) || 0), 0);
+  }, 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
@@ -137,6 +141,15 @@ function InventoryManagement() {
             <div className="min-w-0">
               <p className="text-xs sm:text-sm text-gray-500 truncate">{t('inventory.totalItemsInStock')}</p>
               <p className="text-xl sm:text-2xl font-bold text-gray-900">{totalItems}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Package className="h-8 w-8 sm:h-10 sm:w-10 text-green-600 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-gray-500 truncate">{t('inventory.totalItemsPurchasePriceInStock')}</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{totalItemsPrice}</p>
             </div>
           </div>
         </div>
@@ -269,7 +282,7 @@ function InventoryManagement() {
                         {product.category}
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-900 text-sm">
-                        ${product.price}
+                        {product.price} ден.
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
                         <div className="flex flex-wrap gap-1">

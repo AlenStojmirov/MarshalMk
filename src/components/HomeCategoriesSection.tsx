@@ -3,20 +3,20 @@ import MobileCarousel from './MobileCarousel';
 
 const categories = [
   {
-    title: 'Јакни',
-    href: '/mens/palto',
-    imageSrc: '/images/categories/jakni.svg',
+    title: 'Поло Маици',
+    href: '/mens/majca',
+    imageSrc: '/images/products/x2denim-1757282400-5-1.png',
   },
   {
-    title: 'Дуксери',
-    href: '/mens/dukser',
-    imageSrc: '/images/categories/dukseri.svg',
+    title: 'Јакни',
+    href: '/mens/palto',
+    imageSrc: '/images/products/dynamo-1768608000-3-1.png',
   },
   {
     title: 'Блузи',
     href: '/mens/bluza',
-    imageSrc: '/images/categories/bluzi.svg',
-  },
+    imageSrc: '/images/products/dynamo-1768608000-5-1.png',
+  }
 ];
 
 export default function HomeCategoriesSection() {

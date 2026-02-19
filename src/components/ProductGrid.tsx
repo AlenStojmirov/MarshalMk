@@ -11,14 +11,13 @@ interface ProductGridProps {
 export default function ProductGrid({ products, loading }: ProductGridProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
         {[...Array(8)].map((_, i) => (
-          <div key={i} className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
-            <div className="aspect-square bg-gray-200" />
-            <div className="p-4">
-              <div className="h-4 bg-gray-200 rounded w-1/3 mb-2" />
-              <div className="h-5 bg-gray-200 rounded w-2/3 mb-2" />
-              <div className="h-6 bg-gray-200 rounded w-1/4" />
+          <div key={i} className="animate-pulse">
+            <div className="aspect-[3/4] bg-stone-100 mb-3" />
+            <div className="space-y-2">
+              <div className="h-3.5 bg-stone-100 w-3/4" />
+              <div className="h-3.5 bg-stone-100 w-1/3" />
             </div>
           </div>
         ))}
@@ -28,14 +27,14 @@ export default function ProductGrid({ products, loading }: ProductGridProps) {
 
   if (products.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500 text-lg">No products found</p>
+      <div className="text-center py-16">
+        <p className="text-stone-400 text-sm uppercase tracking-wider">No products found</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
       {products.map(product => (
         <ProductCard key={product.id} product={product} />
       ))}

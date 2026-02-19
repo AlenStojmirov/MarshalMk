@@ -20,7 +20,7 @@ export default function SortSelect({ options, value, onSortChange }: SortSelectP
         value={value}
         onChange={(e) => onSortChange(e.target.value)}
         aria-label="Sort products"
-        className="appearance-none bg-white border border-gray-300 rounded-lg py-2 pl-4 pr-10 text-sm text-gray-700 cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-colors"
+        className="appearance-none bg-white border border-stone-200 py-2.5 pl-4 pr-10 text-[12px] text-stone-700 uppercase tracking-wider cursor-pointer hover:border-stone-400 focus:outline-none focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-colors duration-150"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -28,7 +28,7 @@ export default function SortSelect({ options, value, onSortChange }: SortSelectP
           </option>
         ))}
       </select>
-      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400 pointer-events-none" />
     </div>
   );
 }

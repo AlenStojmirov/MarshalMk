@@ -207,7 +207,7 @@ function SoldOutView() {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-gray-900 truncate text-sm sm:text-base">{product.name}</h3>
                     <p className="text-xs sm:text-sm text-gray-500 truncate">{product.brand} | {product.category}</p>
-                    <p className="font-bold text-gray-900 mt-1 text-sm sm:text-base">${product.price.toFixed(2)}</p>
+                    <p className="font-bold text-gray-900 mt-1 text-sm sm:text-base">{product.price.toFixed(2)} ден.</p>
                   </div>
                 </div>
 

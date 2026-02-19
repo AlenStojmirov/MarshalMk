@@ -22,6 +22,7 @@
     "previous": "Претходно",
     "all": "Сите",
     "noImage": "Нема слика",
+    "viewProduct": "Погледни производ",
     "free": "Бесплатно",
     "shipping": "Достава",
     "subtotal": "Меѓузбир",
@@ -79,6 +80,18 @@
     "noCategories": "Нема пронајдено категории",
     "productCount": "{count} производ(и)"
   },
+  "categoryNames": {
+    "vaucer": "Ваучер",
+    "dukser": "Дуксер",
+    "shirts": "Кошули",
+    "pants": "Панталони",
+    "jackets": "Јакни",
+    "belts": "Ремени",
+    "accessories": "Додатоци",
+    "jeans": "Фармерки",
+    "shortsJeans": "Шорцеви",
+    "costume": "Одела"
+  },
   "categoryPage": {
     "filters": "Филтри",
     "price": "Цена",
@@ -128,7 +141,7 @@
     "contactInfo": "Контакт информации",
     "deliveryAddress": "Адреса за достава",
     "paymentMethod": "Плаќање: При достава",
-    "amountReady": "Ве молиме подгответе ${amount} кога ќе пристигне вашата нарачка.",
+    "amountReady": "Ве молиме подгответе {amount} ден. кога ќе пристигне вашата нарачка.",
     "continueShopping": "Продолжи со купување",
     "loadingOrder": "Се вчитуваат детали за нарачката...",
     "orderNotFound": "Нарачката не е пронајдена",
@@ -190,7 +203,12 @@
     "onSale": "На попуст",
     "salePercentage": "Попуст (%)",
     "salePrice": "Цена на попуст",
-    "salePriceAuto": "Автоматски пресметано од оригиналната цена и процентот на попуст"
+    "salePriceAuto": "Автоматски пресметано од оригиналната цена и процентот на попуст",
+    "visible": "Видливо",
+    "visibleOnWebsite": "Видливо на веб страна",
+    "hidden": "Скриено",
+    "productHidden": "Производот е скриен од купувачите",
+    "productVisible": "Производот е видлив за купувачите"
   },
   "orders": {
     "title": "Нарачки",
@@ -347,6 +365,7 @@
     "syncing": "Се синхронизира...",
     "productsInInventory": "Производи во залиха",
     "totalItemsInStock": "Вкупно парчиња на залиха",
+    "totalItemsPurchasePriceInStock": "Вкупна цена на парчиња на залиха",
     "lastSyncResult": "Последен резултат",
     "notSyncedYet": "Сè уште не е синхронизирано",
     "synced": "синхронизирани",

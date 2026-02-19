@@ -169,7 +169,7 @@ function ProductDetailView() {
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{localProduct.name}</h1>
             <p className="text-sm sm:text-base text-gray-500 truncate">{localProduct.brand} | {localProduct.category}</p>
-            <p className="text-base sm:text-lg font-bold text-gray-900 mt-1">${localProduct.price.toFixed(2)}</p>
+            <p className="text-base sm:text-lg font-bold text-gray-900 mt-1">{localProduct.price.toFixed(2)} ден.</p>
             {localProduct.color && (
               <p className="text-xs sm:text-sm text-gray-500">{t('productDetail.color')}: {localProduct.color}</p>
             )}
@@ -280,7 +280,7 @@ function ProductDetailView() {
                 >
                   <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-sm sm:text-base">
                     <span className="font-bold text-gray-900">{item.size}</span>
-                    <span className="text-gray-600">${item.price.toFixed(2)}</span>
+                    <span className="text-gray-600">{item.price.toFixed(2)} ден.</span>
                     <span className="text-gray-400 text-xs sm:text-sm">({item.soldDate})</span>
                   </div>
                   <button

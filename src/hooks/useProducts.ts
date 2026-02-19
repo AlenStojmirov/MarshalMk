@@ -19,6 +19,28 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { db, storage } from '@/lib/firebase';
 import { Product, ProductFormData } from '@/types';
 
+async function fetchImageMap(): Promise<Record<string, string[]>> {
+  try {
+    const res = await fetch('/api/product-images');
+    if (res.ok) return res.json();
+  } catch (e) {
+    console.error('Failed to fetch product images:', e);
+  }
+  return {};
+}
+
+function enrichWithLocalImages(product: Product, imageMap: Record<string, string[]>): Product {
+  const localImages = imageMap[product.id];
+  if (localImages && localImages.length > 0) {
+    return {
+      ...product,
+      imageUrl: localImages[0],
+      images: localImages.slice(1),
+    };
+  }
+  return product;
+}
+
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,14 +51,17 @@ export function useProducts() {
       setLoading(true);
       const productsRef = collection(db, 'products');
       const q = query(productsRef, orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
+      const [snapshot, imageMap] = await Promise.all([getDocs(q), fetchImageMap()]);
 
-      const fetchedProducts: Product[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-      })) as Product[];
+      const fetchedProducts: Product[] = snapshot.docs.map(doc => {
+        const product = {
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate() || new Date(),
+          updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+        } as Product;
+        return enrichWithLocalImages(product, imageMap);
+      });
 
       setProducts(fetchedProducts);
       setError(null);
@@ -65,15 +90,16 @@ export function useProduct(id: string) {
       try {
         setLoading(true);
         const docRef = doc(db, 'products', id);
-        const docSnap = await getDoc(docRef);
+        const [docSnap, imageMap] = await Promise.all([getDoc(docRef), fetchImageMap()]);
 
         if (docSnap.exists()) {
-          setProduct({
+          const product = {
             id: docSnap.id,
             ...docSnap.data(),
             createdAt: docSnap.data().createdAt?.toDate() || new Date(),
             updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
-          } as Product);
+          } as Product;
+          setProduct(enrichWithLocalImages(product, imageMap));
         } else {
           setError('Product not found');
         }
@@ -107,14 +133,17 @@ export function useProductsByCategory(category: string) {
           ? query(productsRef, where('category', '==', category), orderBy('createdAt', 'desc'))
           : query(productsRef, orderBy('createdAt', 'desc'));
 
-        const snapshot = await getDocs(q);
+        const [snapshot, imageMap] = await Promise.all([getDocs(q), fetchImageMap()]);
 
-        const fetchedProducts: Product[] = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate() || new Date(),
-          updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        })) as Product[];
+        const fetchedProducts: Product[] = snapshot.docs.map(doc => {
+          const product = {
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate() || new Date(),
+            updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+          } as Product;
+          return enrichWithLocalImages(product, imageMap);
+        });
 
         setProducts(fetchedProducts);
         setError(null);

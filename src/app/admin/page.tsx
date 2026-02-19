@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts, createProduct, updateProduct, deleteProduct, uploadProductImage } from '@/hooks/useProducts';
 import { Product, ProductFormData, ProductSize } from '@/types';
-import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag } from 'lucide-react';
+import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
@@ -31,40 +31,40 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">{t('admin.login')}</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="min-h-[60vh] flex items-center justify-center bg-slate-50 px-4">
+      <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 w-full max-w-md">
+        <h1 className="text-2xl font-bold text-slate-800 mb-6 text-center">{t('admin.login')}</h1>
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.email')}</label>
+            <label className="block text-sm font-medium text-slate-600 mb-1.5">{t('admin.email')}</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.password')}</label>
+            <label className="block text-sm font-medium text-slate-600 mb-1.5">{t('admin.password')}</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
               required
             />
           </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-red-600 text-sm font-medium">{error}</p>}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
           >
             {loading ? t('admin.signingIn') : t('admin.signIn')}
           </button>
         </form>
-        <p className="text-sm text-gray-500 mt-4 text-center">
+        <p className="text-sm text-slate-400 mt-5 text-center">
           {t('admin.createAdminHint')}
         </p>
       </div>
@@ -88,6 +88,7 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     imageUrl: product?.imageUrl || '',
     stock: product?.stock || 0,
     featured: product?.featured || false,
+    isVisible: product?.isVisible !== false,
     sizes: product?.sizes || [],
     sale: product?.sale || { isActive: false, salePrice: 0, percentageOff: 0 },
   });
@@ -278,6 +279,18 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
               </label>
             </div>
 
+            <div className="flex items-center">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.isVisible !== false}
+                  onChange={(e) => setFormData(prev => ({ ...prev, isVisible: e.target.checked }))}
+                  className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                />
+                <span className="text-sm font-medium text-gray-700">{t('admin.visibleOnWebsite')}</span>
+              </label>
+            </div>
+
             {/* Sale Section */}
             <div className="md:col-span-2 border border-gray-200 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -314,7 +327,7 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.salePrice')}</label>
                     <input
                       type="text"
-                      value={`$${(formData.sale?.salePrice || 0).toFixed(2)}`}
+                      value={`${(formData.sale?.salePrice || 0).toFixed(2)} ден.`}
                       readOnly
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700"
                     />
@@ -463,6 +476,12 @@ function AdminDashboard() {
     }
   };
 
+  const handleToggleVisibility = async (product: Product) => {
+    const newVisibility = product.isVisible === false ? true : false;
+    await updateProduct(product.id, { isVisible: newVisibility } as Partial<ProductFormData>);
+    refetch();
+  };
+
   const handleDelete = async (product: Product) => {
     if (confirm(t('admin.confirmDelete', { name: product.name }))) {
       await deleteProduct(product.id);
@@ -471,37 +490,39 @@ function AdminDashboard() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('admin.dashboard')}</h1>
-          <p className="text-sm sm:text-base text-gray-500">{t('admin.loggedInAs', { email: user?.email || '' })}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base"
-          >
-            <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
-            <span className="hidden sm:inline">{t('admin.addProduct')}</span>
-            <span className="sm:hidden">{t('admin.addProduct')}</span>
-          </button>
-          <button
-            onClick={signOut}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors text-sm sm:text-base"
-          >
-            <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
-            <span className="hidden sm:inline">{t('admin.signOut')}</span>
-          </button>
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">{t('admin.dashboard')}</h1>
+            <p className="text-sm sm:text-base text-slate-500 mt-1">{t('admin.loggedInAs', { email: user?.email || '' })}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base shadow-sm"
+            >
+              <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+              {t('admin.addProduct')}
+            </button>
+            <button
+              onClick={signOut}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 rounded-lg font-medium text-slate-600 hover:bg-slate-50 transition-colors text-sm sm:text-base"
+            >
+              <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="hidden sm:inline">{t('admin.signOut')}</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Navigation Links */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-6 sm:mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <Link
           href="/admin/inventory"
-          className="flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm"
+          className="flex items-center justify-center gap-2 px-3 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors text-sm shadow-sm"
         >
           <Database className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="hidden xs:inline">{t('admin.inventorySync')}</span>
@@ -509,7 +530,7 @@ function AdminDashboard() {
         </Link>
         <Link
           href="/admin/orders"
-          className="flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm"
+          className="flex items-center justify-center gap-2 px-3 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors text-sm shadow-sm"
         >
           <Package className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="hidden xs:inline">{t('admin.viewOrders')}</span>
@@ -517,7 +538,7 @@ function AdminDashboard() {
         </Link>
         <Link
           href="/admin/in-store-sales"
-          className="flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm"
+          className="flex items-center justify-center gap-2 px-3 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors text-sm shadow-sm"
         >
           <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="hidden xs:inline">{t('admin.inStoreSales')}</span>
@@ -525,7 +546,7 @@ function AdminDashboard() {
         </Link>
         <Link
           href="/admin/sold-out"
-          className="flex items-center justify-center gap-2 px-3 py-2.5 bg-red-100 text-red-700 rounded-lg font-medium hover:bg-red-200 transition-colors text-sm"
+          className="flex items-center justify-center gap-2 px-3 py-3 bg-red-50 border border-red-200 text-red-700 rounded-xl font-medium hover:bg-red-100 transition-colors text-sm shadow-sm"
         >
           <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="hidden xs:inline">{t('admin.soldOut')}</span>
@@ -533,7 +554,7 @@ function AdminDashboard() {
         </Link>
         <Link
           href="/admin/expenses"
-          className="flex items-center justify-center gap-2 px-3 py-2.5 bg-orange-100 text-orange-700 rounded-lg font-medium hover:bg-orange-200 transition-colors text-sm col-span-2 sm:col-span-1"
+          className="flex items-center justify-center gap-2 px-3 py-3 bg-orange-50 border border-orange-200 text-orange-700 rounded-xl font-medium hover:bg-orange-100 transition-colors text-sm shadow-sm col-span-2 sm:col-span-1"
         >
           <Receipt className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="hidden xs:inline">{t('admin.expenses')}</span>
@@ -542,41 +563,44 @@ function AdminDashboard() {
       </div>
 
       {/* Products Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px]">
-            <thead className="bg-gray-50">
+            <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   {t('admin.product')}
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">
                   {t('admin.category')}
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   {t('admin.price')}
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   {t('admin.stock')}
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">
                   {t('admin.featured')}
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">
+                  {t('admin.visible')}
+                </th>
+                <th className="px-4 sm:px-6 py-3.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   {t('admin.actions')}
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-3 sm:px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 sm:px-6 py-12 text-center text-slate-400">
                     {t('admin.loadingProducts')}
                   </td>
                 </tr>
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 sm:px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 sm:px-6 py-12 text-center text-slate-400">
                     {t('admin.noProducts')}
                   </td>
                 </tr>
@@ -589,52 +613,69 @@ function AdminDashboard() {
                     product.imageUrl.startsWith('/')
                   );
                   return (
-                  <tr key={product.id} className="hover:bg-gray-50">
-                    <td className="px-3 sm:px-6 py-3 sm:py-4">
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                  <tr key={product.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden bg-slate-100 shrink-0">
                           {isValidImageUrl ? (
                             <Image src={product.imageUrl} alt={product.name} fill className="object-cover" sizes="48px" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                            <div className="w-full h-full flex items-center justify-center text-slate-300 text-xs">
                               {t('common.noImage')}
                             </div>
                           )}
                         </div>
                         <div className="min-w-0">
-                          <Link href={`/admin/product/${product.id}`} className="font-medium text-gray-900 hover:text-blue-600 transition-colors text-sm sm:text-base truncate block max-w-[120px] sm:max-w-none">{product.name}</Link>
-                          <span className="text-xs text-gray-500 sm:hidden">{product.category}</span>
+                          <Link href={`/admin/product/${product.id}`} className="font-semibold text-slate-800 hover:text-blue-600 transition-colors text-sm sm:text-base truncate block max-w-[120px] sm:max-w-none">{product.name}</Link>
+                          <span className="text-xs text-slate-400 sm:hidden">{product.category}</span>
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-500 text-sm hidden sm:table-cell">{product.category}</td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-900 text-sm">${product.price.toFixed(2)}</td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4">
-                      <span className={`text-sm ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 text-slate-500 text-sm hidden sm:table-cell">{product.category}</td>
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 text-slate-700 font-medium text-sm">{product.price.toFixed(2)} ден.</td>
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${product.stock > 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                         {product.stock}
                       </span>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 hidden md:table-cell">
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 hidden md:table-cell">
                       {product.featured ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
                           {t('common.yes')}
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-sm">{t('common.no')}</span>
+                        <span className="text-slate-300 text-sm">{t('common.no')}</span>
                       )}
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
-                      <div className="flex items-center justify-end gap-1 sm:gap-2">
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 hidden md:table-cell">
+                      <button
+                        onClick={() => handleToggleVisibility(product)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${
+                          product.isVisible !== false
+                            ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                            : 'bg-red-50 text-red-700 hover:bg-red-100'
+                        }`}
+                        title={product.isVisible !== false ? t('admin.productVisible') : t('admin.productHidden')}
+                      >
+                        {product.isVisible !== false ? (
+                          <><Eye className="h-3.5 w-3.5" />{t('admin.visible')}</>
+                        ) : (
+                          <><EyeOff className="h-3.5 w-3.5" />{t('admin.hidden')}</>
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => setEditingProduct(product)}
-                          className="p-1.5 sm:p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title={t('admin.edit')}
                         >
                           <Edit2 className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
                         <button
                           onClick={() => handleDelete(product)}
-                          className="p-1.5 sm:p-2 text-gray-500 hover:text-red-600 transition-colors"
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title={t('admin.delete')}
                         >
                           <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -660,6 +701,7 @@ function AdminDashboard() {
           onCancel={() => setEditingProduct(undefined)}
         />
       )}
+      </div>
     </div>
   );
 }

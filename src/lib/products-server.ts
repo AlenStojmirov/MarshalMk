@@ -1,8 +1,21 @@
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
 import { Product, PaginatedResult, ProductQueryParams } from '@/types';
+import { getProductImageMap, ProductImageMap } from './product-images';
 
 const PRODUCTS_PER_PAGE = 12;
+
+function enrichWithLocalImages(product: Product, imageMap: ProductImageMap): Product {
+  const localImages = imageMap[product.id];
+  if (localImages && localImages.length > 0) {
+    return {
+      ...product,
+      imageUrl: localImages[0],
+      images: localImages.slice(1),
+    };
+  }
+  return product;
+}
 
 function getEffectivePrice(product: Product): number {
   return product.sale?.isActive ? product.sale.salePrice : product.price;
@@ -34,8 +47,16 @@ export async function fetchPaginatedProducts(
 
   const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
+  const imageMap = getProductImageMap();
 
-  let allProducts = snapshot.docs.map(parseFirestoreProduct);
+  let allProducts = snapshot.docs
+    .map(parseFirestoreProduct)
+    .map((p) => enrichWithLocalImages(p, imageMap));
+
+  // Only include products that are visible and have sizes with quantity > 1
+  allProducts = allProducts.filter((p) =>
+    p.isVisible !== false && p?.sizes?.some((s) => s.quantity >= 1)
+  );
 
   // Filter sale products in JS to avoid composite index requirement
   if (saleOnly) {

@@ -9,9 +9,9 @@ import NewProductsSection from '@/components/NewProductsSection';
 export default function Home() {
   const { products, loading, error } = useProducts();
 
-  // Get 12 newest products (already sorted by createdAt desc from hook)
+  // Get 12 newest available products (already sorted by createdAt desc from hook)
   const newProducts = useMemo(() => {
-    return products.slice(0, 12);
+    return products.filter((p) => p.stock > 0 && p.isVisible).slice(0, 12);
   }, [products]);
 
   if (error) {

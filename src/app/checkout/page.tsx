@@ -1,12 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Truck, CreditCard, Loader2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
-import { createOrder } from '@/lib/orders';
 import { CustomerInfo, OrderItem } from '@/types';
 import { useTranslation } from '@/lib/i18n';
 
@@ -15,6 +14,8 @@ export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState('');
+  const formLoadedAt = useRef(Date.now());
   const { t } = useTranslation();
 
   const [formData, setFormData] = useState<CustomerInfo>({
@@ -87,10 +88,27 @@ export default function CheckoutPage() {
         size: item.selectedSize,
       }));
 
-      const order = await createOrder(formData, orderItems, totalPrice);
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer: formData,
+          items: orderItems,
+          subtotal: totalPrice,
+          website: honeypot,
+          _t: formLoadedAt.current,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || t('checkout.orderFailed'));
+        return;
+      }
 
       clearCart();
-      router.push(`/checkout/confirmation?order=${order.orderNumber}`);
+      router.push(`/checkout/confirmation?order=${data.orderNumber}`);
     } catch (err) {
       console.error('Error creating order:', err);
       setError(t('checkout.orderFailed'));
@@ -129,6 +147,17 @@ export default function CheckoutPage() {
       <h1 className="text-3xl font-bold text-gray-900 mb-8">{t('checkout.title')}</h1>
 
       <form onSubmit={handleSubmit}>
+        {/* Honeypot field — invisible to real users, bots auto-fill it */}
+        <input
+          type="text"
+          name="website"
+          value={honeypot}
+          onChange={(e) => setHoneypot(e.target.value)}
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0 }}
+        />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Customer Information */}
           <div className="lg:col-span-2 space-y-6">
@@ -340,11 +369,11 @@ export default function CheckoutPage() {
                         <p className="text-xs text-gray-500">{t('cart.size')}: {item.selectedSize}</p>
                       )}
                       <p className="text-sm text-gray-500">
-                        ${item.product.price.toFixed(2)} {t('checkout.each')}
+                        {item.product.price.toFixed(2)} ден. {t('checkout.each')}
                       </p>
                     </div>
                     <p className="text-sm font-medium text-gray-900">
-                      ${(item.product.price * item.quantity).toFixed(2)}
+                      {(item.product.price * item.quantity).toFixed(2)} ден.
                     </p>
                   </div>
                 ))}
@@ -355,7 +384,7 @@ export default function CheckoutPage() {
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-gray-600">
                   <span>{t('common.subtotal')}</span>
-                  <span>${totalPrice.toFixed(2)}</span>
+                  <span>{totalPrice.toFixed(2)} ден.</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span className="flex items-center gap-2">
@@ -367,7 +396,7 @@ export default function CheckoutPage() {
                 <hr />
                 <div className="flex justify-between text-lg font-bold text-gray-900">
                   <span>{t('common.total')}</span>
-                  <span>${totalPrice.toFixed(2)}</span>
+                  <span>{totalPrice.toFixed(2)} ден.</span>
                 </div>
               </div>
 

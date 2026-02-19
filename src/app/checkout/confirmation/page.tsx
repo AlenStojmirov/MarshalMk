@@ -120,7 +120,7 @@ function ConfirmationContent() {
                   <p className="text-sm text-gray-500">{t('confirmation.qty')}: {item.quantity}</p>
                 </div>
                 <p className="font-medium text-gray-900">
-                  ${(item.price * item.quantity).toFixed(2)}
+                  {(item.price * item.quantity).toFixed(2)} ден.
                 </p>
               </div>
             ))}
@@ -132,7 +132,7 @@ function ConfirmationContent() {
           <div className="space-y-2">
             <div className="flex justify-between text-gray-600">
               <span>{t('common.subtotal')}</span>
-              <span>${order.subtotal.toFixed(2)}</span>
+              <span>{order.subtotal.toFixed(2)} ден.</span>
             </div>
             <div className="flex justify-between text-gray-600">
               <span>{t('common.shipping')}</span>
@@ -141,7 +141,7 @@ function ConfirmationContent() {
             <hr className="my-2" />
             <div className="flex justify-between text-lg font-bold text-gray-900">
               <span>{t('common.total')}</span>
-              <span>${order.total.toFixed(2)}</span>
+              <span>{order.total.toFixed(2)} ден.</span>
             </div>
           </div>
         </div>

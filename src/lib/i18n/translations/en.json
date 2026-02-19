@@ -22,6 +22,7 @@
     "previous": "Previous",
     "all": "All",
     "noImage": "No Image",
+    "viewProduct": "View Product",
     "free": "Free",
     "shipping": "Shipping",
     "subtotal": "Subtotal",
@@ -79,6 +80,18 @@
     "noCategories": "No categories found",
     "productCount": "{count} product(s)"
   },
+  "categoryNames": {
+    "vaucer": "Voucher",
+    "dukser": "Hoodie",
+    "shirts": "Shirts",
+    "pants": "Pants",
+    "jackets": "Jackets",
+    "belts": "Belts",
+    "accessories": "Accessories",
+    "jeans": "Jeans",
+    "shortsJeans": "Short jeans",
+    "costume": "Costume"
+  },
   "categoryPage": {
     "filters": "Filters",
     "price": "Price",
@@ -128,7 +141,7 @@
     "contactInfo": "Contact Information",
     "deliveryAddress": "Delivery Address",
     "paymentMethod": "Payment: Cash on Delivery",
-    "amountReady": "Please have ${amount} ready when your order arrives.",
+    "amountReady": "Please have {amount} ден. ready when your order arrives.",
     "continueShopping": "Continue Shopping",
     "loadingOrder": "Loading order details...",
     "orderNotFound": "Order not found",
@@ -151,7 +164,7 @@
     "products": "Products",
     "product": "Product",
     "category": "Category",
-    "price": "Price ($)",
+    "price": "Price (ден.)",
     "stock": "Stock",
     "featured": "Featured",
     "featuredProduct": "Featured Product",
@@ -190,7 +203,12 @@
     "onSale": "On Sale",
     "salePercentage": "Discount (%)",
     "salePrice": "Sale Price",
-    "salePriceAuto": "Auto-calculated from original price and discount percentage"
+    "salePriceAuto": "Auto-calculated from original price and discount percentage",
+    "visible": "Visible",
+    "visibleOnWebsite": "Visible on Website",
+    "hidden": "Hidden",
+    "productHidden": "Product is hidden from customers",
+    "productVisible": "Product is visible to customers"
   },
   "orders": {
     "title": "Orders",
@@ -347,6 +365,7 @@
     "syncing": "Syncing...",
     "productsInInventory": "Products in Inventory",
     "totalItemsInStock": "Total Items in Stock",
+    "totalItemsPurchasePriceInStock": "Total Items purchase price in Stock",
     "lastSyncResult": "Last Sync Result",
     "notSyncedYet": "Not synced yet",
     "synced": "synced",

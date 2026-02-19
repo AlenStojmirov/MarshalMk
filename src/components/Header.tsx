@@ -41,28 +41,28 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50">
       {/* Main Navigation */}
-      <nav className="bg-white shadow-sm">
+      <nav className="bg-white/95 backdrop-blur-sm border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-20">
             {/* Logo */}
             <Link href="/" className="flex-shrink-0">
               <Image
-                src="/Logo_black.png"
+                src="/logo_black.png"
                 alt={t('header.storeName')}
                 width={120}
                 height={40}
-                className="h-10 w-auto"
+                className="h-12 w-auto"
                 priority
               />
             </Link>
 
             {/* Desktop Navigation - Center */}
-            <div className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-gray-700 hover:text-black font-medium transition-colors">
+            <div className="hidden md:flex items-center gap-10">
+              <Link href="/" className="text-gray-900 hover:text-black text-sm uppercase tracking-[0.15em] font-medium transition-colors duration-200 hover:underline underline-offset-4 decoration-1">
                 {t('header.home')}
               </Link>
 
-              <Link href="/new" className="text-gray-700 hover:text-black font-medium transition-colors">
+              <Link href="/new" className="text-gray-900 hover:text-black text-sm uppercase tracking-[0.15em] font-medium transition-colors duration-200 hover:underline underline-offset-4 decoration-1">
                 {t('header.new')}
               </Link>
 
@@ -70,25 +70,28 @@ export default function Header() {
               <div className="relative" ref={categoriesDropdownRef}>
                 <button
                   onClick={() => setCategoriesDropdownOpen(!categoriesDropdownOpen)}
-                  className="flex items-center gap-1 text-gray-700 hover:text-black font-medium transition-colors"
+                  className="flex items-center gap-1 text-gray-900 hover:text-black text-sm uppercase tracking-[0.15em] font-medium transition-colors duration-200 hover:underline underline-offset-4 decoration-1"
                 >
                   {t('common.categories')}
                   <ChevronDown className={`h-4 w-4 transition-transform ${categoriesDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {categoriesDropdownOpen && (
-                  <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-2 z-50 max-h-80 overflow-y-auto">
-                    {categories.map((category) => (
-                      <Link
-                        key={category}
-                        href={`/mens/${encodeURIComponent(category.toLowerCase().replace(/\s+/g, '-'))}`}
-                        className="block px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
-                        onClick={() => setCategoriesDropdownOpen(false)}
-                      >
-                        {category}
-                      </Link>
-                    ))}
+                  <div className="absolute left-0 mt-4 w-52 bg-white shadow-md border border-gray-100 py-3 z-50 max-h-80 overflow-y-auto">
+                    {categories.map((category) => {
+                      const translated = t(`categoryNames.${category}`);
+                      return (
+                        <Link
+                          key={category}
+                          href={`/mens/${encodeURIComponent(category.toLowerCase().replace(/\s+/g, '-'))}`}
+                          className="block px-5 py-2.5 text-sm text-gray-700 hover:text-black hover:bg-gray-50/80 transition-colors duration-200"
+                          onClick={() => setCategoriesDropdownOpen(false)}
+                        >
+                          {translated.startsWith('categoryNames.') ? category : translated}
+                        </Link>
+                      );
+                    })}
                     {categories.length === 0 && (
-                      <span className="block px-4 py-2 text-gray-500 text-sm">
+                      <span className="block px-5 py-2.5 text-gray-400 text-sm">
                         {t('categories.noCategories')}
                       </span>
                     )}
@@ -96,13 +99,13 @@ export default function Header() {
                 )}
               </div>
 
-              <Link href="/sale" className="text-red-600 hover:text-red-700 font-bold transition-colors">
+              <Link href="/sale" className="text-red-600 hover:text-red-700 text-sm uppercase tracking-[0.15em] font-semibold transition-colors duration-200 hover:underline underline-offset-4 decoration-1">
                 {t('header.sale')}
               </Link>
 
               <Link
                 href="/track-order"
-                className="flex items-center gap-1 text-gray-700 hover:text-black font-medium transition-colors"
+                className="flex items-center gap-1 text-gray-900 hover:text-black text-sm uppercase tracking-[0.15em] font-medium transition-colors duration-200 hover:underline underline-offset-4 decoration-1"
               >
                 <Package className="h-5 w-5" />
                 {t('header.trackOrder')}
@@ -110,22 +113,22 @@ export default function Header() {
             </div>
 
             {/* Desktop Right Icons */}
-            <div className="hidden md:flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-5">
               {/* Language Switcher */}
               <div className="relative" ref={langMenuRef}>
                 <button
                   onClick={() => setLangMenuOpen(!langMenuOpen)}
-                  className="flex items-center gap-1 text-gray-600 hover:text-black transition-colors"
+                  className="flex items-center gap-1.5 text-gray-500 hover:text-black transition-colors duration-200"
                   title={t('header.switchLanguage')}
                 >
                   <Globe className="h-5 w-5" />
-                  <span className="text-sm font-medium uppercase">{language}</span>
+                  <span className="text-xs font-medium uppercase tracking-wider">{language}</span>
                 </button>
                 {langMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-32 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+                  <div className="absolute right-0 mt-3 w-36 bg-white shadow-md border border-gray-100 py-2 z-50">
                     <button
                       onClick={() => handleLanguageChange('en')}
-                      className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 ${
+                      className={`w-full px-5 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center gap-2.5 transition-colors duration-200 ${
                         language === 'en' ? 'bg-gray-100 text-black' : 'text-gray-700'
                       }`}
                     >
@@ -134,7 +137,7 @@ export default function Header() {
                     </button>
                     <button
                       onClick={() => handleLanguageChange('mk')}
-                      className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 ${
+                      className={`w-full px-5 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center gap-2.5 transition-colors duration-200 ${
                         language === 'mk' ? 'bg-gray-100 text-black' : 'text-gray-700'
                       }`}
                     >
@@ -147,7 +150,7 @@ export default function Header() {
 
               <Link
                 href="/cart"
-                className="relative flex items-center text-gray-600 hover:text-black transition-colors"
+                className="relative flex items-center text-gray-500 hover:text-black transition-colors duration-200"
                 title={t('common.cart')}
               >
                 <ShoppingCart className="h-6 w-6" />
@@ -163,14 +166,14 @@ export default function Header() {
             <div className="md:hidden flex items-center gap-3">
               <button
                 onClick={() => handleLanguageChange(language === 'en' ? 'mk' : 'en')}
-                className="text-gray-600 hover:text-black"
+                className="text-gray-500 hover:text-black transition-colors duration-200"
                 title={t('header.switchLanguage')}
               >
                 <Globe className="h-5 w-5" />
               </button>
               <Link
                 href="/cart"
-                className="relative text-gray-600 hover:text-black"
+                className="relative text-gray-500 hover:text-black transition-colors duration-200"
                 title={t('common.cart')}
               >
                 <ShoppingCart className="h-6 w-6" />
@@ -191,11 +194,11 @@ export default function Header() {
 
           {/* Mobile Navigation */}
           {mobileMenuOpen && (
-            <div className="md:hidden py-4 border-t">
-              <div className="flex flex-col gap-4">
+            <div className="md:hidden py-6 border-t border-gray-100">
+              <div className="flex flex-col gap-5">
                 <Link
                   href="/"
-                  className="text-gray-700 hover:text-black font-medium transition-colors"
+                  className="text-gray-900 hover:text-black text-sm uppercase tracking-[0.15em] font-medium transition-colors duration-200 hover:underline underline-offset-4 decoration-1"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {t('header.home')}
@@ -203,7 +206,7 @@ export default function Header() {
 
                 <Link
                   href="/new"
-                  className="text-gray-700 hover:text-black font-medium transition-colors"
+                  className="text-gray-900 hover:text-black text-sm uppercase tracking-[0.15em] font-medium transition-colors duration-200 hover:underline underline-offset-4 decoration-1"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {t('header.new')}
@@ -211,27 +214,30 @@ export default function Header() {
 
                 {/* Mobile Categories Section */}
                 <div className="flex flex-col gap-2">
-                  <span className="text-gray-700 font-medium">{t('common.categories')}</span>
-                  <div className="pl-4 flex flex-col gap-2">
-                    {categories.map((category) => (
-                      <Link
-                        key={category}
-                        href={`/mens/${encodeURIComponent(category.toLowerCase().replace(/\s+/g, '-'))}`}
-                        className="text-gray-600 hover:text-black transition-colors"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        {category}
-                      </Link>
-                    ))}
+                  <span className="text-gray-900 text-sm uppercase tracking-[0.15em] font-semibold">{t('common.categories')}</span>
+                  <div className="pl-4 flex flex-col gap-3">
+                    {categories.map((category) => {
+                      const translated = t(`categoryNames.${category}`);
+                      return (
+                        <Link
+                          key={category}
+                          href={`/mens/${encodeURIComponent(category.toLowerCase().replace(/\s+/g, '-'))}`}
+                          className="text-gray-600 hover:text-black text-sm tracking-wide transition-colors duration-200"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          {translated.startsWith('categoryNames.') ? category : translated}
+                        </Link>
+                      );
+                    })}
                     {categories.length === 0 && (
-                      <span className="text-gray-500 text-sm">{t('categories.noCategories')}</span>
+                      <span className="text-gray-400 text-xs tracking-wide">{t('categories.noCategories')}</span>
                     )}
                   </div>
                 </div>
 
                 <Link
                   href="/sale"
-                  className="text-red-600 hover:text-red-700 font-bold transition-colors"
+                  className="text-red-600 hover:text-red-700 text-sm uppercase tracking-[0.15em] font-semibold transition-colors duration-200 hover:underline underline-offset-4 decoration-1"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {t('header.sale')}
@@ -239,7 +245,7 @@ export default function Header() {
 
                 <Link
                   href="/track-order"
-                  className="flex items-center gap-2 text-gray-700 hover:text-black font-medium transition-colors"
+                  className="flex items-center gap-2 text-gray-900 hover:text-black text-sm uppercase tracking-[0.15em] font-medium transition-colors duration-200 hover:underline underline-offset-4 decoration-1"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Package className="h-5 w-5" />
@@ -252,7 +258,7 @@ export default function Header() {
       </nav>
 
       {/* Top Bar - Below Menu */}
-      <div className="bg-black text-white text-center py-2 text-sm font-medium">
+      <div className="bg-stone-900 text-white text-center py-2.5 text-xs uppercase tracking-[0.2em] font-light">
         {t('header.freeShippingBanner')}
       </div>
     </header>

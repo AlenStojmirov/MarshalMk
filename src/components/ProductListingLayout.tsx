@@ -123,8 +123,8 @@ export default function ProductListingLayout({
       {header}
 
       {totalCount > 0 && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <p className="text-gray-500">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <p className="text-stone-400 text-[13px] tracking-wide">
             {hasActiveFilters
               ? t('categoryPage.filterCount', {
                   filtered: totalCount.toString(),
@@ -145,16 +145,16 @@ export default function ProductListingLayout({
       {totalCount === 0 && !hasActiveFilters ? (
         emptyState || <ProductGrid products={[]} />
       ) : totalCount === 0 && hasActiveFilters ? (
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col lg:flex-row gap-10">
           <div className="hidden lg:block">
             <CategorySidebar {...sidebarProps} />
           </div>
           <div className="flex-1">
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">{t('categoryPage.noResults') || 'No products match your filters'}</p>
+            <div className="text-center py-16">
+              <p className="text-stone-400 text-sm tracking-wide">{t('categoryPage.noResults') || 'No products match your filters'}</p>
               <button
                 onClick={handleClearFilters}
-                className="mt-4 px-4 py-2 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                className="mt-4 px-4 py-2 text-[13px] text-stone-900 underline underline-offset-4 decoration-stone-300 hover:decoration-stone-900 transition-colors duration-200"
               >
                 {t('categoryPage.clearFilters')}
               </button>
@@ -162,20 +162,20 @@ export default function ProductListingLayout({
           </div>
         </div>
       ) : (
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col lg:flex-row gap-10">
           <div className="hidden lg:block">
             <CategorySidebar {...sidebarProps} />
           </div>
 
           <div className="lg:hidden">
             <button
-              className="w-full py-2 px-4 mb-4 bg-white border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              className="w-full py-3 mb-6 border border-stone-200 text-stone-700 text-[11px] uppercase tracking-[0.15em] hover:border-stone-400 transition-colors duration-200"
               onClick={() => setShowMobileFilters((prev) => !prev)}
             >
               {t('categoryPage.filters')}
             </button>
             {showMobileFilters && (
-              <div className="mb-4">
+              <div className="mb-6">
                 <CategorySidebar {...sidebarProps} />
               </div>
             )}
