@@ -224,9 +224,9 @@ export function useCategories() {
 
         const categorySet = new Set<string>();
         snapshot.docs.forEach(doc => {
-          const category = doc.data().category;
-          if (category) {
-            categorySet.add(category);
+          const data = doc.data();
+          if (data.category && data.isVisible !== false && data.stock > 0) {
+            categorySet.add(data.category);
           }
         });
 

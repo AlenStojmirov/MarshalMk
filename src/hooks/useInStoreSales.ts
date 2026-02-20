@@ -1,155 +1,70 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  collection,
-  getDocs,
-  addDoc,
-  query,
-  where,
-  orderBy,
-  Timestamp,
-  updateDoc,
-  doc,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { InStoreSale, InStoreSaleItem, Product } from '@/types';
+import { Product, SoldItem } from '@/types';
+import { updateProduct } from '@/hooks/useProducts';
 
-// Fetch all in-store sales
-export function useInStoreSales() {
-  const [sales, setSales] = useState<InStoreSale[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+// Aggregated sold item with product info (for display in sales views)
+export interface AggregatedSoldItem {
+  productId: string;
+  productName: string;
+  size: string;
+  price: number;
+  soldDate: string;
+}
 
-  const fetchSales = async () => {
-    try {
-      setLoading(true);
-      const salesRef = collection(db, 'inStoreSales');
-      const q = query(salesRef, orderBy('saleDate', 'desc'));
-      const snapshot = await getDocs(q);
+// Record a sale by updating the product's sold[], sizes[], and stock directly
+export async function recordProductSale(
+  product: Product,
+  size: string,
+  price: number,
+  soldDate?: string
+): Promise<void> {
+  const today = soldDate || formatDateKey(new Date());
 
-      const fetchedSales: InStoreSale[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        saleDate: doc.data().saleDate?.toDate() || new Date(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-      })) as InStoreSale[];
+  // Reduce quantity from selected size
+  const updatedSizes = product.sizes?.map(sz =>
+    sz.size === size
+      ? { ...sz, quantity: Math.max(0, sz.quantity - 1) }
+      : sz
+  ) || [];
 
-      setSales(fetchedSales);
-      setError(null);
-    } catch (err) {
-      setError('Failed to fetch sales');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  // Calculate new total stock
+  const newStock = updatedSizes.reduce((sum, sz) => sum + sz.quantity, 0);
+
+  // Add to sold list
+  const newSoldItem: SoldItem = {
+    size,
+    price,
+    soldDate: today,
   };
+  const updatedSold = [...(product.sold || []), newSoldItem];
 
-  useEffect(() => {
-    fetchSales();
-  }, []);
-
-  return { sales, loading, error, refetch: fetchSales };
+  await updateProduct(product.id, {
+    sizes: updatedSizes,
+    sold: updatedSold,
+    stock: newStock,
+  } as Partial<Product>);
 }
 
-// Fetch sales by date range
-export function useInStoreSalesByDate(startDate: Date, endDate: Date) {
-  const [sales, setSales] = useState<InStoreSale[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+// Aggregate all sold items from all products into a flat list
+export function getAllSoldItems(products: Product[]): AggregatedSoldItem[] {
+  const items: AggregatedSoldItem[] = [];
 
-  useEffect(() => {
-    const fetchSales = async () => {
-      try {
-        setLoading(true);
-        const salesRef = collection(db, 'inStoreSales');
-
-        // Set start of day and end of day for proper range
-        const startOfDay = new Date(startDate);
-        startOfDay.setHours(0, 0, 0, 0);
-
-        const endOfDay = new Date(endDate);
-        endOfDay.setHours(23, 59, 59, 999);
-
-        const q = query(
-          salesRef,
-          where('saleDate', '>=', Timestamp.fromDate(startOfDay)),
-          where('saleDate', '<=', Timestamp.fromDate(endOfDay)),
-          orderBy('saleDate', 'desc')
-        );
-        const snapshot = await getDocs(q);
-
-        const fetchedSales: InStoreSale[] = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          saleDate: doc.data().saleDate?.toDate() || new Date(),
-          createdAt: doc.data().createdAt?.toDate() || new Date(),
-        })) as InStoreSale[];
-
-        setSales(fetchedSales);
-        setError(null);
-      } catch (err) {
-        setError('Failed to fetch sales by date');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSales();
-  }, [startDate.getTime(), endDate.getTime()]);
-
-  return { sales, loading, error };
-}
-
-// Create a new in-store sale
-export async function createInStoreSale(
-  items: InStoreSaleItem[],
-  saleDate: Date,
-  notes?: string
-): Promise<string> {
-  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-  const saleData = {
-    items,
-    total,
-    saleDate: Timestamp.fromDate(saleDate),
-    notes: notes || '',
-    createdAt: Timestamp.now(),
-  };
-
-  const salesRef = collection(db, 'inStoreSales');
-  const docRef = await addDoc(salesRef, saleData);
-  return docRef.id;
-}
-
-// Deduct stock after recording an in-store sale
-export async function deductStockForSale(items: InStoreSaleItem[]): Promise<void> {
-  for (const item of items) {
-    const productRef = doc(db, 'products', item.productId);
-    const productDoc = await getDocs(query(collection(db, 'products'), where('__name__', '==', item.productId)));
-
-    if (!productDoc.empty) {
-      const product = productDoc.docs[0].data() as Product;
-      const newStock = Math.max(0, product.stock - item.quantity);
-
-      // If product has sizes, update size quantity
-      let updatedSizes = product.sizes;
-      if (item.size && product.sizes) {
-        updatedSizes = product.sizes.map(s =>
-          s.size === item.size
-            ? { ...s, quantity: Math.max(0, s.quantity - item.quantity) }
-            : s
-        );
-      }
-
-      await updateDoc(productRef, {
-        stock: newStock,
-        ...(updatedSizes && { sizes: updatedSizes }),
-        updatedAt: Timestamp.now(),
+  products.forEach(product => {
+    if (product.sold && product.sold.length > 0) {
+      product.sold.forEach(item => {
+        items.push({
+          productId: product.id,
+          productName: product.name,
+          size: item.size,
+          price: item.price,
+          soldDate: item.soldDate,
+        });
       });
     }
-  }
+  });
+
+  return items;
 }
 
 // Format date to YYYY-MM-DD in local timezone
@@ -160,37 +75,33 @@ export function formatDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-// Get sales grouped by date for reporting
-export function groupSalesByDate(sales: InStoreSale[]): Map<string, InStoreSale[]> {
-  const grouped = new Map<string, InStoreSale[]>();
+// Get sold items grouped by date
+export function groupSoldItemsByDate(items: AggregatedSoldItem[]): Map<string, AggregatedSoldItem[]> {
+  const grouped = new Map<string, AggregatedSoldItem[]>();
 
-  console.log(sales, "here ?");
-  sales.forEach(sale => {
-    const dateKey = formatDateKey(sale.saleDate);
-    const existing = grouped.get(dateKey) || [];
-    grouped.set(dateKey, [...existing, sale]);
+  items.forEach(item => {
+    const existing = grouped.get(item.soldDate) || [];
+    grouped.set(item.soldDate, [...existing, item]);
   });
 
   return grouped;
 }
 
-// Calculate totals for a date
-export function calculateDailyTotal(sales: InStoreSale[]): number {
-  return sales.reduce((sum, sale) => sum + sale.total, 0);
+// Calculate total revenue for a list of sold items
+export function calculateDailyTotal(items: AggregatedSoldItem[]): number {
+  return items.reduce((sum, item) => sum + item.price, 0);
 }
 
-// Get all unique products sold on a date
-export function getProductsSoldOnDate(sales: InStoreSale[]): Map<string, { name: string; quantity: number; revenue: number }> {
+// Get unique products sold summary
+export function getProductsSoldOnDate(items: AggregatedSoldItem[]): Map<string, { name: string; quantity: number; revenue: number }> {
   const products = new Map<string, { name: string; quantity: number; revenue: number }>();
 
-  sales.forEach(sale => {
-    sale.items.forEach(item => {
-      const existing = products.get(item.productId) || { name: item.productName, quantity: 0, revenue: 0 };
-      products.set(item.productId, {
-        name: item.productName,
-        quantity: existing.quantity + item.quantity,
-        revenue: existing.revenue + (item.price * item.quantity),
-      });
+  items.forEach(item => {
+    const existing = products.get(item.productId) || { name: item.productName, quantity: 0, revenue: 0 };
+    products.set(item.productId, {
+      name: item.productName,
+      quantity: existing.quantity + 1,
+      revenue: existing.revenue + item.price,
     });
   });
 

@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MyStore - E-commerce",
+  title: "Marshal - Men's wear",
   description: "Shop the best products at great prices",
 };
 

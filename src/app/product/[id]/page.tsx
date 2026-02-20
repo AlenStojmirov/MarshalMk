@@ -199,7 +199,7 @@ export default function ProductPage({ params }: ProductPageProps) {
             
             {/* Category */}
             <p className="text-[11px] uppercase tracking-[0.2em] text-stone-400 mb-3">
-              {product.category}
+              {t('categoryNames.' + product.category)}
             </p>
 
             {/* Brand */}

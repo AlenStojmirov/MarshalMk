@@ -4,14 +4,13 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import {
-  useInStoreSales,
-  createInStoreSale,
-  deductStockForSale,
-  groupSalesByDate,
+  recordProductSale,
+  getAllSoldItems,
+  groupSoldItemsByDate,
   calculateDailyTotal,
   getProductsSoldOnDate,
 } from '@/hooks/useInStoreSales';
-import { InStoreSaleItem, Product } from '@/types';
+import { Product } from '@/types';
 import {
   ArrowLeft,
   Plus,
@@ -28,19 +27,25 @@ import {
 import Link from 'next/link';
 import { useTranslation } from '@/lib/i18n';
 
+interface SaleCartItem {
+  product: Product;
+  size: string;
+  price: number;
+  quantity: number;
+}
+
 function RecordSaleModal({
   products,
   onSave,
   onCancel,
 }: {
   products: Product[];
-  onSave: (items: InStoreSaleItem[], saleDate: Date, notes: string) => Promise<void>;
+  onSave: (items: SaleCartItem[], saleDate: string) => Promise<void>;
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
-  const [items, setItems] = useState<InStoreSaleItem[]>([]);
+  const [items, setItems] = useState<SaleCartItem[]>([]);
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
-  const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showProductPicker, setShowProductPicker] = useState(false);
@@ -55,7 +60,7 @@ function RecordSaleModal({
 
   const addProduct = (product: Product, size?: string) => {
     const existingIndex = items.findIndex(
-      item => item.productId === product.id && item.size === size
+      item => item.product.id === product.id && item.size === (size || '')
     );
 
     if (existingIndex >= 0) {
@@ -66,11 +71,10 @@ function RecordSaleModal({
       setItems([
         ...items,
         {
-          productId: product.id,
-          productName: product.name,
+          product,
+          size: size || '',
           price: product.price,
           quantity: 1,
-          size,
         },
       ]);
     }
@@ -99,7 +103,7 @@ function RecordSaleModal({
     }
     setSaving(true);
     try {
-      await onSave(items, new Date(saleDate), notes);
+      await onSave(items, saleDate);
     } finally {
       setSaving(false);
     }
@@ -216,12 +220,12 @@ function RecordSaleModal({
               <div className="space-y-2">
                 {items.map((item, index) => (
                   <div
-                    key={`${item.productId}-${item.size || 'nosize'}`}
+                    key={`${item.product.id}-${item.size || 'nosize'}`}
                     className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
                   >
                     <div className="flex-1">
                       <div className="font-medium text-gray-900">
-                        {item.productName}
+                        {item.product.name}
                         {item.size && (
                           <span className="ml-2 text-sm text-gray-500">({item.size})</span>
                         )}
@@ -267,20 +271,6 @@ function RecordSaleModal({
             )}
           </div>
 
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('inStoreSales.notes')}
-            </label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={2}
-              placeholder={t('inStoreSales.notesPlaceholder')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button
               type="button"
@@ -306,24 +296,41 @@ function RecordSaleModal({
 
 function SalesByDateView() {
   const { t } = useTranslation();
-  const { products } = useProducts();
-  const { sales, loading, refetch } = useInStoreSales();
+  const { products, loading, refetch } = useProducts();
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState('');
 
-  const groupedSales = useMemo(() => groupSalesByDate(sales), [sales]);
+  // Aggregate sold items from all products
+  const allSoldItems = useMemo(() => getAllSoldItems(products), [products]);
+  const groupedSales = useMemo(() => groupSoldItemsByDate(allSoldItems), [allSoldItems]);
 
   const filteredDates = useMemo(() => {
     const dates = Array.from(groupedSales.keys()).sort((a, b) => b.localeCompare(a));
     if (!filterDate) return dates;
-    // Exact match for the selected date
     return dates.filter(date => date === filterDate);
   }, [groupedSales, filterDate]);
 
-  const handleRecordSale = async (items: InStoreSaleItem[], saleDate: Date, notes: string) => {
-    await createInStoreSale(items, saleDate, notes);
-    await deductStockForSale(items);
+  const handleRecordSale = async (items: SaleCartItem[], saleDate: string) => {
+    // For each item, call recordProductSale once per quantity unit
+    for (const item of items) {
+      for (let i = 0; i < item.quantity; i++) {
+        await recordProductSale(item.product, item.size, item.price, saleDate);
+        // Update the product reference for subsequent calls (stock/sizes changed)
+        if (i < item.quantity - 1) {
+          item.product = {
+            ...item.product,
+            sizes: item.product.sizes?.map(sz =>
+              sz.size === item.size
+                ? { ...sz, quantity: Math.max(0, sz.quantity - 1) }
+                : sz
+            ),
+            sold: [...(item.product.sold || []), { size: item.size, price: item.price, soldDate: saleDate }],
+            stock: Math.max(0, item.product.stock - 1),
+          };
+        }
+      }
+    }
     setShowRecordModal(false);
     refetch();
   };
@@ -402,9 +409,9 @@ function SalesByDateView() {
       ) : (
         <div className="space-y-4">
           {filteredDates.map(dateKey => {
-            const dateSales = groupedSales.get(dateKey) || [];
-            const dailyTotal = calculateDailyTotal(dateSales);
-            const productsSold = getProductsSoldOnDate(dateSales);
+            const dateItems = groupedSales.get(dateKey) || [];
+            const dailyTotal = calculateDailyTotal(dateItems);
+            const productsSold = getProductsSoldOnDate(dateItems);
             const isExpanded = selectedDate === dateKey;
 
             return (
@@ -421,7 +428,7 @@ function SalesByDateView() {
                     <div className="text-left min-w-0">
                       <h3 className="font-bold text-gray-900 text-sm sm:text-base truncate">{formatDate(dateKey)}</h3>
                       <p className="text-xs sm:text-sm text-gray-500">
-                        {dateSales.length} {t('inStoreSales.transactions')} | {productsSold.size} {t('inStoreSales.uniqueProducts')}
+                        {dateItems.length} {t('inStoreSales.sold')} | {productsSold.size} {t('inStoreSales.uniqueProducts')}
                       </p>
                     </div>
                   </div>
@@ -460,40 +467,22 @@ function SalesByDateView() {
                       </div>
                     </div>
 
-                    {/* Individual Transactions */}
+                    {/* Individual Items */}
                     <div className="p-3 sm:p-4">
                       <h4 className="font-medium text-gray-700 mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
                         <DollarSign className="h-4 w-4" />
-                        {t('inStoreSales.transactions')}
+                        {t('inStoreSales.sold')}
                       </h4>
-                      <div className="space-y-2 sm:space-y-3">
-                        {dateSales.map(sale => (
-                          <div key={sale.id} className="border border-gray-200 rounded-lg p-2 sm:p-3">
-                            <div className="flex justify-between items-start mb-2">
-                              <p className="text-xs sm:text-sm text-gray-500">
-                                {sale.saleDate.toLocaleTimeString(undefined, {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </p>
-                              <p className="font-bold text-gray-900 text-sm sm:text-base">{sale.total.toFixed(2)} ден.</p>
-                            </div>
-                            <div className="space-y-1">
-                              {sale.items.map((item, idx) => (
-                                <div key={idx} className="flex justify-between text-xs sm:text-sm">
-                                  <span className="text-gray-600 truncate mr-2">
-                                    {item.quantity}x {item.productName}
-                                    {item.size && ` (${item.size})`}
-                                  </span>
-                                  <span className="text-gray-900 shrink-0">
-                                    {(item.price * item.quantity).toFixed(2)} ден.
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                            {sale.notes && (
-                              <p className="mt-2 text-xs sm:text-sm text-gray-500 italic">{sale.notes}</p>
-                            )}
+                      <div className="space-y-2">
+                        {dateItems.map((item, idx) => (
+                          <div key={idx} className="flex justify-between text-xs sm:text-sm border border-gray-200 rounded-lg p-2 sm:p-3">
+                            <span className="text-gray-600 truncate mr-2">
+                              {item.productName}
+                              {item.size && ` (${item.size})`}
+                            </span>
+                            <span className="text-gray-900 shrink-0 font-medium">
+                              {item.price.toFixed(2)} ден.
+                            </span>
                           </div>
                         ))}
                       </div>

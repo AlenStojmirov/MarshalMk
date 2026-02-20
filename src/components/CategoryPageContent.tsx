@@ -29,16 +29,12 @@ export default function CategoryPageContent({
                   {t('header.home')}
                 </Link>
                 <ChevronRight className="h-4 w-4" />
-                <Link href="/mens" className="hover:text-gray-900 transition-colors">
-                  {t('header.mens')}
-                </Link>
-                <ChevronRight className="h-4 w-4" />
-                <span className="text-gray-900 font-medium">{categoryName}</span>
+                <span className="text-gray-900 font-medium">{t('categoryNames.'+ categoryName)}</span>
               </nav>
 
               <div className="mb-8">
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-                  {categoryName}
+                  {t('categoryNames.'+ categoryName)}
                 </h1>
               </div>
             </>

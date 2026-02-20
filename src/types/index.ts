@@ -88,24 +88,6 @@ export interface Order {
   updatedAt: Date;
 }
 
-// In-store sales (products sold directly in store, not online)
-export interface InStoreSaleItem {
-  productId: string;
-  productName: string;
-  price: number;
-  quantity: number;
-  size?: string;
-}
-
-export interface InStoreSale {
-  id: string;
-  items: InStoreSaleItem[];
-  total: number;
-  saleDate: Date;
-  notes?: string;
-  createdAt: Date;
-}
-
 export interface PaginatedResult {
   products: Product[];
   totalCount: number;

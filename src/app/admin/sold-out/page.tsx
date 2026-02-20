@@ -181,62 +181,70 @@ function SoldOutView() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {filteredProducts.map(product => (
-            <Link
-              key={product.id}
-              href={`/admin/product/${product.id}`}
-              className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-            >
-              <div className="p-3 sm:p-4">
-                <div className="flex items-start gap-2 sm:gap-3">
-                  {product.imageUrl ? (
-                    <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                      <Image
-                        src={product.imageUrl}
-                        alt={product.name}
-                        fill
-                        className="object-cover"
-                        sizes="64px"
-                      />
+          {filteredProducts.map(product => {
+            // Check if imageUrl is a valid URL
+            const isValidImageUrl = product.imageUrl && (
+              product.imageUrl.startsWith('http://') ||
+              product.imageUrl.startsWith('https://') ||
+              product.imageUrl.startsWith('/')
+            );
+            return (
+              <Link
+                key={product.id}
+                href={`/admin/product/${product.id}`}
+                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+              >
+                <div className="p-3 sm:p-4">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    {isValidImageUrl ? (
+                      <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                        <Image
+                          src={product.imageUrl}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
+                          sizes="64px"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                        <Package className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-gray-900 truncate text-sm sm:text-base">{product.name}</h3>
+                      <p className="text-xs sm:text-sm text-gray-500 truncate">{product.brand} | {product.category}</p>
+                      <p className="font-bold text-gray-900 mt-1 text-sm sm:text-base">{product.price.toFixed(2)} ден.</p>
                     </div>
-                  ) : (
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                      <Package className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
+                  </div>
+
+                  {/* Sizes */}
+                  {product.sizes && product.sizes.length > 0 && (
+                    <div className="mt-2 sm:mt-3 flex flex-wrap gap-1">
+                      {product.sizes.map(sz => (
+                        <span
+                          key={sz.size}
+                          className="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs rounded bg-red-100 text-red-700"
+                        >
+                          {sz.size}: 0
+                        </span>
+                      ))}
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-900 truncate text-sm sm:text-base">{product.name}</h3>
-                    <p className="text-xs sm:text-sm text-gray-500 truncate">{product.brand} | {product.category}</p>
-                    <p className="font-bold text-gray-900 mt-1 text-sm sm:text-base">{product.price.toFixed(2)} ден.</p>
+
+                  <div className="mt-2 sm:mt-3 flex items-center justify-between">
+                    <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      {t('soldOut.outOfStock')}
+                    </span>
+                    <span className="text-xs sm:text-sm text-blue-600 font-medium">
+                      {t('soldOut.viewDetails')} &rarr;
+                    </span>
                   </div>
                 </div>
-
-                {/* Sizes */}
-                {product.sizes && product.sizes.length > 0 && (
-                  <div className="mt-2 sm:mt-3 flex flex-wrap gap-1">
-                    {product.sizes.map(sz => (
-                      <span
-                        key={sz.size}
-                        className="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs rounded bg-red-100 text-red-700"
-                      >
-                        {sz.size}: 0
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="mt-2 sm:mt-3 flex items-center justify-between">
-                  <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    {t('soldOut.outOfStock')}
-                  </span>
-                  <span className="text-xs sm:text-sm text-blue-600 font-medium">
-                    {t('soldOut.viewDetails')} &rarr;
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            )
+          })}
         </div>
       )}
     </div>

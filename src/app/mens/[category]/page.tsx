@@ -20,15 +20,15 @@ async function CategoryPageLoader({ params, searchParams }: CategoryPageProps) {
   });
 
   // Resolve display name from slug
-  const categoryName = slug
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  // const categoryName = slug
+  //   .split('-')
+  //   .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+  //   .join(' ');
 
   return (
     <CategoryPageContent
       paginatedData={paginatedData}
-      categoryName={categoryName}
+      categoryName={category}
     />
   );
 }
