@@ -122,7 +122,7 @@ async function main() {
 
     const label = getCategoryLabel(category);
     const padded = String(seq).padStart(3, '0');
-    const newName = `${label} - #${brandCode}${padded}`;
+    const newName = `#${brandCode}${padded}`;
 
     renames.push({
       docId: docSnapshot.id,

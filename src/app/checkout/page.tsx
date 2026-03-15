@@ -348,36 +348,43 @@ export default function CheckoutPage() {
               </h2>
 
               {/* Order Items */}
-              <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
-                {items.map((item, index) => (
-                  <div key={`${item.product.id}-${item.selectedSize || index}`} className="flex gap-3">
-                    <div className="relative h-16 w-16 flex-shrink-0">
-                      <Image
-                        src={item.product.imageUrl || '/placeholder.png'}
-                        alt={item.product.name}
-                        fill
-                        className="object-cover rounded-md"
-                      />
-                      <span className="absolute -top-2 -right-2 bg-gray-700 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                        {item.quantity}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {item.product.name}
+              <div className="mb-6 max-h-72 overflow-y-auto -mx-1 px-1 scrollbar-thin">
+                <div className="divide-y divide-gray-100">
+                  {items.map((item, index) => (
+                    <div key={`${item.product.id}-${item.selectedSize || index}`} className="flex gap-3 py-3 first:pt-0 last:pb-0">
+                      <div className="relative h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0">
+                        <Image
+                          src={item.product.imageUrl || '/placeholder.png'}
+                          alt={item.product.name}
+                          fill
+                          className="object-cover rounded-lg ring-1 ring-gray-100"
+                        />
+                        <span className="absolute -top-1.5 -right-1.5 bg-gray-800 text-white text-[10px] font-medium rounded-full h-5 w-5 flex items-center justify-center shadow-sm">
+                          {item.quantity}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0 flex flex-col justify-center">
+                        <p className="text-sm font-medium text-gray-900 truncate leading-snug">
+                          {item.product.name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {item.selectedSize && (
+                            <span className="text-xs text-gray-400">{t('cart.size')}: {item.selectedSize}</span>
+                          )}
+                          {item.selectedSize && (
+                            <span className="text-gray-200">·</span>
+                          )}
+                          <span className="text-xs text-gray-400">
+                            {item.product.price.toFixed(2)} ден. {t('checkout.each')}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 tabular-nums self-center whitespace-nowrap">
+                        {(item.product.price * item.quantity).toFixed(2)} ден.
                       </p>
-                      {item.selectedSize && (
-                        <p className="text-xs text-gray-500">{t('cart.size')}: {item.selectedSize}</p>
-                      )}
-                      <p className="text-sm text-gray-500">
-                        {item.product.price.toFixed(2)} ден. {t('checkout.each')}
-                      </p>
                     </div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {(item.product.price * item.quantity).toFixed(2)} ден.
-                    </p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
               <hr className="mb-4" />

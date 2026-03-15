@@ -20,7 +20,7 @@ function RelatedProducts({ category, excludeId }: { category: string; excludeId:
   const { t } = useTranslation();
 
   const relatedProducts = useMemo(
-    () => products.filter((p) => p.id !== excludeId),
+    () => products.filter((p) => p.id !== excludeId && p.isVisible !== false).slice(0, 4),
     [products, excludeId]
   );
 
@@ -127,15 +127,6 @@ export default function ProductPage({ params }: ProductPageProps) {
   return (
     <div className="bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-16">
-        {/* Back Navigation */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-stone-400 hover:text-stone-900 transition-colors duration-200 mb-8 md:mb-14 text-sm tracking-wide"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t('product.backToProducts')}
-        </Link>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-20">
           {/* ─── Left Column: Product Images ─── */}
           <ProductImageGallery
@@ -148,6 +139,14 @@ export default function ProductPage({ params }: ProductPageProps) {
 
           {/* ─── Right Column: Product Information ─── */}
           <div className="flex flex-col py-0 lg:py-4 lg:sticky lg:top-8 lg:self-start">
+            {/* Back Navigation */}
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 text-stone-400 hover:text-stone-900 transition-colors duration-200 mb-6 text-sm tracking-wide"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {t('product.backToProducts')}
+            </Link>
             {/* Product Name */}
             <h1 className="text-2xl md:text-3xl font-light text-stone-900 leading-tight mb-4">
               {getProductDisplayName(product.name, product.category, product.brand)}
@@ -310,6 +309,19 @@ export default function ProductPage({ params }: ProductPageProps) {
                 ? t('product.selectSize')
                 : t('common.addToCart')}
             </button>
+
+            {/* ─── Ask on Instagram ─── */}
+            <a
+              href="https://ig.me/m/marshalonlinemk"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2.5 py-4 mt-3 text-xs uppercase tracking-[0.2em] border border-stone-300 text-stone-700 hover:bg-stone-50 transition-colors duration-200"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+              </svg>
+              {t('product.askOnInstagram')}
+            </a>
           </div>
         </div>
       </div>

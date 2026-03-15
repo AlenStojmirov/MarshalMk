@@ -55,7 +55,7 @@
     "clearCart": "Clear Cart",
     "orderSummary": "Order Summary",
     "items": "Items",
-    "freeShipping": "Free shipping on all orders. Pay on delivery.",
+    "freeShipping": "Pay on delivery.",
     "proceedToCheckout": "Proceed to Checkout",
     "size": "Size",
     "removeItem": "Remove item"
@@ -73,7 +73,8 @@
     "notFound": "Product not found",
     "notFoundDescription": "The product you're looking for doesn't exist or has been removed.",
     "returnHome": "Return to Home",
-    "relatedProducts": "Related Products"
+    "relatedProducts": "Related Products",
+    "askOnInstagram": "Ask about this on Instagram"
   },
   "categories": {
     "title": "Categories",

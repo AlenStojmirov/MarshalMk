@@ -16,7 +16,7 @@ export default function NewPageContent({ paginatedData }: NewPageContentProps) {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative w-full bg-stone-100">
+      {/* <section className="relative w-full bg-stone-100">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-20 md:py-28 lg:py-36">
           <p className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-stone-400 mb-5">
             New Season
@@ -34,7 +34,7 @@ export default function NewPageContent({ paginatedData }: NewPageContentProps) {
             Shop Now
           </a>
         </div>
-      </section>
+      </section> */}
 
       {/* Products Section */}
       <div id="products" className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-16 md:py-20">

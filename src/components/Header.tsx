@@ -82,7 +82,7 @@ export default function Header() {
                       return (
                         <Link
                           key={category}
-                          href={`/mens/${encodeURIComponent(category.toLowerCase().replace(/\s+/g, '-'))}`}
+                          href={`/mens/${encodeURIComponent(category)}`}
                           className="block px-5 py-2.5 text-sm text-gray-700 hover:text-black hover:bg-gray-50/80 transition-colors duration-200"
                           onClick={() => setCategoriesDropdownOpen(false)}
                         >
