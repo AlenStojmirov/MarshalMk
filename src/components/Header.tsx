@@ -221,7 +221,7 @@ export default function Header() {
                       return (
                         <Link
                           key={category}
-                          href={`/mens/${encodeURIComponent(category.toLowerCase().replace(/\s+/g, '-'))}`}
+                          href={`/mens/${encodeURIComponent(category)}`}
                           className="text-gray-600 hover:text-black text-sm tracking-wide transition-colors duration-200"
                           onClick={() => setMobileMenuOpen(false)}
                         >

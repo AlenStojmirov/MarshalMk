@@ -315,6 +315,15 @@ export default function ProductPage({ params }: ProductPageProps) {
               href="https://ig.me/m/marshalonlinemk"
               target="_blank"
               rel="noopener noreferrer"
+              onClick={(e) => {
+                if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                  e.preventDefault();
+                  window.location.href = 'instagram://user?username=marshalonlinemk';
+                  setTimeout(() => {
+                    window.open('https://ig.me/m/marshalonlinemk', '_blank');
+                  }, 500);
+                }
+              }}
               className="w-full flex items-center justify-center gap-2.5 py-4 mt-3 text-xs uppercase tracking-[0.2em] border border-stone-300 text-stone-700 hover:bg-stone-50 transition-colors duration-200"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
