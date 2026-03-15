@@ -82,7 +82,8 @@
   },
   "categoryNames": {
     "vaucer": "Ваучер",
-    "dukser": "Дуксер",
+    "hoodies": "Дуксер",
+    "tShirts": "Маици",
     "shirts": "Кошули",
     "pants": "Панталони",
     "jackets": "Јакни",
@@ -90,7 +91,20 @@
     "accessories": "Додатоци",
     "jeans": "Фармерки",
     "shortsJeans": "Шорцеви",
-    "costume": "Одела"
+    "suits": "Одела",
+    "cardigans": "Кардигани",
+    "blazers": "Блејзери",
+    "polos": "Поло маици",
+    "oversizeTshirts": "Oversize маици",
+    "blouses": "Блузи",
+    "vests": "Елек",
+    "coats": "Капути",
+    "turtleNecks" : "Ролки",
+    "suitJackets": "Сако",
+    "halfZips": "Полу Зипери",
+    "fullZips": "Зипери",
+    "shortSleevedShirt": "Кошула со кратки ракави",
+    "cargoTrousers": "Карго панталони"
   },
   "categoryPage": {
     "filters": "Филтри",

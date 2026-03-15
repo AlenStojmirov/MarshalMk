@@ -8,6 +8,7 @@ import { ArrowLeft, Truck, CreditCard, Loader2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { CustomerInfo, OrderItem } from '@/types';
 import { useTranslation } from '@/lib/i18n';
+import { getShippingLabel } from '@/config/shipping';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -391,7 +392,7 @@ export default function CheckoutPage() {
                     <Truck className="h-4 w-4" />
                     {t('common.shipping')}
                   </span>
-                  <span className="text-green-600">{t('common.free')}</span>
+                  <span className="text-green-600">{getShippingLabel(totalPrice, t('common.free'))}</span>
                 </div>
                 <hr />
                 <div className="flex justify-between text-lg font-bold text-gray-900">

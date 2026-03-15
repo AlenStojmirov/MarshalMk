@@ -5,6 +5,7 @@ import { ArrowLeft, ShoppingBag, Trash2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import CartItemComponent from '@/components/CartItem';
 import { useTranslation } from '@/lib/i18n';
+import { getShippingLabel } from '@/config/shipping';
 
 export default function CartPage() {
   const { items, totalItems, totalPrice, clearCart } = useCart();
@@ -65,7 +66,7 @@ export default function CartPage() {
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>{t('common.shipping')}</span>
-                <span className="text-green-600">{t('common.free')}</span>
+                <span className="text-green-600">{getShippingLabel(totalPrice, t('common.free'))}</span>
               </div>
               <hr />
               <div className="flex justify-between text-lg font-bold text-gray-900">

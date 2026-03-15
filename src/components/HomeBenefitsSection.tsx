@@ -1,5 +1,6 @@
 import { Truck, Headphones, ShieldCheck, Shirt } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { SHIPPING_CONFIG } from '@/config/shipping';
 
 interface Benefit {
   icon: LucideIcon;
@@ -16,7 +17,7 @@ const benefits: Benefit[] = [
   {
     icon: Truck,
     title: 'БЕСПЛАТНА ИСПОРАКА',
-    description: 'Бесплатна испорака за нарачка над 2500 ден',
+    description: `Бесплатна испорака за нарачка над ${SHIPPING_CONFIG.freeShippingThreshold} ден`,
   },
   {
     icon: Headphones,

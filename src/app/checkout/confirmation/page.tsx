@@ -8,6 +8,7 @@ import { CheckCircle, Package, Truck, Phone, Mail, MapPin } from 'lucide-react';
 import { getOrderByNumber } from '@/lib/orders';
 import { Order } from '@/types';
 import { useTranslation } from '@/lib/i18n';
+import { getShippingLabel } from '@/config/shipping';
 
 function ConfirmationContent() {
   const searchParams = useSearchParams();
@@ -132,11 +133,11 @@ function ConfirmationContent() {
           <div className="space-y-2">
             <div className="flex justify-between text-gray-600">
               <span>{t('common.subtotal')}</span>
-              <span>{order.subtotal.toFixed(2)} ден.</span>
+              <span>{order.subtotal.toFixed(2)} </span>
             </div>
             <div className="flex justify-between text-gray-600">
               <span>{t('common.shipping')}</span>
-              <span className="text-green-600">{t('common.free')}</span>
+              <span className="text-green-600">{getShippingLabel(order.total, t('common.free'))}</span>
             </div>
             <hr className="my-2" />
             <div className="flex justify-between text-lg font-bold text-gray-900">

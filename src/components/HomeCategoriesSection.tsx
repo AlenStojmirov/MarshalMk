@@ -4,17 +4,17 @@ import MobileCarousel from './MobileCarousel';
 const categories = [
   {
     title: 'Поло Маици',
-    href: '/mens/majca',
+    href: '/mens/polos',
     imageSrc: '/images/products/x2denim-1757282400-5-1.png',
   },
   {
     title: 'Јакни',
-    href: '/mens/palto',
+    href: '/mens/jackets',
     imageSrc: '/images/products/dynamo-1768608000-3-1.png',
   },
   {
     title: 'Блузи',
-    href: '/mens/bluza',
+    href: '/mens/blouses',
     imageSrc: '/images/products/dynamo-1768608000-5-1.png',
   }
 ];

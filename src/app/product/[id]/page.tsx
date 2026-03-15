@@ -1,14 +1,15 @@
 'use client';
 
 import { use, useMemo } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Minus, Plus, ShoppingCart } from 'lucide-react';
 import { useProduct, useProductsByCategory } from '@/hooks/useProducts';
 import { useCart } from '@/context/CartContext';
+import { getProductDisplayName } from '@/lib/product-display';
 import { useState } from 'react';
 import { useTranslation } from '@/lib/i18n';
 import ProductGrid from '@/components/ProductGrid';
+import ProductImageGallery from '@/components/ProductImageGallery';
 
 interface ProductPageProps {
   params: Promise<{ id: string }>;
@@ -44,7 +45,6 @@ export default function ProductPage({ params }: ProductPageProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [addedToCart, setAddedToCart] = useState(false);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const { t } = useTranslation();
 
   const hasSizes = product?.sizes && product.sizes.length > 0;
@@ -124,8 +124,6 @@ export default function ProductPage({ params }: ProductPageProps) {
     );
   }
 
-  const currentImage = allImages[selectedImageIndex] || product.imageUrl;
-
   return (
     <div className="bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-16">
@@ -140,61 +138,19 @@ export default function ProductPage({ params }: ProductPageProps) {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-20">
           {/* ─── Left Column: Product Images ─── */}
-          <div>
-            {/* Main Image */}
-            <div className="relative aspect-[3/4] bg-stone-50 overflow-hidden">
-              {currentImage ? (
-                <Image
-                  src={currentImage}
-                  alt={product.name}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-stone-300 text-sm">
-                  {t('common.noImage')}
-                </div>
-              )}
-              {product.featured && (
-                <span className="absolute top-5 left-5 bg-stone-900 text-white text-[10px] uppercase tracking-[0.15em] px-3 py-1.5">
-                  {t('common.featured')}
-                </span>
-              )}
-            </div>
-
-            {/* Thumbnail Gallery */}
-            {allImages.length > 1 && (
-              <div className="flex gap-3 mt-3">
-                {allImages.map((img, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImageIndex(index)}
-                    className={`relative w-16 h-20 sm:w-20 sm:h-24 flex-shrink-0 overflow-hidden transition-all duration-200 ${
-                      selectedImageIndex === index
-                        ? 'ring-1 ring-stone-900 ring-offset-2'
-                        : 'opacity-60 hover:opacity-100'
-                    }`}
-                  >
-                    <Image
-                      src={img}
-                      alt={`${product.name} - ${index + 1}`}
-                      fill
-                      className="object-cover"
-                      sizes="80px"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <ProductImageGallery
+            images={allImages}
+            alt={getProductDisplayName(product.name, product.category, product.brand)}
+            featured={product.featured}
+            featuredLabel={t('common.featured')}
+            noImageLabel={t('common.noImage')}
+          />
 
           {/* ─── Right Column: Product Information ─── */}
-          <div className="flex flex-col py-0 lg:py-4">
+          <div className="flex flex-col py-0 lg:py-4 lg:sticky lg:top-8 lg:self-start">
             {/* Product Name */}
             <h1 className="text-2xl md:text-3xl font-light text-stone-900 leading-tight mb-4">
-              {product.name}
+              {getProductDisplayName(product.name, product.category, product.brand)}
             </h1>
             
             {/* Category */}

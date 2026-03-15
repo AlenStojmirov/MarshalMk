@@ -6,6 +6,7 @@ import { Minus, Plus, Trash2 } from 'lucide-react';
 import { CartItem as CartItemType } from '@/types';
 import { useCart } from '@/context/CartContext';
 import { useTranslation } from '@/lib/i18n';
+import { getProductDisplayName } from '@/lib/product-display';
 
 interface CartItemProps {
   item: CartItemType;
@@ -29,7 +30,7 @@ export default function CartItem({ item }: CartItemProps) {
           {product.imageUrl ? (
             <Image
               src={product.imageUrl}
-              alt={product.name}
+              alt={getProductDisplayName(product.name, product.category, product.brand)}
               fill
               className="object-cover"
               sizes="96px"
@@ -46,7 +47,7 @@ export default function CartItem({ item }: CartItemProps) {
       <div className="flex-1 min-w-0">
         <Link href={`/product/${product.id}`}>
           <h3 className="font-medium text-gray-900 hover:text-blue-600 transition-colors line-clamp-2">
-            {product.name}
+            {getProductDisplayName(product.name, product.category, product.brand)}
           </h3>
         </Link>
         <p className="text-sm text-gray-500 mt-1">{product.category}</p>

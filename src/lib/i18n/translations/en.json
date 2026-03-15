@@ -82,7 +82,8 @@
   },
   "categoryNames": {
     "vaucer": "Voucher",
-    "dukser": "Hoodie",
+    "hoodies": "Hoodies",
+    "tShirts": "T-Shirts",
     "shirts": "Shirts",
     "pants": "Pants",
     "jackets": "Jackets",
@@ -90,7 +91,20 @@
     "accessories": "Accessories",
     "jeans": "Jeans",
     "shortsJeans": "Short jeans",
-    "costume": "Costume"
+    "suits": "Suits",
+    "cardigans": "Cardigans",
+    "blazers": "Blazers",
+    "polos": "Polos",
+    "oversizeTshirts": "Oversize T-Shirts",
+    "blouses": "Blouses",
+    "vests": "Vests",
+    "coats": "Coats",
+    "turtleNecks" : "Turtle Necks",
+    "suitJackets": "Suit Jackets",
+    "halfZips": "Half-Zips",
+    "fullZips": "Full-Zips",
+    "shortSleevedShirt": "Short-Sleeved Shirts",
+    "cargoTrousers": "Cargo Trousers"
   },
   "categoryPage": {
     "filters": "Filters",

@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Product } from '@/types';
 import { useTranslation } from '@/lib/i18n';
+import { getProductDisplayName } from '@/lib/product-display';
 
 interface ProductCardProps {
   product: Product;
@@ -26,7 +27,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           {isValidImageUrl ? (
             <Image
               src={product.imageUrl}
-              alt={product.name}
+              alt={getProductDisplayName(product.name, product.category, product.brand)}
               fill
               className="object-cover transition-opacity duration-200 group-hover:opacity-90"
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -56,7 +57,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Product Info */}
         <div>
           <h3 className="text-[13px] text-stone-900 leading-snug mb-1.5 tracking-wide">
-            {product.name}
+            {getProductDisplayName(product.name, product.category, product.brand)}
           </h3>
           {product.sale?.isActive ? (
             <div className="flex items-center gap-2">
