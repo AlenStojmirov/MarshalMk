@@ -348,38 +348,35 @@ export default function CheckoutPage() {
               </h2>
 
               {/* Order Items */}
-              <div className="mb-6 max-h-72 overflow-y-auto -mx-1 px-1 scrollbar-thin">
+              <div className="mb-6 max-h-80 sm:max-h-72 overflow-y-auto -mx-2 px-2 scrollbar-thin">
                 <div className="divide-y divide-gray-100">
                   {items.map((item, index) => (
-                    <div key={`${item.product.id}-${item.selectedSize || index}`} className="flex gap-3 py-3 first:pt-0 last:pb-0">
-                      <div className="relative h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0">
+                    <div key={`${item.product.id}-${item.selectedSize || index}`} className="flex gap-3 sm:gap-4 py-4 first:pt-2 last:pb-0">
+                      <div className="relative h-16 w-16 sm:h-[68px] sm:w-[68px] flex-shrink-0">
                         <Image
                           src={item.product.imageUrl || '/placeholder.png'}
                           alt={item.product.name}
                           fill
-                          className="object-cover rounded-lg ring-1 ring-gray-100"
+                          className="object-cover rounded-xl ring-1 ring-gray-100"
                         />
                         <span className="absolute -top-1.5 -right-1.5 bg-gray-800 text-white text-[10px] font-medium rounded-full h-5 w-5 flex items-center justify-center shadow-sm">
                           {item.quantity}
                         </span>
                       </div>
-                      <div className="flex-1 min-w-0 flex flex-col justify-center">
-                        <p className="text-sm font-medium text-gray-900 truncate leading-snug">
+                      <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
+                        <p className="text-[13px] sm:text-sm font-semibold text-gray-900 truncate leading-tight">
                           {item.product.name}
                         </p>
-                        <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                           {item.selectedSize && (
-                            <span className="text-xs text-gray-400">{t('cart.size')}: {item.selectedSize}</span>
+                            <span className="text-[11px] sm:text-xs text-gray-500 bg-gray-50 py-0.5 rounded">{t('cart.size')}: {item.selectedSize}</span>
                           )}
-                          {item.selectedSize && (
-                            <span className="text-gray-200">·</span>
-                          )}
-                          <span className="text-xs text-gray-400">
+                          <span className="text-[11px] sm:text-xs text-gray-400">
                             {item.product.price.toFixed(2)} ден. {t('checkout.each')}
                           </span>
                         </div>
                       </div>
-                      <p className="text-sm font-semibold text-gray-900 tabular-nums self-center whitespace-nowrap">
+                      <p className="text-[13px] sm:text-sm font-bold text-gray-900 tabular-nums self-center whitespace-nowrap pl-1">
                         {(item.product.price * item.quantity).toFixed(2)} ден.
                       </p>
                     </div>

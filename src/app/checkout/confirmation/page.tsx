@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { CheckCircle, Package, Truck, Phone, Mail, MapPin } from 'lucide-react';
+import { CheckCircle, Package, Truck, Phone, Mail, MapPin, Copy, Check } from 'lucide-react';
 import { getOrderByNumber } from '@/lib/orders';
 import { Order } from '@/types';
 import { useTranslation } from '@/lib/i18n';
@@ -16,7 +16,14 @@ function ConfirmationContent() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const { t } = useTranslation();
+
+  const copyOrderNumber = () => {
+    navigator.clipboard.writeText(order?.orderNumber || '');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     async function fetchOrder() {
@@ -87,7 +94,16 @@ function ConfirmationContent() {
       {/* Order Number */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 text-center">
         <p className="text-sm text-blue-600 mb-1">{t('confirmation.orderNumber')}</p>
-        <p className="text-2xl font-bold text-blue-800">{order.orderNumber}</p>
+        <div className="flex items-center justify-center gap-2">
+          <p className="text-2xl font-bold text-blue-800">{order.orderNumber}</p>
+          <button
+            onClick={copyOrderNumber}
+            className="p-1.5 rounded-md hover:bg-blue-100 transition-colors text-blue-600"
+            title={copied ? t('common.copied') : t('common.copy')}
+          >
+            {copied ? <Check className="h-5 w-5 text-green-600" /> : <Copy className="h-5 w-5" />}
+          </button>
+        </div>
         <p className="text-sm text-blue-600 mt-2">
           {t('confirmation.saveNumber')}
         </p>
