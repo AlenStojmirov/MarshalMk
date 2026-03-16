@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { CheckCircle, Package, Truck, Phone, Mail, MapPin, Copy, Check } from 'lucide-react';
-import { getOrderByNumber } from '@/lib/orders';
 import { Order } from '@/types';
 import { useTranslation } from '@/lib/i18n';
 import { getShippingLabel } from '@/config/shipping';
@@ -34,11 +33,18 @@ function ConfirmationContent() {
       }
 
       try {
-        const fetchedOrder = await getOrderByNumber(orderNumber);
-        if (fetchedOrder) {
-          setOrder(fetchedOrder);
-        } else {
+        const res = await fetch(`/api/orders/track?orderNumber=${encodeURIComponent(orderNumber)}`);
+        const data = await res.json();
+
+        if (!res.ok || !data.order) {
           setError(t('confirmation.orderNotFound'));
+        } else {
+          const order = data.order;
+          setOrder({
+            ...order,
+            createdAt: new Date(order.createdAt),
+            updatedAt: new Date(order.updatedAt),
+          });
         }
       } catch (err) {
         console.error('Error fetching order:', err);

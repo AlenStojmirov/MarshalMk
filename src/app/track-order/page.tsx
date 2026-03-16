@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getOrderByNumber } from '@/lib/orders';
 import { Order, OrderStatus } from '@/types';
 import { useTranslation } from '@/lib/i18n';
 import {
@@ -120,10 +119,20 @@ export default function TrackOrderPage() {
     setSearched(true);
 
     try {
-      const foundOrder = await getOrderByNumber(orderNumber.trim().toUpperCase());
-      setOrder(foundOrder);
-      if (!foundOrder) {
-        setError(t('tracking.orderNotFound'));
+      const res = await fetch(`/api/orders/track?orderNumber=${encodeURIComponent(orderNumber.trim().toUpperCase())}`);
+      const data = await res.json();
+
+      if (!res.ok || !data.order) {
+        setOrder(null);
+        console.error('Track order API error:', res.status, data);
+        setError(res.status === 500 ? t('tracking.searchFailed') : t('tracking.orderNotFound'));
+      } else {
+        const order = data.order;
+        setOrder({
+          ...order,
+          createdAt: new Date(order.createdAt),
+          updatedAt: new Date(order.updatedAt),
+        });
       }
     } catch (err) {
       console.error('Error searching for order:', err);
