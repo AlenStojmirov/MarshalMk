@@ -74,7 +74,7 @@ export function getProductDisplayName(
   const brandCode = brand ? getBrandCode(brand) || '' : '';
 
   if (categoryLabel) {
-    return `${categoryLabel} - #${brandCode}${name}`;
+    return `${categoryLabel} - ${name}`;
   }
 
   return `#${brandCode}${name}`;
