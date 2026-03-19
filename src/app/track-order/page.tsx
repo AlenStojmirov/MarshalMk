@@ -48,7 +48,48 @@ function OrderTimeline({ currentStatus }: { currentStatus: OrderStatus }) {
 
   return (
     <div className="py-6">
-      <div className="flex items-center justify-between">
+      {/* Mobile: vertical centered layout */}
+      <div className="flex flex-col items-center sm:hidden">
+        {STATUS_STEPS.map((status, index) => {
+          const stepNumber = index + 1;
+          const isCompleted = stepNumber < currentStep;
+          const isCurrent = stepNumber === currentStep;
+          const StatusIcon = STATUS_CONFIG[status].icon;
+
+          return (
+            <div key={status} className="flex flex-col items-center">
+              <div
+                className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                  isCompleted
+                    ? 'bg-green-500 text-white'
+                    : isCurrent
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-gray-400'
+                }`}
+              >
+                <StatusIcon className="h-5 w-5" />
+              </div>
+              <span
+                className={`mt-1.5 text-sm ${
+                  isCompleted || isCurrent ? 'text-gray-900 font-medium' : 'text-gray-400'
+                }`}
+              >
+                {t(STATUS_CONFIG[status].labelKey)}
+              </span>
+              {index < STATUS_STEPS.length - 1 && (
+                <div
+                  className={`w-0.5 h-5 my-1 ${
+                    isCompleted ? 'bg-green-500' : 'bg-gray-200'
+                  }`}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop: horizontal layout */}
+      <div className="hidden sm:flex items-center justify-between">
         {STATUS_STEPS.map((status, index) => {
           const stepNumber = index + 1;
           const isCompleted = stepNumber < currentStep;
@@ -58,7 +99,6 @@ function OrderTimeline({ currentStatus }: { currentStatus: OrderStatus }) {
           return (
             <div key={status} className="flex flex-col items-center flex-1">
               <div className="relative flex items-center justify-center w-full">
-                {/* Line before */}
                 {index > 0 && (
                   <div
                     className={`absolute left-0 right-1/2 h-1 -translate-y-1/2 top-1/2 ${
@@ -66,7 +106,6 @@ function OrderTimeline({ currentStatus }: { currentStatus: OrderStatus }) {
                     }`}
                   />
                 )}
-                {/* Line after */}
                 {index < STATUS_STEPS.length - 1 && (
                   <div
                     className={`absolute left-1/2 right-0 h-1 -translate-y-1/2 top-1/2 ${
@@ -74,7 +113,6 @@ function OrderTimeline({ currentStatus }: { currentStatus: OrderStatus }) {
                     }`}
                   />
                 )}
-                {/* Circle */}
                 <div
                   className={`relative z-10 flex items-center justify-center w-10 h-10 rounded-full ${
                     isCompleted

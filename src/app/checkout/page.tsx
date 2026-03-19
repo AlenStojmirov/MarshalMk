@@ -8,7 +8,7 @@ import { ArrowLeft, Truck, CreditCard, Loader2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { CustomerInfo, OrderItem } from '@/types';
 import { useTranslation } from '@/lib/i18n';
-import { getShippingLabel } from '@/config/shipping';
+import { getShippingCost, getShippingLabel } from '@/config/shipping';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -401,7 +401,7 @@ export default function CheckoutPage() {
                 <hr />
                 <div className="flex justify-between text-lg font-bold text-gray-900">
                   <span>{t('common.total')}</span>
-                  <span>{totalPrice.toFixed(2)} ден.</span>
+                  <span>{(totalPrice + getShippingCost(totalPrice)).toFixed(2)} ден.</span>
                 </div>
               </div>
 

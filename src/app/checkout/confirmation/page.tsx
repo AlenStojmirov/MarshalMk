@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { CheckCircle, Package, Truck, Phone, Mail, MapPin, Copy, Check } from 'lucide-react';
 import { Order } from '@/types';
 import { useTranslation } from '@/lib/i18n';
-import { getShippingLabel } from '@/config/shipping';
+import { getShippingCost, getShippingLabel } from '@/config/shipping';
 
 function ConfirmationContent() {
   const searchParams = useSearchParams();
@@ -164,7 +164,7 @@ function ConfirmationContent() {
             <hr className="my-2" />
             <div className="flex justify-between text-lg font-bold text-gray-900">
               <span>{t('common.total')}</span>
-              <span>{order.total.toFixed(2)} ден.</span>
+              <span>{(order.total + getShippingCost(order.total)).toFixed(2)} ден.</span>
             </div>
           </div>
         </div>

@@ -5,7 +5,7 @@ import { ArrowLeft, ShoppingBag, Trash2, ShieldCheck } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import CartItemComponent from '@/components/CartItem';
 import { useTranslation } from '@/lib/i18n';
-import { getShippingLabel } from '@/config/shipping';
+import { getShippingCost, getShippingLabel } from '@/config/shipping';
 
 export default function CartPage() {
   const { items, totalItems, totalPrice, clearCart } = useCart();
@@ -91,7 +91,7 @@ export default function CartPage() {
 
             <div className="flex justify-between items-baseline mb-6">
               <span className="text-base font-bold text-gray-900">{t('common.total')}</span>
-              <span className="text-xl font-bold text-gray-900">{totalPrice.toFixed(2)} ден.</span>
+              <span className="text-xl font-bold text-gray-900">{(totalPrice + getShippingCost(totalPrice)).toFixed(2)} ден.</span>
             </div>
 
             <div className="space-y-3">
