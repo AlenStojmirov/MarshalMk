@@ -12,12 +12,26 @@ export default function Header() {
   const { totalItems } = useCart();
   const { categories } = useCategories();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
   const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const { t } = useTranslation();
   const { language, setLanguage } = useLanguage();
   const categoriesDropdownRef = useRef<HTMLDivElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      setMobileCategoriesOpen(false);
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -192,70 +206,94 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Mobile Navigation */}
-          {mobileMenuOpen && (
-            <div className="md:hidden py-6 border-t border-gray-100">
-              <div className="flex flex-col gap-5">
-                <Link
-                  href="/"
-                  className="text-gray-900 hover:text-black text-sm uppercase tracking-[0.15em] font-medium transition-colors duration-200 hover:underline underline-offset-4 decoration-1"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {t('header.home')}
-                </Link>
+        </div>
+      </nav>
 
-                <Link
-                  href="/new"
-                  className="text-gray-900 hover:text-black text-sm uppercase tracking-[0.15em] font-medium transition-colors duration-200 hover:underline underline-offset-4 decoration-1"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {t('header.new')}
-                </Link>
+      {/* Mobile Navigation - Full Screen Overlay (outside nav to avoid backdrop-filter containment) */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 top-20 bg-white z-40 overflow-y-auto">
+          <nav className="flex flex-col items-center pt-12 pb-8 px-6 min-h-full">
+            <div className="flex flex-col items-center w-full max-w-xs gap-1">
+              <Link
+                href="/"
+                className="w-full text-center py-3.5 text-gray-900 hover:text-black text-base uppercase tracking-[0.2em] font-medium transition-all duration-200 border-b border-gray-100"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {t('header.home')}
+              </Link>
 
-                {/* Mobile Categories Section */}
-                <div className="flex flex-col gap-2">
-                  <span className="text-gray-900 text-sm uppercase tracking-[0.15em] font-semibold">{t('common.categories')}</span>
-                  <div className="pl-4 flex flex-col gap-3">
+              <Link
+                href="/new"
+                className="w-full text-center py-3.5 text-gray-900 hover:text-black text-base uppercase tracking-[0.2em] font-medium transition-all duration-200 border-b border-gray-100"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {t('header.new')}
+              </Link>
+
+              {/* Collapsible Categories */}
+              <div className="w-full border-b border-gray-100">
+                <button
+                  onClick={() => setMobileCategoriesOpen(!mobileCategoriesOpen)}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 text-gray-900 hover:text-black text-base uppercase tracking-[0.2em] font-medium transition-all duration-200"
+                >
+                  {t('common.categories')}
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform duration-300 ${mobileCategoriesOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    mobileCategoriesOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-1 pb-3">
                     {categories.map((category) => {
                       const translated = t(`categoryNames.${category}`);
                       return (
                         <Link
                           key={category}
                           href={`/mens/${encodeURIComponent(category)}`}
-                          className="text-gray-600 hover:text-black text-sm tracking-wide transition-colors duration-200"
-                          onClick={() => setMobileMenuOpen(false)}
+                          className="w-full text-center py-2.5 text-gray-500 hover:text-black text-sm tracking-wider transition-all duration-200 hover:bg-gray-50 rounded-lg"
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            setMobileCategoriesOpen(false);
+                          }}
                         >
                           {translated.startsWith('categoryNames.') ? category : translated}
                         </Link>
                       );
                     })}
                     {categories.length === 0 && (
-                      <span className="text-gray-400 text-xs tracking-wide">{t('categories.noCategories')}</span>
+                      <span className="py-2.5 text-gray-400 text-xs tracking-wide">
+                        {t('categories.noCategories')}
+                      </span>
                     )}
                   </div>
                 </div>
-
-                <Link
-                  href="/sale"
-                  className="text-red-600 hover:text-red-700 text-sm uppercase tracking-[0.15em] font-semibold transition-colors duration-200 hover:underline underline-offset-4 decoration-1"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {t('header.sale')}
-                </Link>
-
-                <Link
-                  href="/track-order"
-                  className="flex items-center gap-2 text-gray-900 hover:text-black text-sm uppercase tracking-[0.15em] font-medium transition-colors duration-200 hover:underline underline-offset-4 decoration-1"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Package className="h-5 w-5" />
-                  {t('header.trackOrder')}
-                </Link>
               </div>
+
+              <Link
+                href="/sale"
+                className="w-full text-center py-3.5 border-b border-gray-100 transition-all duration-200"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <span className="inline-block bg-red-50 text-red-600 hover:text-red-700 text-base uppercase tracking-[0.2em] font-semibold px-5 py-1 rounded-full">
+                  {t('header.sale')}
+                </span>
+              </Link>
+
+              <Link
+                href="/track-order"
+                className="w-full flex items-center justify-center gap-2.5 py-3.5 text-gray-900 hover:text-black text-base uppercase tracking-[0.2em] font-medium transition-all duration-200 border-b border-gray-100"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Package className="h-5 w-5" />
+                {t('header.trackOrder')}
+              </Link>
             </div>
-          )}
+          </nav>
         </div>
-      </nav>
+      )}
 
       {/* Top Bar - Below Menu */}
       <div className="bg-stone-900 text-white text-center py-2.5 text-xs uppercase tracking-[0.2em] font-light">
