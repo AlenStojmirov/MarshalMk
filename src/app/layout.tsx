@@ -19,8 +19,61 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Marshal - Men's wear",
-  description: "Shop the best products at great prices",
+  metadataBase: new URL("https://marshal.mk"),
+  title: {
+    default: "Marshal — Men's Fashion & Clothing Store",
+    template: "%s | Marshal",
+  },
+  description:
+    "Shop premium men's clothing — t-shirts, polos, shirts, pants, jackets and more. Quality fashion at great prices with free shipping.",
+  keywords: [
+    "men's fashion",
+    "men's clothing",
+    "t-shirts",
+    "polos",
+    "shirts",
+    "pants",
+    "jackets",
+    "men's wear",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "/",
+    siteName: "Marshal",
+    title: "Marshal — Men's Fashion & Clothing Store",
+    description:
+      "Shop premium men's clothing — t-shirts, polos, shirts, pants, jackets and more.",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Marshal — Men's Fashion Store",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Marshal — Men's Fashion & Clothing Store",
+    description:
+      "Shop premium men's clothing — t-shirts, polos, shirts, pants, jackets and more.",
+    images: ["/og-image.jpg"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default function RootLayout({
@@ -30,6 +83,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
+        <link
+          rel="dns-prefetch"
+          href="https://firebasestorage.googleapis.com"
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
       >
