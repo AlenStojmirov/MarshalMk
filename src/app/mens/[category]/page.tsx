@@ -89,13 +89,14 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
 export async function generateMetadata({ params }: CategoryPageProps) {
   const { category } = await params;
-  const categoryName = decodeURIComponent(category)
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  const slug = decodeURIComponent(category);
+  const categoryLabel = getCategoryLabel(slug);
 
   return {
-    title: `${categoryName} | MyStore`,
-    description: `Пребарувајте ги нашите ${categoryName} производи`,
+    title: `Men's ${categoryLabel} — Shop Online`,
+    description: `Browse our collection of men's ${categoryLabel.toLowerCase()}. Premium quality, great prices, free shipping available.`,
+    alternates: {
+      canonical: `/mens/${category}`,
+    },
   };
 }

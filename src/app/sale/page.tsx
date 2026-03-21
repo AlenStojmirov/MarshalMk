@@ -4,8 +4,12 @@ import { fetchPaginatedProducts, parseSearchParams } from '@/lib/products-server
 import ProductGrid from '@/components/ProductGrid';
 
 export const metadata = {
-  title: 'Sale | MyStore',
-  description: 'Discover amazing deals on our sale products',
+  title: "Sale — Men's Fashion Deals & Discounts",
+  description:
+    "Shop men's clothing on sale — discounted t-shirts, polos, shirts, pants, jackets and more. Limited-time deals on premium fashion.",
+  alternates: {
+    canonical: '/sale',
+  },
 };
 
 interface SalePageProps {

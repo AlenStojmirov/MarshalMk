@@ -4,8 +4,12 @@ import { fetchPaginatedProducts, parseSearchParams } from '@/lib/products-server
 import ProductGrid from '@/components/ProductGrid';
 
 export const metadata = {
-  title: 'New Arrivals | MyStore',
-  description: 'Discover our latest products and new arrivals',
+  title: "New Arrivals — Latest Men's Fashion",
+  description:
+    "Discover our latest men's clothing arrivals — new t-shirts, polos, shirts, pants, jackets and more. Fresh styles added regularly.",
+  alternates: {
+    canonical: '/new',
+  },
 };
 
 interface NewPageProps {
