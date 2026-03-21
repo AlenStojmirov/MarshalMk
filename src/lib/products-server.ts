@@ -143,6 +143,17 @@ function computeFilterMeta(products: Product[]): PaginatedResult['filterMeta'] {
   return { priceRange, availableSizes };
 }
 
+export async function fetchAllVisibleProducts(): Promise<Product[]> {
+  const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+  const snapshot = await getDocs(q);
+  const imageMap = getProductImageMap();
+
+  return snapshot.docs
+    .map(parseFirestoreProduct)
+    .map((p) => enrichWithLocalImages(p, imageMap))
+    .filter((p) => p.isVisible !== false && p?.sizes?.some((s) => s.quantity >= 1));
+}
+
 export function parseSearchParams(
   searchParams: Record<string, string | string[] | undefined>
 ): ProductQueryParams {
