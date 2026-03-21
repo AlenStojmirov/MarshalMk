@@ -128,11 +128,13 @@ export default function ProductImageGallery({
                 >
                   <Image
                     src={img}
-                    alt={`${alt} - ${index + 1}`}
+                    alt={`${alt} - Image ${index + 1} of ${images.length}`}
                     fill
                     className="object-cover pointer-events-none"
                     sizes="(max-width: 1024px) 100vw, 50vw"
                     priority={index === 0}
+                    placeholder="blur"
+                    blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZTdlNWUwIi8+PC9zdmc+"
                   />
 
                   {/* Magnifying glass lens */}
@@ -216,7 +218,7 @@ export default function ProductImageGallery({
             >
               <Image
                 src={img}
-                alt={`${alt} - ${index + 1}`}
+                alt={`${alt} - Thumbnail ${index + 1}`}
                 fill
                 className="object-cover"
                 sizes="80px"

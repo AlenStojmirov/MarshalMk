@@ -28,10 +28,12 @@ export default function ProductCard({ product }: ProductCardProps) {
           {isValidImageUrl ? (
             <Image
               src={product.imageUrl}
-              alt={getProductDisplayName(product.name, product.category, product.brand)}
+              alt={`${getProductDisplayName(product.name, product.category, product.brand)} — Men's ${product.category}`}
               fill
               className="object-cover transition-opacity duration-200 group-hover:opacity-90"
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              placeholder="blur"
+              blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZTdlNWUwIi8+PC9zdmc+"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-stone-400 text-xs uppercase tracking-wider">
