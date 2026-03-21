@@ -26,6 +26,8 @@ export default function Home() {
 
   return (
     <div>
+      <h1 className="sr-only">Marshal — Men&apos;s Fashion & Clothing Store</h1>
+
       {/* Section 1: Category Heroes */}
       <HomeCategoriesSection />
 

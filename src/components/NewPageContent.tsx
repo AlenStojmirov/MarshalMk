@@ -51,9 +51,9 @@ export default function NewPageContent({ paginatedData }: NewPageContentProps) {
                   {t('newProducts.title')}
                 </span>
               </nav>
-              <h2 className="text-2xl md:text-3xl font-extralight uppercase tracking-[0.08em] text-stone-900">
+              <h1 className="text-2xl md:text-3xl font-extralight uppercase tracking-[0.08em] text-stone-900">
                 {t('newProducts.pageTitle')}
-              </h2>
+              </h1>
               <p className="text-stone-400 text-sm mt-3 tracking-wide">
                 {t('newProducts.subtitle')}
               </p>
@@ -84,9 +84,9 @@ export default function NewPageContent({ paginatedData }: NewPageContentProps) {
           <p className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-stone-400 mb-6">
             Our Philosophy
           </p>
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-extralight text-stone-900 leading-relaxed tracking-wide">
+          <h3 className="text-2xl md:text-3xl lg:text-4xl font-extralight text-stone-900 leading-relaxed tracking-wide">
             Modern essentials for everyday wear
-          </h2>
+          </h3>
           <div className="w-12 h-px bg-stone-300 mx-auto mt-10" />
         </div>
       </section>
