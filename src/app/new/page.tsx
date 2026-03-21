@@ -10,6 +10,30 @@ export const metadata = {
   alternates: {
     canonical: '/new',
   },
+  openGraph: {
+    title: "New Arrivals — Latest Men's Fashion",
+    description:
+      "Discover our latest men's clothing arrivals — fresh styles added regularly.",
+    url: '/new',
+    siteName: 'Marshal',
+    images: [
+      {
+        url: '/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: "Marshal — New Arrivals in Men's Fashion",
+      },
+    ],
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image' as const,
+    title: "New Arrivals — Latest Men's Fashion",
+    description:
+      "Discover our latest men's clothing arrivals — fresh styles added regularly.",
+    images: ['/og-image.jpg'],
+  },
 };
 
 interface NewPageProps {

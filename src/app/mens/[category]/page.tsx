@@ -92,11 +92,36 @@ export async function generateMetadata({ params }: CategoryPageProps) {
   const slug = decodeURIComponent(category);
   const categoryLabel = getCategoryLabel(slug);
 
+  const title = `Men's ${categoryLabel} — Shop Online`;
+  const description = `Browse our collection of men's ${categoryLabel.toLowerCase()}. Premium quality, great prices, free shipping available.`;
+
   return {
-    title: `Men's ${categoryLabel} — Shop Online`,
-    description: `Browse our collection of men's ${categoryLabel.toLowerCase()}. Premium quality, great prices, free shipping available.`,
+    title,
+    description,
     alternates: {
       canonical: `/mens/${category}`,
+    },
+    openGraph: {
+      title,
+      description,
+      url: `/mens/${category}`,
+      siteName: 'Marshal',
+      images: [
+        {
+          url: '/og-image.jpg',
+          width: 1200,
+          height: 630,
+          alt: `Marshal — Men's ${categoryLabel}`,
+        },
+      ],
+      type: 'website',
+      locale: 'en_US',
+    },
+    twitter: {
+      card: 'summary_large_image' as const,
+      title,
+      description,
+      images: ['/og-image.jpg'],
     },
   };
 }
