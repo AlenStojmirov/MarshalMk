@@ -77,5 +77,63 @@ export default async function ProductPage({ params }: ProductPageProps) {
     updatedAt: toDate(product.updatedAt),
   };
 
-  return <ProductPageClient product={serializedProduct} />;
+  const displayName = getProductDisplayName(product.name, product.category, product.brand);
+  const categoryLabel = getCategoryLabel(product.category);
+  const categorySlug = product.category.toLowerCase().replace(/\s+/g, '-');
+
+  const productJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: displayName,
+    description: product.description,
+    image: [product.imageUrl, ...(product.images || [])].filter(Boolean),
+    category: `Men's ${categoryLabel}`,
+    offers: {
+      '@type': 'Offer',
+      price: product.sale?.isActive ? product.sale.salePrice : product.price,
+      priceCurrency: 'MKD',
+      availability: product.stock > 0
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      url: `https://marshal.mk/product/${id}`,
+    },
+  };
+
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: 'https://marshal.mk',
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: categoryLabel,
+        item: `https://marshal.mk/mens/${categorySlug}`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: displayName,
+      },
+    ],
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <ProductPageClient product={serializedProduct} />
+    </>
+  );
 }

@@ -93,6 +93,23 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Marshal",
+              url: "https://marshal.mk",
+              logo: "https://marshal.mk/logo_black.png",
+              description:
+                "Men's fashion and clothing store — premium t-shirts, polos, shirts, pants, jackets and more.",
+              sameAs: [
+                "https://www.instagram.com/marshalonlinemk",
+              ],
+            }),
+          }}
+        />
         <LanguageProvider>
           <AuthProvider>
             <CartProvider>

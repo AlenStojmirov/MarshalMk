@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import CategoryPageContent from '@/components/CategoryPageContent';
 import { fetchPaginatedProducts, parseSearchParams } from '@/lib/products-server';
+import { getCategoryLabel } from '@/lib/product-display';
 import ProductGrid from '@/components/ProductGrid';
 
 interface CategoryPageProps {
@@ -19,17 +20,54 @@ async function CategoryPageLoader({ params, searchParams }: CategoryPageProps) {
     category: slug,
   });
 
-  // Resolve display name from slug
-  // const categoryName = slug
-  //   .split('-')
-  //   .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-  //   .join(' ');
+  const categoryLabel = getCategoryLabel(slug);
+
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: 'https://marshal.mk',
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: categoryLabel,
+      },
+    ],
+  };
+
+  const itemListJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `Men's ${categoryLabel}`,
+    numberOfItems: paginatedData.totalCount,
+    itemListElement: paginatedData.products.map((p, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: `https://marshal.mk/product/${p.id}`,
+      name: p.name,
+    })),
+  };
 
   return (
-    <CategoryPageContent
-      paginatedData={paginatedData}
-      categoryName={category}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+      />
+      <CategoryPageContent
+        paginatedData={paginatedData}
+        categoryName={category}
+      />
+    </>
   );
 }
 
