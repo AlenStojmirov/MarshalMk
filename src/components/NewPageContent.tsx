@@ -14,7 +14,7 @@ export default function NewPageContent({ paginatedData }: NewPageContentProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="min-h-screen bg-white">
+    <section className="min-h-screen bg-white">
       {/* Hero Section */}
       {/* <section className="relative w-full bg-stone-100">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-20 md:py-28 lg:py-36">
@@ -42,7 +42,7 @@ export default function NewPageContent({ paginatedData }: NewPageContentProps) {
           paginatedData={paginatedData}
           header={
             <div className="mb-10">
-              <nav className="flex items-center gap-2 text-[11px] text-stone-400 mb-8 uppercase tracking-[0.15em]">
+              <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[11px] text-stone-400 mb-8 uppercase tracking-[0.15em]">
                 <Link href="/" className="hover:text-stone-900 transition-colors duration-200">
                   {t('header.home')}
                 </Link>
@@ -90,6 +90,6 @@ export default function NewPageContent({ paginatedData }: NewPageContentProps) {
           <div className="w-12 h-px bg-stone-300 mx-auto mt-10" />
         </div>
       </section>
-    </div>
+    </section>
   );
 }

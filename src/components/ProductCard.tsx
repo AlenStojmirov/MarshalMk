@@ -20,6 +20,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 );
 
   return (
+    <article>
     <Link href={`/product/${product.id}`}>
       <div className="group">
         {/* Product Image */}
@@ -76,5 +77,6 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
       </div>
     </Link>
+    </article>
   );
 }

@@ -10,7 +10,7 @@ return (
           {/* Logo */}
           <Image
             src="/logo_white.png"
-            alt="footer_logo"
+            alt="Marshal - Men's Fashion Store"
             width={70}
             height={24}
             className="w-[70px] sm:w-[120px]"
