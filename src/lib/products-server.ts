@@ -1,4 +1,4 @@
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { Product, PaginatedResult, ProductQueryParams } from '@/types';
 import { getProductImageMap, ProductImageMap } from './product-images';
@@ -141,6 +141,16 @@ function computeFilterMeta(products: Product[]): PaginatedResult['filterMeta'] {
   }));
 
   return { priceRange, availableSizes };
+}
+
+export async function getProductById(id: string): Promise<Product | null> {
+  const docRef = doc(db, 'products', id);
+  const docSnap = await getDoc(docRef);
+  if (!docSnap.exists()) return null;
+
+  const imageMap = getProductImageMap();
+  const product = parseFirestoreProduct(docSnap as unknown as { id: string; data: () => Record<string, unknown> });
+  return enrichWithLocalImages(product, imageMap);
 }
 
 export async function fetchAllVisibleProducts(): Promise<Product[]> {
