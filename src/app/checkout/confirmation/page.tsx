@@ -216,7 +216,7 @@ function ConfirmationContent() {
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-8">
         <p className="font-medium text-amber-800">{t('confirmation.paymentMethod')}</p>
         <p className="text-sm text-amber-700 mt-1">
-          {t('confirmation.amountReady', { amount: order.total.toFixed(2) })}
+          {t('confirmation.amountReady', { amount: (order.total + getShippingCost(order.total)).toFixed(2) })}
         </p>
       </div>
 
