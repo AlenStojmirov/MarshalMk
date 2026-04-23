@@ -5,17 +5,17 @@ const categories = [
   {
     title: 'Поло Маици',
     href: '/mens/polos',
-    imageSrc: '/images/products/x2denim-1757282400-5-1.png',
+    imageSrc: 'https://i.postimg.cc/MpmMDHmB/well2.webp',
   },
   {
-    title: 'Јакни',
-    href: '/mens/jackets',
-    imageSrc: '/images/products/dynamo-1768608000-3-1.png',
+    title: 'Фармерки',
+    href: '/mens/jeans',
+    imageSrc: 'https://i.postimg.cc/qRPBXxPw/Fotografija-11.jpg',
   },
   {
-    title: 'Блузи',
-    href: '/mens/blouses',
-    imageSrc: '/images/products/dynamo-1768608000-5-1.png',
+    title: 'Елеци',
+    href: '/mens/vests',
+    imageSrc: 'https://i.postimg.cc/jjqWkTM7/well7.webp',
   }
 ];
 
