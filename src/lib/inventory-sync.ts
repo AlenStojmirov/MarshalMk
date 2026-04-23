@@ -1,6 +1,6 @@
 'use client';
 
-import { ref, get, onValue, off, Database } from 'firebase/database';
+import { ref, get, set, onValue, off, Database } from 'firebase/database';
 import {
   collection,
   doc,
@@ -164,14 +164,18 @@ export async function syncProductToFirestore(
   );
 }
 
-// Migrate all products from Realtime Database to Firestore
+// Sync all products from Realtime Database to Firestore
+// - Existing products: only update sizes and sold fields
+// - New products: full migrate with isVisible: true
 export async function migrateAllProducts(): Promise<{
   migrated: number;
+  updated: number;
   errors: string[];
 }> {
   const inventory = await fetchInventoryProducts();
   const errors: string[] = [];
   let migrated = 0;
+  let updated = 0;
 
   const batch = writeBatch(db);
   const now = Timestamp.fromDate(new Date());
@@ -180,29 +184,83 @@ export async function migrateAllProducts(): Promise<{
     try {
       const docRef = doc(db, 'products', id);
       const existingDoc = await getDoc(docRef);
-      const existingData = existingDoc.exists() ? existingDoc.data() : undefined;
 
-      const productData = inventoryToProduct(id, invProduct, existingData as Partial<Product>);
+      if (existingDoc.exists()) {
+        // Product exists - only update sizes and sold
+        const productData = inventoryToProduct(id, invProduct);
 
-      batch.set(
-        docRef,
-        {
-          ...productData,
+        batch.update(docRef, {
+          sizes: productData.sizes,
+          sold: productData.sold,
+          stock: productData.stock,
           updatedAt: now,
-          createdAt: existingDoc.exists() ? existingData?.createdAt : now,
-        },
-        { merge: true }
-      );
+        });
 
-      migrated++;
+        updated++;
+      } else {
+        // New product - full migrate with isVisible: true
+        const productData = inventoryToProduct(id, invProduct);
+
+        batch.set(docRef, {
+          ...productData,
+          isVisible: false,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        migrated++;
+      }
     } catch (err) {
-      errors.push(`Failed to migrate ${id}: ${err}`);
+      errors.push(`Failed to process ${id}: ${err}`);
     }
   }
 
   await batch.commit();
 
-  return { migrated, errors };
+  return { migrated, updated, errors };
+}
+
+// Export all products from Realtime Database as JSON
+export async function exportInventoryData(): Promise<string> {
+  const inventory = await fetchInventoryProducts();
+  return JSON.stringify(inventory, null, 2);
+}
+
+// Import products into Realtime Database from JSON
+export async function importInventoryData(jsonData: string): Promise<{
+  imported: number;
+  errors: string[];
+}> {
+  const rtdb = getRealtimeDatabase();
+  if (!rtdb) {
+    throw new Error('Realtime Database is not configured.');
+  }
+
+  let data: InventoryData;
+  try {
+    data = JSON.parse(jsonData);
+  } catch {
+    throw new Error('Invalid JSON format.');
+  }
+
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    throw new Error('JSON must be an object with product IDs as keys.');
+  }
+
+  const errors: string[] = [];
+  let imported = 0;
+
+  for (const [id, product] of Object.entries(data)) {
+    try {
+      const productRef = ref(rtdb, `products/${id}`);
+      await set(productRef, product);
+      imported++;
+    } catch (err) {
+      errors.push(`Failed to import ${id}: ${err}`);
+    }
+  }
+
+  return { imported, errors };
 }
 
 // Get products that exist in Firestore but not in inventory (orphaned)

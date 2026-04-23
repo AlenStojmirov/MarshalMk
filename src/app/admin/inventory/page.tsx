@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useTranslation } from '@/lib/i18n';
 import {
   fetchInventoryProducts,
   migrateAllProducts,
+  exportInventoryData,
+  importInventoryData,
   isRealtimeDatabaseConfigured,
   InventoryData,
 } from '@/lib/inventory-sync';
@@ -15,6 +17,7 @@ import {
   RefreshCw,
   Database,
   Upload,
+  Download,
   CheckCircle,
   AlertCircle,
   Package,
@@ -28,9 +31,13 @@ function InventoryManagement() {
   const [migrating, setMigrating] = useState(false);
   const [migrationResult, setMigrationResult] = useState<{
     migrated: number;
+    updated: number;
     errors: string[];
   } | null>(null);
   const [isConfigured, setIsConfigured] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadInventory = async () => {
     // Check if RTDB is configured first
@@ -78,6 +85,57 @@ function InventoryManagement() {
     }
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const jsonData = await exportInventoryData();
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inventory-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export error:', err);
+      setError('Failed to export inventory data.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm('Are you sure you want to import data? This will add/overwrite products in the Realtime Database.')) {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setImporting(true);
+    setError(null);
+    try {
+      const text = await file.text();
+      const result = await importInventoryData(text);
+      if (result.errors.length > 0) {
+        setError(`Imported ${result.imported} products with ${result.errors.length} errors: ${result.errors.join(', ')}`);
+      } else {
+        setMigrationResult(null);
+        alert(`Successfully imported ${result.imported} products.`);
+      }
+      await loadInventory();
+    } catch (err) {
+      console.error('Import error:', err);
+      setError(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const productCount = Object.keys(inventory).length;
   const totalItems = Object.values(inventory).reduce((sum, product) => {
     const sizes = Array.isArray(product.sizes) ? product.sizes : Object.values(product.sizes || {});
@@ -105,6 +163,29 @@ function InventoryManagement() {
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
+          <button
+            onClick={handleExport}
+            disabled={exporting || loading || productCount === 0}
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors text-sm sm:text-base"
+          >
+            <Download className={`h-4 w-4 sm:h-5 sm:w-5 ${exporting ? 'animate-pulse' : ''}`} />
+            <span className="hidden sm:inline">Export</span>
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing || loading}
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors text-sm sm:text-base"
+          >
+            <Upload className={`h-4 w-4 sm:h-5 sm:w-5 ${importing ? 'animate-pulse' : ''}`} />
+            <span className="hidden sm:inline">Import</span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImport}
+            className="hidden"
+          />
           <button
             onClick={loadInventory}
             disabled={loading}
@@ -168,7 +249,7 @@ function InventoryManagement() {
               <p className="text-xs sm:text-sm text-gray-500 truncate">{t('inventory.lastSyncResult')}</p>
               <p className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
                 {migrationResult
-                  ? `${migrationResult.migrated} ${t('inventory.synced')}`
+                  ? `${migrationResult.migrated} new, ${migrationResult.updated} updated`
                   : t('inventory.notSyncedYet')}
               </p>
             </div>
@@ -192,7 +273,7 @@ function InventoryManagement() {
               </span>
             ) : (
               <span className="text-green-800">
-                {t('inventory.syncedSuccess', { count: migrationResult.migrated })}
+                {`${migrationResult.migrated} new products migrated, ${migrationResult.updated} existing products updated`}
               </span>
             )}
           </p>

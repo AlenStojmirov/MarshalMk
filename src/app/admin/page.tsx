@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts, createProduct, updateProduct, deleteProduct, uploadProductImage } from '@/hooks/useProducts';
 import { Product, ProductFormData, ProductSize } from '@/types';
-import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff, Search, Filter } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
@@ -86,6 +86,7 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     price: product?.price || 0,
     category: product?.category || '',
     imageUrl: product?.imageUrl || '',
+    images: product?.images || [],
     stock: product?.stock || 0,
     featured: product?.featured || false,
     isVisible: product?.isVisible !== false,
@@ -340,11 +341,18 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.productImage')}</label>
               <div className="flex items-start gap-4">
-                {formData.imageUrl && (
-                  <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-gray-100">
-                    <Image src={formData.imageUrl} alt="Preview" fill className="object-cover" sizes="96px" />
-                  </div>
-                )}
+                <div className="flex gap-2 flex-wrap">
+                  {formData.imageUrl && (
+                    <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-gray-100">
+                      <Image src={formData.imageUrl} alt="Preview" fill className="object-cover" sizes="96px" />
+                    </div>
+                  )}
+                  {formData.images && formData.images.length > 0 && formData.images.map((img, idx) => (
+                    <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden bg-gray-100">
+                      <Image src={img} alt={`Preview ${idx + 2}`} fill className="object-cover" sizes="96px" />
+                    </div>
+                  ))}
+                </div>
                 <div className="flex-1">
                   <label className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
                     <ImagePlus className="h-5 w-5 text-gray-400" />
@@ -367,6 +375,18 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                     placeholder="https://example.com/image.jpg"
                     className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                  <label className="block text-sm font-medium text-gray-700 mt-3 mb-1">{t('admin.additionalImages') || 'Additional Images'}</label>
+                  <textarea
+                    value={(formData.images || []).join('\n')}
+                    onChange={(e) => {
+                      const urls = e.target.value.split('\n').map(u => u.trim()).filter(Boolean);
+                      setFormData(prev => ({ ...prev, images: urls }));
+                    }}
+                    placeholder="Paste additional image URLs, one per line"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">{t('admin.additionalImagesHint') || 'One URL per line. These will show in the product gallery.'}</p>
                 </div>
               </div>
             </div>
@@ -461,6 +481,35 @@ function AdminDashboard() {
   const { products, loading, refetch } = useProducts();
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
+  const [filterName, setFilterName] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterStock, setFilterStock] = useState<'all' | 'in-stock' | 'out-of-stock'>('all');
+  const [filterFeatured, setFilterFeatured] = useState<'all' | 'yes' | 'no'>('all');
+  const [filterVisible, setFilterVisible] = useState<'all' | 'yes' | 'no'>('all');
+
+  const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean))).sort();
+
+  const filteredProducts = products.filter(product => {
+    if (filterName && !product.name.toLowerCase().includes(filterName.toLowerCase())) return false;
+    if (filterCategory && product.category !== filterCategory) return false;
+    if (filterStock === 'in-stock' && product.stock <= 0) return false;
+    if (filterStock === 'out-of-stock' && product.stock > 0) return false;
+    if (filterFeatured === 'yes' && !product.featured) return false;
+    if (filterFeatured === 'no' && product.featured) return false;
+    if (filterVisible === 'yes' && product.isVisible === false) return false;
+    if (filterVisible === 'no' && product.isVisible !== false) return false;
+    return true;
+  });
+
+  const hasActiveFilters = filterName || filterCategory || filterStock !== 'all' || filterFeatured !== 'all' || filterVisible !== 'all';
+
+  const clearFilters = () => {
+    setFilterName('');
+    setFilterCategory('');
+    setFilterStock('all');
+    setFilterFeatured('all');
+    setFilterVisible('all');
+  };
 
   const handleCreate = async (data: ProductFormData, customId?: string) => {
     await createProduct(data, customId);
@@ -564,6 +613,75 @@ function AdminDashboard() {
 
       {/* Products Table */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        {/* Filter Bar */}
+        <div className="px-4 sm:px-6 py-3 border-b border-slate-200 bg-slate-50/50">
+          <div className="flex items-center gap-2 mb-2">
+            <Filter className="h-4 w-4 text-slate-400" />
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.filters') || 'Filters'}</span>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="ml-auto text-xs text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            <div className="relative col-span-2 sm:col-span-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                placeholder={t('admin.product')}
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">{t('admin.category')}: All</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <select
+              value={filterStock}
+              onChange={(e) => setFilterStock(e.target.value as 'all' | 'in-stock' | 'out-of-stock')}
+              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">{t('admin.stock')}: All</option>
+              <option value="in-stock">In Stock</option>
+              <option value="out-of-stock">Out of Stock</option>
+            </select>
+            <select
+              value={filterFeatured}
+              onChange={(e) => setFilterFeatured(e.target.value as 'all' | 'yes' | 'no')}
+              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 hidden md:block"
+            >
+              <option value="all">{t('admin.featured')}: All</option>
+              <option value="yes">Featured</option>
+              <option value="no">Not Featured</option>
+            </select>
+            <select
+              value={filterVisible}
+              onChange={(e) => setFilterVisible(e.target.value as 'all' | 'yes' | 'no')}
+              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 hidden md:block"
+            >
+              <option value="all">{t('admin.visible')}: All</option>
+              <option value="yes">Visible</option>
+              <option value="no">Hidden</option>
+            </select>
+          </div>
+          {hasActiveFilters && (
+            <p className="text-xs text-slate-500 mt-2">
+              Showing {filteredProducts.length} of {products.length} products
+            </p>
+          )}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px]">
             <thead className="bg-slate-50 border-b border-slate-200">
@@ -598,14 +716,14 @@ function AdminDashboard() {
                     {t('admin.loadingProducts')}
                   </td>
                 </tr>
-              ) : products.length === 0 ? (
+              ) : filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 sm:px-6 py-12 text-center text-slate-400">
-                    {t('admin.noProducts')}
+                    {hasActiveFilters ? 'No products match the current filters' : t('admin.noProducts')}
                   </td>
                 </tr>
               ) : (
-                products.map(product => {
+                filteredProducts.map(product => {
                   // Check if imageUrl is a valid URL
                   const isValidImageUrl = product.imageUrl && (
                     product.imageUrl.startsWith('http://') ||

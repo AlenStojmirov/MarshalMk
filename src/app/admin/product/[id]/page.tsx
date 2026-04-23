@@ -155,17 +155,30 @@ function ProductDetailView() {
       <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
         {/* Header with image */}
         <div className="flex items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
-          {localProduct.imageUrl && (
-            <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-              <Image
-                src={localProduct.imageUrl}
-                alt={localProduct.name}
-                fill
-                className="object-cover"
-                sizes="96px"
-              />
-            </div>
-          )}
+          <div className="flex gap-2 flex-wrap shrink-0">
+            {localProduct.imageUrl && (
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-100">
+                <Image
+                  src={localProduct.imageUrl}
+                  alt={localProduct.name}
+                  fill
+                  className="object-cover"
+                  sizes="96px"
+                />
+              </div>
+            )}
+            {localProduct.images && localProduct.images.length > 0 && localProduct.images.map((img, idx) => (
+              <div key={idx} className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-100">
+                <Image
+                  src={img}
+                  alt={`${localProduct.name} ${idx + 2}`}
+                  fill
+                  className="object-cover"
+                  sizes="96px"
+                />
+              </div>
+            ))}
+          </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{localProduct.name}</h1>
             <p className="text-sm sm:text-base text-gray-500 truncate">{localProduct.brand} | {localProduct.category}</p>

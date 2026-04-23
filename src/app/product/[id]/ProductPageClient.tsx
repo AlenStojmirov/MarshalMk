@@ -183,7 +183,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
             )}
 
             {/* Stock Status */}
-            <div className="mb-6">
+            {/* <div className="mb-6">
               {hasSizes ? (
                 selectedSize ? (
                   availableStock > 0 ? (
@@ -207,7 +207,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
               ) : (
                 <p className="text-xs text-red-700">{t('common.outOfStock')}</p>
               )}
-            </div>
+            </div> */}
 
             {/* ─── Quantity Selector ─── */}
             {availableStock > 0 && (!hasSizes || selectedSize) && (

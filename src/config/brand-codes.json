@@ -38,7 +38,12 @@
     "WARREN WEBBER": "WW",
     "X2DENIM": "X2",
     "YES DESIGN": "YD",
-    "YTWO": "YT"
+    "YTWO": "YT",
+    "GREENWEST": "GW",
+    "WELLALUX": "WL",
+    "BLACKZI": "BZ",
+    "AGRESIF": "AG",
+    "POLOROMANO": "PR"
   },
   "_comment": "Map each supplier/brand to a single-letter code. The code is used in product display names like 'Jeans - #D001'. Customers see the code but cannot trace it back to the brand. Add new brands here as needed."
 }
