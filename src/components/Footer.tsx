@@ -1,5 +1,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { MapPin } from 'lucide-react';
+
+// TODO: replace with your real store address and Google Maps share URL.
+const STORE_ADDRESS = 'ул. Маршал Тито 60, Виница';
+const STORE_MAPS_URL = 'https://maps.app.goo.gl/nUj5SHXpr9AKKpTK8';
 
 export default function Footer() {
 return (
@@ -27,10 +32,15 @@ return (
             </a>
             <span className="text-gray-700">|</span>
             <a
-              href="tel:+38970000000"
-              className="hover:text-white transition-colors duration-200"
+              href={STORE_MAPS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Open ${STORE_ADDRESS} in Google Maps`}
+              title="Open in Google Maps"
+              className="inline-flex items-center gap-1.5 hover:text-white transition-colors duration-200"
             >
-              +389 70 000 000
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span>{STORE_ADDRESS}</span>
             </a>
           </div>
 
