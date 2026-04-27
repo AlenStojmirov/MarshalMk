@@ -91,8 +91,10 @@ export default function CartItem({ item }: CartItemProps) {
           <div className="flex items-center gap-0 border border-gray-200 rounded-lg overflow-hidden transition-colors duration-150 focus-within:border-gray-400">
             <button
               onClick={() => updateQuantity(product.id, quantity - 1, selectedSize)}
+              disabled={quantity <= 1}
               aria-label="Decrease quantity"
-              className="p-2 sm:p-1.5 hover:bg-gray-100 active:bg-gray-200 transition-colors duration-150 focus:outline-none focus-visible:bg-gray-100"
+              title={quantity <= 1 ? t('cart.removeItem') : undefined}
+              className="p-2 sm:p-1.5 hover:bg-gray-100 active:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors duration-150 focus:outline-none focus-visible:bg-gray-100"
             >
               <Minus className="h-3.5 w-3.5 text-gray-500" />
             </button>
