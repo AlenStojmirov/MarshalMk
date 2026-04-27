@@ -9,6 +9,7 @@ import { useCart } from '@/context/CartContext';
 import { CustomerInfo, OrderItem } from '@/types';
 import { useTranslation } from '@/lib/i18n';
 import { getShippingCost, getShippingLabel } from '@/config/shipping';
+import { getEffectivePrice, isOnSale, getPercentOff } from '@/lib/pricing';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -112,14 +113,19 @@ export default function CheckoutPage() {
     setError(null);
 
     try {
-      const orderItems: OrderItem[] = items.map((item) => ({
-        productId: item.product.id,
-        productName: item.product.name,
-        productImage: item.product.imageUrl,
-        price: item.product.price,
-        quantity: item.quantity,
-        size: item.selectedSize,
-      }));
+      const orderItems: OrderItem[] = items.map((item) => {
+        const effectivePrice = getEffectivePrice(item.product);
+        const onSale = isOnSale(item.product);
+        return {
+          productId: item.product.id,
+          productName: item.product.name,
+          productImage: item.product.imageUrl,
+          price: effectivePrice,
+          ...(onSale ? { originalPrice: item.product.price } : {}),
+          quantity: item.quantity,
+          size: item.selectedSize,
+        };
+      });
 
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -388,18 +394,27 @@ export default function CheckoutPage() {
               {/* Order Items */}
               <div className="mb-6 max-h-80 sm:max-h-72 overflow-y-auto -mx-2 px-2 scrollbar-thin">
                 <div className="divide-y divide-gray-100">
-                  {items.map((item, index) => (
+                  {items.map((item, index) => {
+                    const onSale = isOnSale(item.product);
+                    const unitPrice = getEffectivePrice(item.product);
+                    const percentOff = getPercentOff(item.product);
+                    return (
                     <div key={`${item.product.id}-${item.selectedSize || index}`} className="flex gap-3 sm:gap-4 py-4 first:pt-2 last:pb-0">
                       <div className="relative h-16 w-16 sm:h-[68px] sm:w-[68px] flex-shrink-0">
                         <Image
                           src={item.product.imageUrl || '/placeholder.png'}
                           alt={item.product.name}
                           fill
-                          className="object-cover rounded-xl ring-1 ring-gray-100"
+                          className={`object-cover rounded-xl ring-1 ${onSale ? 'ring-red-200' : 'ring-gray-100'}`}
                         />
                         <span className="absolute -top-1.5 -right-1.5 bg-gray-800 text-white text-[10px] font-medium rounded-full h-5 w-5 flex items-center justify-center shadow-sm">
                           {item.quantity}
                         </span>
+                        {onSale && (
+                          <span className="absolute -top-1.5 -left-1.5 bg-red-600 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm">
+                            {t('product.sale')}
+                          </span>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
                         <p className="text-[13px] sm:text-sm font-semibold text-gray-900 truncate leading-tight">
@@ -409,16 +424,33 @@ export default function CheckoutPage() {
                           {item.selectedSize && (
                             <span className="text-[11px] sm:text-xs text-gray-500 bg-gray-50 py-0.5 rounded">{t('cart.size')}: {item.selectedSize}</span>
                           )}
-                          <span className="text-[11px] sm:text-xs text-gray-400">
-                            {item.product.price.toFixed(2)} ден. {t('checkout.each')}
-                          </span>
+                          {onSale ? (
+                            <span className="flex items-baseline gap-1.5">
+                              <span className="text-[11px] sm:text-xs text-red-600 font-semibold">
+                                {unitPrice.toFixed(2)} ден.
+                              </span>
+                              <span className="text-[10px] sm:text-[11px] text-gray-400 line-through">
+                                {item.product.price.toFixed(2)} ден.
+                              </span>
+                              {percentOff > 0 && (
+                                <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1 py-0.5 rounded">
+                                  -{percentOff}%
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] sm:text-xs text-gray-400">
+                              {unitPrice.toFixed(2)} ден. {t('checkout.each')}
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <p className="text-[13px] sm:text-sm font-bold text-gray-900 tabular-nums self-center whitespace-nowrap pl-1">
-                        {(item.product.price * item.quantity).toFixed(2)} ден.
+                      <p className={`text-[13px] sm:text-sm font-bold tabular-nums self-center whitespace-nowrap pl-1 ${onSale ? 'text-red-600' : 'text-gray-900'}`}>
+                        {(unitPrice * item.quantity).toFixed(2)} ден.
                       </p>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -429,6 +461,25 @@ export default function CheckoutPage() {
                   <span>{t('common.subtotal')}</span>
                   <span>{totalPrice.toFixed(2)} ден.</span>
                 </div>
+                {(() => {
+                  const totalSavings = items.reduce(
+                    (sum, item) => sum + (item.product.price - getEffectivePrice(item.product)) * item.quantity,
+                    0
+                  );
+                  return totalSavings > 0 ? (
+                    <div className="flex justify-between items-center bg-red-50 border border-red-100 px-3 py-2 rounded-md">
+                      <span className="text-red-700 font-medium text-sm flex items-center gap-1.5">
+                        <span className="inline-block bg-red-600 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
+                          {t('product.sale')}
+                        </span>
+                        {t('cart.youSaved')}
+                      </span>
+                      <span className="text-red-700 font-semibold tabular-nums">
+                        -{totalSavings.toFixed(2)} ден.
+                      </span>
+                    </div>
+                  ) : null;
+                })()}
                 <div className="flex justify-between text-gray-600">
                   <span className="flex items-center gap-2">
                     <Truck className="h-4 w-4" />

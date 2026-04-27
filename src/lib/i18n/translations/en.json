@@ -58,7 +58,8 @@
     "freeShipping": "Pay on delivery.",
     "proceedToCheckout": "Proceed to Checkout",
     "size": "Size",
-    "removeItem": "Remove item"
+    "removeItem": "Remove item",
+    "youSaved": "You saved"
   },
   "product": {
     "backToProducts": "Back to products",
@@ -74,7 +75,9 @@
     "notFoundDescription": "The product you're looking for doesn't exist or has been removed.",
     "returnHome": "Return to Home",
     "relatedProducts": "Related Products",
-    "askOnInstagram": "Ask about this on Instagram"
+    "askOnInstagram": "Ask about this on Instagram",
+    "sale": "Sale",
+    "save": "Save {amount} ден."
   },
   "categories": {
     "title": "Categories",

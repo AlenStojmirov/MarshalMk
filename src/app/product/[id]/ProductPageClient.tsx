@@ -54,6 +54,15 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
     ? selectedSizeData?.quantity || 0
     : product?.stock || 0;
 
+  const onSale = !!product.sale?.isActive;
+  const percentOff = onSale
+    ? Math.round(
+        product.sale!.percentageOff ||
+          ((product.price - product.sale!.salePrice) / product.price) * 100
+      )
+    : 0;
+  const savings = onSale ? Math.max(0, product.price - product.sale!.salePrice) : 0;
+
   const handleAddToCart = () => {
     if (product) {
       if (hasSizes && !selectedSize) {
@@ -89,6 +98,9 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
             featured={product.featured}
             featuredLabel={t('common.featured')}
             noImageLabel={t('common.noImage')}
+            onSale={onSale}
+            saleLabel={t('product.sale')}
+            percentOff={percentOff}
           />
 
           {/* ─── Right Column: Product Information ─── */}
@@ -113,10 +125,26 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
 
             {/* Price */}
             <div className="mb-6">
-              {product.sale?.isActive ? (
-                <div className="flex items-baseline gap-3">
-                  <span className="text-xl text-stone-900">{product.sale.salePrice.toFixed(2)} ден.</span>
-                  <span className="text-sm text-stone-400 line-through">{product.price.toFixed(2)} ден.</span>
+              {onSale ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-baseline gap-3 flex-wrap">
+                    <span className="text-2xl md:text-3xl font-semibold text-red-600">
+                      {product.sale!.salePrice.toFixed(2)} ден.
+                    </span>
+                    <span className="text-base text-stone-400 line-through">
+                      {product.price.toFixed(2)} ден.
+                    </span>
+                    {percentOff > 0 && (
+                      <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white bg-red-600 px-2 py-1">
+                        -{percentOff}%
+                      </span>
+                    )}
+                  </div>
+                  {savings > 0 && (
+                    <span className="inline-flex w-fit text-[11px] font-semibold uppercase tracking-wider text-red-700 bg-red-50 border border-red-100 px-2 py-1 rounded-sm">
+                      {t('product.save', { amount: savings.toFixed(0) })}
+                    </span>
+                  )}
                 </div>
               ) : (
                 <p className="text-xl text-stone-900">{product.price.toFixed(2)} ден.</p>

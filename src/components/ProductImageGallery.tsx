@@ -11,6 +11,9 @@ interface ProductImageGalleryProps {
   featured?: boolean;
   featuredLabel?: string;
   noImageLabel?: string;
+  onSale?: boolean;
+  saleLabel?: string;
+  percentOff?: number;
 }
 
 export default function ProductImageGallery({
@@ -19,6 +22,9 @@ export default function ProductImageGallery({
   featured,
   featuredLabel = 'Featured',
   noImageLabel = 'No image',
+  onSale = false,
+  saleLabel = 'Sale',
+  percentOff = 0,
 }: ProductImageGalleryProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -160,10 +166,24 @@ export default function ProductImageGallery({
         </div>
 
         {/* Featured badge */}
-        {featured && (
+        {featured && !onSale && (
           <span className="absolute top-5 left-5 bg-stone-900 text-white text-[10px] uppercase tracking-[0.15em] px-3 py-1.5 z-10">
             {featuredLabel}
           </span>
+        )}
+
+        {/* Sale badges */}
+        {onSale && (
+          <div className="absolute top-5 left-5 z-10 flex flex-col gap-2 items-start">
+            <span className="bg-red-600 text-white text-[11px] font-bold uppercase tracking-[0.2em] px-3 py-1.5 shadow-md ring-1 ring-red-700/30 animate-[pulse_2.5s_ease-in-out_infinite]">
+              {saleLabel}
+            </span>
+            {percentOff > 0 && (
+              <span className="bg-stone-900 text-white text-[12px] font-semibold px-2.5 py-1 shadow-sm">
+                -{percentOff}%
+              </span>
+            )}
+          </div>
         )}
 
         {/* Fullscreen button */}

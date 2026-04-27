@@ -58,7 +58,8 @@
     "freeShipping": "Плаќање при достава.",
     "proceedToCheckout": "Продолжи кон наплата",
     "size": "Големина",
-    "removeItem": "Отстрани производ"
+    "removeItem": "Отстрани производ",
+    "youSaved": "Заштедивте"
   },
   "product": {
     "backToProducts": "Назад кон производи",
@@ -74,7 +75,9 @@
     "notFoundDescription": "Производот што го барате не постои или е отстранет.",
     "returnHome": "Врати се на почетна",
     "relatedProducts": "Слични производи",
-    "askOnInstagram": "Прашај на Инстаграм"
+    "askOnInstagram": "Прашај на Инстаграм",
+    "sale": "Распродажба",
+    "save": "Заштеди {amount} ден."
   },
   "categories": {
     "title": "Категории",

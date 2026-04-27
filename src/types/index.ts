@@ -68,6 +68,7 @@ export interface OrderItem {
   productName: string;
   productImage: string;
   price: number;
+  originalPrice?: number;
   quantity: number;
   size?: string;
 }

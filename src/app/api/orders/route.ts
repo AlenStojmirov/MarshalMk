@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
     productName: string;
     productImage: string;
     price: number;
+    originalPrice?: number;
     quantity: number;
     size?: string;
   }> | undefined;
@@ -172,6 +173,9 @@ export async function POST(request: NextRequest) {
         productName: item.productName,
         productImage: item.productImage,
         price: item.price,
+        ...(typeof item.originalPrice === 'number' && item.originalPrice > item.price
+          ? { originalPrice: item.originalPrice }
+          : {}),
         quantity: item.quantity,
         size: item.size || null,
       })),

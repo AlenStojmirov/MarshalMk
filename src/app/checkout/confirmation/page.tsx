@@ -128,25 +128,45 @@ function ConfirmationContent() {
         <div className="p-6 border-b">
           <h3 className="font-medium text-gray-900 mb-4">{t('confirmation.itemsOrdered')}</h3>
           <div className="space-y-4">
-            {order.items.map((item, index) => (
+            {order.items.map((item, index) => {
+              const onSale = typeof item.originalPrice === 'number' && item.originalPrice > item.price;
+              const percentOff = onSale
+                ? Math.round(((item.originalPrice! - item.price) / item.originalPrice!) * 100)
+                : 0;
+              return (
               <div key={index} className="flex gap-4">
                 <div className="relative h-16 w-16 flex-shrink-0">
                   <Image
                     src={item.productImage || '/placeholder.png'}
                     alt={item.productName}
                     fill
-                    className="object-cover rounded-md"
+                    className={`object-cover rounded-md ring-1 ${onSale ? 'ring-red-200' : 'ring-transparent'}`}
                   />
+                  {onSale && (
+                    <span className="absolute -top-1.5 -left-1.5 bg-red-600 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm">
+                      {t('product.sale')}
+                    </span>
+                  )}
                 </div>
                 <div className="flex-1">
                   <p className="font-medium text-gray-900">{item.productName}</p>
                   <p className="text-sm text-gray-500">{t('confirmation.qty')}: {item.quantity}</p>
+                  {onSale && (
+                    <div className="flex items-baseline gap-1.5 mt-0.5">
+                      <span className="text-xs text-red-600 font-semibold">{item.price.toFixed(2)} ден.</span>
+                      <span className="text-[11px] text-gray-400 line-through">{item.originalPrice!.toFixed(2)} ден.</span>
+                      {percentOff > 0 && (
+                        <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1 py-0.5 rounded">-{percentOff}%</span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <p className="font-medium text-gray-900">
+                <p className={`font-medium ${onSale ? 'text-red-600' : 'text-gray-900'}`}>
                   {(item.price * item.quantity).toFixed(2)} ден.
                 </p>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -157,6 +177,27 @@ function ConfirmationContent() {
               <span>{t('common.subtotal')}</span>
               <span>{order.subtotal.toFixed(2)} </span>
             </div>
+            {(() => {
+              const totalSavings = order.items.reduce((sum, it) => {
+                if (typeof it.originalPrice === 'number' && it.originalPrice > it.price) {
+                  return sum + (it.originalPrice - it.price) * it.quantity;
+                }
+                return sum;
+              }, 0);
+              return totalSavings > 0 ? (
+                <div className="flex justify-between items-center bg-red-50 border border-red-100 px-3 py-2 rounded-md">
+                  <span className="text-red-700 font-medium text-sm flex items-center gap-1.5">
+                    <span className="inline-block bg-red-600 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
+                      {t('product.sale')}
+                    </span>
+                    {t('cart.youSaved')}
+                  </span>
+                  <span className="text-red-700 font-semibold tabular-nums">
+                    -{totalSavings.toFixed(2)} ден.
+                  </span>
+                </div>
+              ) : null;
+            })()}
             <div className="flex justify-between text-gray-600">
               <span>{t('common.shipping')}</span>
               <span className="text-green-600">{getShippingLabel(order.total, t('common.free'))}</span>

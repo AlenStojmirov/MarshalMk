@@ -7,6 +7,7 @@ import { CartItem as CartItemType } from '@/types';
 import { useCart } from '@/context/CartContext';
 import { useTranslation } from '@/lib/i18n';
 import { getProductDisplayName } from '@/lib/product-display';
+import { getEffectivePrice, getPercentOff, isOnSale } from '@/lib/pricing';
 
 interface CartItemProps {
   item: CartItemType;
@@ -22,11 +23,17 @@ export default function CartItem({ item }: CartItemProps) {
     ? product.sizes.find(s => s.size === selectedSize)?.quantity || 0
     : product.stock;
 
+  const onSale = isOnSale(product);
+  const unitPrice = getEffectivePrice(product);
+  const percentOff = getPercentOff(product);
+  const lineTotal = unitPrice * quantity;
+  const lineSavings = onSale ? (product.price - unitPrice) * quantity : 0;
+
   return (
     <div className="flex gap-3 sm:gap-4 p-4 sm:p-5 group">
       {/* Product Image */}
       <Link href={`/product/${product.id}`} className="shrink-0">
-        <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-50 ring-1 ring-gray-100">
+        <div className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-50 ring-1 ${onSale ? 'ring-red-200' : 'ring-gray-100'}`}>
           {product.imageUrl ? (
             <Image
               src={product.imageUrl}
@@ -39,6 +46,11 @@ export default function CartItem({ item }: CartItemProps) {
             <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
               {t('common.noImage')}
             </div>
+          )}
+          {onSale && (
+            <span className="absolute top-1 left-1 bg-red-600 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm">
+              {t('product.sale')}
+            </span>
           )}
         </div>
       </Link>
@@ -58,7 +70,19 @@ export default function CartItem({ item }: CartItemProps) {
               {t('cart.size')}: <span className="font-medium text-gray-700">{selectedSize}</span>
             </p>
           )}
-          <p className="text-sm font-semibold text-gray-900 mt-1.5">{product.price.toFixed(2)} ден.</p>
+          {onSale ? (
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 mt-1.5">
+              <p className="text-sm font-semibold text-red-600">{unitPrice.toFixed(2)} ден.</p>
+              <p className="text-xs text-gray-400 line-through">{product.price.toFixed(2)} ден.</p>
+              {percentOff > 0 && (
+                <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
+                  -{percentOff}%
+                </span>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm font-semibold text-gray-900 mt-1.5">{unitPrice.toFixed(2)} ден.</p>
+          )}
         </div>
 
         {/* Quantity + Actions */}
@@ -83,9 +107,16 @@ export default function CartItem({ item }: CartItemProps) {
 
           {/* Subtotal + Remove */}
           <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:gap-1.5">
-            <p className="text-sm font-bold text-gray-900 tabular-nums">
-              {(product.price * quantity).toFixed(2)} ден.
-            </p>
+            <div className="flex flex-col sm:items-end">
+              <p className={`text-sm font-bold tabular-nums ${onSale ? 'text-red-600' : 'text-gray-900'}`}>
+                {lineTotal.toFixed(2)} ден.
+              </p>
+              {onSale && lineSavings > 0 && (
+                <p className="text-[10px] text-red-600 font-medium tabular-nums">
+                  {t('product.save', { amount: lineSavings.toFixed(0) })}
+                </p>
+              )}
+            </div>
             <button
               onClick={() => removeFromCart(product.id, selectedSize)}
               className="text-gray-300 hover:text-red-500 transition-colors duration-200 p-1"

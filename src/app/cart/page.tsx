@@ -6,10 +6,16 @@ import { useCart } from '@/context/CartContext';
 import CartItemComponent from '@/components/CartItem';
 import { useTranslation } from '@/lib/i18n';
 import { getShippingCost, getShippingLabel } from '@/config/shipping';
+import { getEffectivePrice } from '@/lib/pricing';
 
 export default function CartPage() {
   const { items, totalItems, totalPrice, clearCart } = useCart();
   const { t } = useTranslation();
+
+  const totalSavings = items.reduce(
+    (sum, item) => sum + (item.product.price - getEffectivePrice(item.product)) * item.quantity,
+    0
+  );
 
   if (items.length === 0) {
     return (
@@ -81,6 +87,19 @@ export default function CartPage() {
                 <span>{t('cart.items')} ({totalItems})</span>
                 <span>{totalPrice.toFixed(2)} ден.</span>
               </div>
+              {totalSavings > 0 && (
+                <div className="flex justify-between items-center bg-red-50 border border-red-100 -mx-1 px-3 py-2 rounded-md">
+                  <span className="text-red-700 font-medium flex items-center gap-1.5">
+                    <span className="inline-block bg-red-600 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
+                      {t('product.sale')}
+                    </span>
+                    {t('cart.youSaved')}
+                  </span>
+                  <span className="text-red-700 font-semibold tabular-nums">
+                    -{totalSavings.toFixed(2)} ден.
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between text-gray-600">
                 <span>{t('common.shipping')}</span>
                 <span className="text-emerald-600 font-medium">{getShippingLabel(totalPrice, t('common.free'))}</span>
