@@ -17,6 +17,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [honeypot, setHoneypot] = useState('');
   const formLoadedAt = useRef(Date.now());
+  const errorBoxRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
 
   const [formData, setFormData] = useState<CustomerInfo>({
@@ -30,6 +31,32 @@ export default function CheckoutPage() {
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof CustomerInfo, string>>>({});
+
+  // Order matters — used to determine which error field to scroll to first
+  const FIELD_ORDER: (keyof CustomerInfo)[] = [
+    'firstName',
+    'lastName',
+    'email',
+    'phone',
+    'address',
+    'city',
+  ];
+
+  const scrollToFirstError = (
+    newErrors: Partial<Record<keyof CustomerInfo, string>>
+  ) => {
+    const firstErrorField = FIELD_ORDER.find((field) => newErrors[field]);
+    if (!firstErrorField) return;
+
+    // Wait for React to render the error styles before scrolling
+    requestAnimationFrame(() => {
+      const el = document.getElementById(firstErrorField);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Focus after scroll for accessibility — slight delay so smooth scroll isn't interrupted
+      setTimeout(() => el.focus({ preventScroll: true }), 400);
+    });
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof CustomerInfo, string>> = {};
@@ -56,7 +83,12 @@ export default function CheckoutPage() {
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    if (Object.keys(newErrors).length > 0) {
+      scrollToFirstError(newErrors);
+      return false;
+    }
+    return true;
   };
 
   const handleInputChange = (
@@ -105,6 +137,9 @@ export default function CheckoutPage() {
 
       if (!res.ok) {
         setError(data.error || t('checkout.orderFailed'));
+        requestAnimationFrame(() => {
+          errorBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
         return;
       }
 
@@ -113,6 +148,9 @@ export default function CheckoutPage() {
     } catch (err) {
       console.error('Error creating order:', err);
       setError(t('checkout.orderFailed'));
+      requestAnimationFrame(() => {
+        errorBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -406,7 +444,10 @@ export default function CheckoutPage() {
               </div>
 
               {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div
+                  ref={errorBoxRef}
+                  className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg"
+                >
                   <p className="text-sm text-red-600">{error}</p>
                 </div>
               )}

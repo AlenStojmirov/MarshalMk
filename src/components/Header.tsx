@@ -135,8 +135,7 @@ export default function Header() {
                   className="flex items-center gap-1.5 text-gray-500 hover:text-black transition-colors duration-200"
                   title={t('header.switchLanguage')}
                 >
-                  <Globe className="h-5 w-5" />
-                  <span className="text-xs font-medium uppercase tracking-wider">{language}</span>
+                  <span className={`fi ${language === 'mk' ? 'fi-mk' : 'fi-gb'} text-lg`}></span>
                 </button>
                 {langMenuOpen && (
                   <div className="absolute right-0 mt-3 w-36 bg-white shadow-md border border-gray-100 py-2 z-50">
@@ -146,17 +145,17 @@ export default function Header() {
                         language === 'en' ? 'bg-gray-100 text-black' : 'text-gray-700'
                       }`}
                     >
-                      <span>EN</span>
-                      <span className="text-gray-500">English</span>
+                      <span className="fi fi-gb text-base"></span>
+                      <span>English</span>
                     </button>
                     <button
                       onClick={() => handleLanguageChange('mk')}
-                      className={`w-full px-5 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center gap-2.5 transition-colors duration-200 ${
+                      className={`w-full px-5 py-2.5 pe-0 text-left text-sm hover:bg-gray-50 flex items-center gap-2.5 transition-colors duration-200 ${
                         language === 'mk' ? 'bg-gray-100 text-black' : 'text-gray-700'
                       }`}
                     >
-                      <span>MK</span>
-                      <span className="text-gray-500">Македонски</span>
+                      <span className="fi fi-mk text-base"></span>
+                      <span>Македонски</span>
                     </button>
                   </div>
                 )}
@@ -183,7 +182,7 @@ export default function Header() {
                 className="text-gray-500 hover:text-black transition-colors duration-200"
                 title={t('header.switchLanguage')}
               >
-                <Globe className="h-5 w-5" />
+                <span className={`fi ${language === 'mk' ? 'fi-mk' : 'fi-gb'} text-lg`}></span>
               </button>
               <Link
                 href="/cart"
