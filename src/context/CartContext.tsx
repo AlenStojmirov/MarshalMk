@@ -12,6 +12,9 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
+  isMiniCartOpen: boolean;
+  openMiniCart: () => void;
+  closeMiniCart: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -21,6 +24,10 @@ const CART_STORAGE_KEY = 'ecommerce-cart';
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isMiniCartOpen, setIsMiniCartOpen] = useState(false);
+
+  const openMiniCart = () => setIsMiniCartOpen(true);
+  const closeMiniCart = () => setIsMiniCartOpen(false);
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -64,6 +71,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       return [...currentItems, { product, quantity: Math.min(quantity, maxStock), selectedSize }];
     });
+    // Auto-open mini cart on every add
+    setIsMiniCartOpen(true);
   };
 
   const removeFromCart = (productId: string, selectedSize?: string) => {
@@ -115,6 +124,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         clearCart,
         totalItems,
         totalPrice,
+        isMiniCartOpen,
+        openMiniCart,
+        closeMiniCart,
       }}
     >
       {children}

@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/lib/i18n";
 import Header from "@/components/Header";
 import FloatingContactButton from "@/components/FloatingContactButton";
 import Footer from "@/components/Footer";
+import MiniCart from "@/components/MiniCart";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -119,6 +120,7 @@ export default function RootLayout({
               </main>
               <Footer />
               <FloatingContactButton />
+              <MiniCart />
             </CartProvider>
           </AuthProvider>
         </LanguageProvider>

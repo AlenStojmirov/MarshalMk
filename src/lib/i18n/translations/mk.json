@@ -59,7 +59,12 @@
     "proceedToCheckout": "Продолжи кон наплата",
     "size": "Големина",
     "removeItem": "Отстрани производ",
-    "youSaved": "Заштедивте"
+    "youSaved": "Заштедивте",
+    "miniCartTitle": "Додадено во кошничка",
+    "miniCartSubtitle": "{count} производ(и) во кошничката",
+    "subtotal": "Меѓузбир",
+    "viewCart": "Кошничка",
+    "checkout": "Наплата"
   },
   "product": {
     "backToProducts": "Назад кон производи",

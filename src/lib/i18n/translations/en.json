@@ -59,7 +59,12 @@
     "proceedToCheckout": "Proceed to Checkout",
     "size": "Size",
     "removeItem": "Remove item",
-    "youSaved": "You saved"
+    "youSaved": "You saved",
+    "miniCartTitle": "Added to your cart",
+    "miniCartSubtitle": "{count} item(s) in your bag",
+    "subtotal": "Subtotal",
+    "viewCart": "View Cart",
+    "checkout": "Checkout"
   },
   "product": {
     "backToProducts": "Back to products",
