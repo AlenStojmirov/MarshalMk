@@ -163,7 +163,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
             )}
 
             {/* Description */}
-            <p className="text-sm text-stone-500 leading-relaxed mb-8">{product.description}</p>
+            <p className="text-sm text-stone-500 leading-relaxed mb-8 whitespace-pre-line">{product.description}</p>
 
             {/* ─── Size Selector ─── */}
             {hasSizes && (
