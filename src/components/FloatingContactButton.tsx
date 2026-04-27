@@ -50,7 +50,7 @@ export default function FloatingContactButton() {
       {/* Main toggle button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
+        className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:shadow-2xl hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-4 focus-visible:ring-black/20 ${
           isOpen
             ? 'bg-gray-700 hover:bg-gray-800 rotate-0'
             : 'bg-black hover:bg-gray-800'
@@ -76,7 +76,7 @@ export default function FloatingContactButton() {
             href={option.href}
             target="_blank"
             rel="noopener noreferrer"
-            className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-white transition-all duration-300 ${option.bgColor} ${option.hoverBgColor}`}
+            className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-white transition-all duration-300 hover:shadow-xl hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-4 focus-visible:ring-black/20 ${option.bgColor} ${option.hoverBgColor}`}
             style={{
               transitionDelay: isOpen ? `${index * 50}ms` : '0ms',
               transform: isOpen ? 'scale(1)' : 'scale(0.5)',

@@ -189,7 +189,7 @@ export default function TrackOrderPage() {
         <div className="mb-8">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 hover:gap-3 mb-4 transition-all duration-200 w-fit"
           >
             <ArrowLeft className="h-4 w-4" />
             {t('tracking.backToStore')}
@@ -217,7 +217,7 @@ export default function TrackOrderPage() {
             <button
               type="submit"
               disabled={loading || !orderNumber.trim()}
-              className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+              className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg shadow-md shadow-blue-600/20 hover:bg-blue-700 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-none flex items-center gap-2 transition-all duration-200"
             >
               {loading ? (
                 <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />

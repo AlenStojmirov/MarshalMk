@@ -88,10 +88,11 @@ export default function CartItem({ item }: CartItemProps) {
         {/* Quantity + Actions */}
         <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2 sm:gap-3">
           {/* Quantity Controls */}
-          <div className="flex items-center gap-0 border border-gray-200 rounded-lg overflow-hidden">
+          <div className="flex items-center gap-0 border border-gray-200 rounded-lg overflow-hidden transition-colors duration-150 focus-within:border-gray-400">
             <button
               onClick={() => updateQuantity(product.id, quantity - 1, selectedSize)}
-              className="p-2 sm:p-1.5 hover:bg-gray-50 active:bg-gray-100 transition-colors duration-150"
+              aria-label="Decrease quantity"
+              className="p-2 sm:p-1.5 hover:bg-gray-100 active:bg-gray-200 transition-colors duration-150 focus:outline-none focus-visible:bg-gray-100"
             >
               <Minus className="h-3.5 w-3.5 text-gray-500" />
             </button>
@@ -99,7 +100,8 @@ export default function CartItem({ item }: CartItemProps) {
             <button
               onClick={() => updateQuantity(product.id, quantity + 1, selectedSize)}
               disabled={quantity >= maxStock}
-              className="p-2 sm:p-1.5 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150"
+              aria-label="Increase quantity"
+              className="p-2 sm:p-1.5 hover:bg-gray-100 active:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors duration-150 focus:outline-none focus-visible:bg-gray-100"
             >
               <Plus className="h-3.5 w-3.5 text-gray-500" />
             </button>
@@ -119,7 +121,7 @@ export default function CartItem({ item }: CartItemProps) {
             </div>
             <button
               onClick={() => removeFromCart(product.id, selectedSize)}
-              className="text-gray-300 hover:text-red-500 transition-colors duration-200 p-1"
+              className="text-gray-300 hover:text-red-500 hover:bg-red-50 hover:scale-110 active:scale-95 transition-all duration-200 p-1.5 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
               title={t('cart.removeItem')}
             >
               <Trash2 className="h-4 w-4" />

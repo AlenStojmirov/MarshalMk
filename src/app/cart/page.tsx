@@ -29,7 +29,7 @@ export default function CartPage() {
           <p className="text-gray-400 mb-8">{t('cart.emptyDescription')}</p>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 active:bg-blue-800 transition-all duration-200"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold shadow-md hover:bg-blue-700 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:bg-blue-800 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           >
             <ArrowLeft className="h-4 w-4" />
             {t('cart.continueShopping')}
@@ -51,7 +51,7 @@ export default function CartPage() {
         </div>
         <button
           onClick={clearCart}
-          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-500 transition-colors duration-200"
+          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-500 hover:bg-red-50 active:bg-red-100 px-2 py-1 rounded-md transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
         >
           <Trash2 className="h-4 w-4" />
           <span className="hidden sm:inline">{t('cart.clearCart')}</span>
@@ -70,7 +70,7 @@ export default function CartPage() {
           {/* Continue Shopping Link - Desktop */}
           <Link
             href="/"
-            className="hidden sm:inline-flex items-center gap-2 mt-6 text-sm text-gray-500 hover:text-blue-600 transition-colors duration-200"
+            className="hidden sm:inline-flex items-center gap-2 mt-6 text-sm text-gray-500 hover:text-blue-600 hover:gap-3 transition-all duration-200 w-fit"
           >
             <ArrowLeft className="h-4 w-4" />
             {t('cart.continueShopping')}
@@ -116,13 +116,13 @@ export default function CartPage() {
             <div className="space-y-3">
               <Link
                 href="/checkout"
-                className="block w-full py-3.5 px-6 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 active:bg-blue-800 transition-all duration-200 text-center shadow-sm shadow-blue-600/20"
+                className="block w-full py-3.5 px-6 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:bg-blue-800 transition-all duration-200 text-center shadow-md shadow-blue-600/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
               >
                 {t('cart.proceedToCheckout')}
               </Link>
               <Link
                 href="/"
-                className="block w-full py-3.5 px-6 text-center border border-gray-200 rounded-lg font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100 transition-all duration-200 sm:hidden"
+                className="block w-full py-3.5 px-6 text-center border border-gray-200 rounded-lg font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100 transition-all duration-200 sm:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
               >
                 {t('cart.continueShopping')}
               </Link>

@@ -19,10 +19,10 @@ export default function CategoryFilter({
     <div className="flex flex-wrap gap-2">
       <button
         onClick={() => onCategoryChange('')}
-        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-150 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
           selectedCategory === ''
-            ? 'bg-blue-600 text-white'
-            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm'
         }`}
       >
         {t('common.all')}
@@ -31,10 +31,10 @@ export default function CategoryFilter({
         <button
           key={category}
           onClick={() => onCategoryChange(category)}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-150 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
             selectedCategory === category
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm'
           }`}
         >
           {category}

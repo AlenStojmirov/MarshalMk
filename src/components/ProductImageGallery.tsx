@@ -230,10 +230,11 @@ export default function ProductImageGallery({
             <button
               key={index}
               onClick={() => scrollTo(index)}
-              className={`relative w-16 h-20 sm:w-20 sm:h-24 flex-shrink-0 overflow-hidden transition-all duration-200 ${
+              aria-label={`View image ${index + 1}`}
+              className={`relative w-16 h-20 sm:w-20 sm:h-24 flex-shrink-0 overflow-hidden transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-1 ${
                 selectedIndex === index
                   ? 'ring-1 ring-stone-900 ring-offset-2'
-                  : 'opacity-60 hover:opacity-100'
+                  : 'opacity-60 hover:opacity-100 hover:ring-1 hover:ring-stone-300 hover:ring-offset-1'
               }`}
             >
               <Image

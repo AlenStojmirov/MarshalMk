@@ -19,3 +19,53 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ------------------------------------------------------------------
+   Global interactivity affordances
+   - Make every clickable element clearly clickable.
+   - Smoother motion + keyboard focus visibility across the app.
+------------------------------------------------------------------ */
+
+/* Default cursor for all interactive elements */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+summary,
+label[for],
+select:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+/* Anchor tags that act as buttons / cards already use Tailwind transitions,
+   but ensure a pointer for any plain anchors with href. */
+a[href] {
+  cursor: pointer;
+}
+
+/* Stronger, accessible focus ring for keyboard users only.
+   Preserve any per-component focus styles by keeping outline minimal. */
+:focus-visible {
+  outline: 2px solid rgb(28 25 23 / 0.85); /* stone-900 */
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Don't double-up focus rings on form controls that already style focus. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
+/* Subtle press feedback for buttons that don't define their own active state.
+   Respect users who prefer reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):active,
+  [role="button"]:not(:disabled):active {
+    transform: translateY(0.5px);
+  }
+}

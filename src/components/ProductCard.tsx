@@ -30,14 +30,14 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <article className={onSale ? 'group/card relative' : 'group/card'}>
-    <Link href={`/product/${product.id}`}>
+    <Link href={`/product/${product.id}`} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2">
       <div className="group">
         {/* Product Image */}
         <div
           className={
             onSale
               ? 'relative aspect-[3/4] overflow-hidden bg-stone-100 mb-3 ring-1 ring-red-500/20 shadow-sm group-hover/card:shadow-lg group-hover/card:ring-red-500/40 transition-all duration-300'
-              : 'relative aspect-[3/4] overflow-hidden bg-stone-100 mb-3'
+              : 'relative aspect-[3/4] overflow-hidden bg-stone-100 mb-3 shadow-sm group-hover/card:shadow-lg transition-shadow duration-300'
           }
         >
           {isValidImageUrl ? (
@@ -48,7 +48,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               className={
                 onSale
                   ? 'object-cover transition-transform duration-500 ease-out group-hover:scale-105'
-                  : 'object-cover transition-opacity duration-200 group-hover:opacity-90'
+                  : 'object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]'
               }
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               placeholder="blur"
@@ -97,7 +97,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         {/* Product Info */}
         <div>
-          <h3 className="text-[13px] text-stone-900 leading-snug mb-1.5 tracking-wide">
+          <h3 className="text-[13px] text-stone-900 leading-snug mb-1.5 tracking-wide group-hover/card:text-stone-600 transition-colors duration-200">
             {getProductDisplayName(product.name, product.category, product.brand)}
           </h3>
           {onSale ? (

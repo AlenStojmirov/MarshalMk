@@ -108,7 +108,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
             {/* Back Navigation */}
             <Link
               href="/"
-              className="inline-flex items-center gap-2 text-stone-400 hover:text-stone-900 transition-colors duration-200 mb-6 text-sm tracking-wide"
+              className="inline-flex items-center gap-2 text-stone-400 hover:text-stone-900 hover:gap-3 transition-all duration-200 mb-6 text-sm tracking-wide w-fit"
             >
               <ArrowLeft className="h-4 w-4" />
               {t('product.backToProducts')}
@@ -192,13 +192,13 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
                         }}
                         disabled={!isAvailable}
                         className={`
-                          min-w-[3rem] h-12 px-4 border text-sm transition-all duration-150
+                          min-w-[3rem] h-12 px-4 border text-sm transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-1
                           ${
                             isSelected
-                              ? 'border-stone-900 bg-stone-900 text-white'
+                              ? 'border-stone-900 bg-stone-900 text-white shadow-md'
                               : isAvailable
-                              ? 'border-stone-300 text-stone-700 hover:border-stone-900'
-                              : 'border-stone-100 bg-stone-50 text-stone-300 cursor-not-allowed'
+                              ? 'border-stone-300 text-stone-700 hover:border-stone-900 hover:bg-stone-50 hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0'
+                              : 'border-stone-100 bg-stone-50 text-stone-300 cursor-not-allowed line-through'
                           }
                         `}
                       >
@@ -246,7 +246,8 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
                 <div className="flex items-center border border-stone-300">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 flex items-center justify-center text-stone-500 hover:text-stone-900 hover:bg-stone-50 transition-colors duration-150"
+                    aria-label="Decrease quantity"
+                    className="w-10 h-10 flex items-center justify-center text-stone-500 hover:text-stone-900 hover:bg-stone-100 active:bg-stone-200 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-inset"
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </button>
@@ -255,7 +256,8 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
                   </span>
                   <button
                     onClick={() => setQuantity(Math.min(availableStock, quantity + 1))}
-                    className="w-10 h-10 flex items-center justify-center text-stone-500 hover:text-stone-900 hover:bg-stone-50 transition-colors duration-150"
+                    aria-label="Increase quantity"
+                    className="w-10 h-10 flex items-center justify-center text-stone-500 hover:text-stone-900 hover:bg-stone-100 active:bg-stone-200 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-inset"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -268,13 +270,13 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
               onClick={handleAddToCart}
               disabled={availableStock === 0 || (hasSizes && !selectedSize)}
               className={`
-                w-full flex items-center justify-center gap-2.5 py-4 text-xs uppercase tracking-[0.2em] transition-colors duration-200
+                w-full flex items-center justify-center gap-2.5 py-4 text-xs uppercase tracking-[0.2em] transition-all duration-200 shadow-sm hover:shadow-lg active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2
                 ${
                   addedToCart
                     ? 'bg-stone-700 text-white'
                     : 'bg-stone-900 text-white hover:bg-stone-800'
                 }
-                disabled:bg-stone-200 disabled:text-stone-400 disabled:cursor-not-allowed
+                disabled:bg-stone-200 disabled:text-stone-400 disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100
               `}
             >
               <ShoppingCart className="h-4 w-4" />
@@ -299,7 +301,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
                   }, 500);
                 }
               }}
-              className="w-full flex items-center justify-center gap-2.5 py-4 mt-3 text-xs uppercase tracking-[0.2em] border border-stone-300 text-stone-700 hover:bg-stone-50 transition-colors duration-200"
+              className="w-full flex items-center justify-center gap-2.5 py-4 mt-3 text-xs uppercase tracking-[0.2em] border border-stone-300 text-stone-700 hover:bg-stone-50 hover:border-stone-900 hover:text-stone-900 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2 transition-all duration-200"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>

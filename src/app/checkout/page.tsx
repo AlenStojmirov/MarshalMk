@@ -169,7 +169,7 @@ export default function CheckoutPage() {
           <p className="text-xl text-gray-500 mb-4">{t('cart.empty')}</p>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium"
+            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:gap-3 font-medium transition-all duration-200"
           >
             <ArrowLeft className="h-5 w-5" />
             {t('cart.continueShopping')}
@@ -183,7 +183,7 @@ export default function CheckoutPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <Link
         href="/cart"
-        className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+        className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 hover:gap-3 mb-6 transition-all duration-200 w-fit"
       >
         <ArrowLeft className="h-5 w-5" />
         {t('checkout.backToCart')}
@@ -506,7 +506,7 @@ export default function CheckoutPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3 px-6 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3 px-6 bg-blue-600 text-white rounded-lg font-semibold shadow-md shadow-blue-600/20 hover:bg-blue-700 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-all duration-200 disabled:bg-blue-400 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:translate-y-0 flex items-center justify-center gap-2"
               >
                 {isSubmitting ? (
                   <>

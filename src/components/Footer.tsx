@@ -41,7 +41,7 @@ return (
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Facebook"
-              className="text-gray-500 hover:text-white transition-colors duration-200"
+              className="text-gray-500 hover:text-white hover:scale-110 active:scale-95 transition-all duration-200"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -59,7 +59,7 @@ return (
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram"
-              className="text-gray-500 hover:text-white transition-colors duration-200"
+              className="text-gray-500 hover:text-white hover:scale-110 active:scale-95 transition-all duration-200"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

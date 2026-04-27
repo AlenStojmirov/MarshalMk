@@ -108,10 +108,10 @@ export default function CategorySidebar({
                       <button
                         key={size}
                         onClick={() => onSizeChange(size)}
-                        className={`px-3 py-1.5 border text-[11px] tracking-wide transition-colors duration-150 ${
+                        className={`px-3 py-1.5 border text-[11px] tracking-wide transition-all duration-150 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-1 ${
                           selectedSizes.includes(size)
-                            ? 'bg-stone-900 text-white border-stone-900'
-                            : 'border-stone-200 text-stone-600 hover:border-stone-400'
+                            ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
+                            : 'border-stone-200 text-stone-600 hover:border-stone-900 hover:text-stone-900 hover:shadow-sm'
                         }`}
                         title={`${count} product(s)`}
                       >

@@ -69,8 +69,9 @@ export default function MobileCarousel({ categories }: MobileCarouselProps) {
               scrollToIndex(index);
             }}
             aria-label={`Go to slide ${index + 1}`}
-            className={`w-3 h-3 rounded-full transition-colors duration-300 ${
-              index === activeIndex ? 'bg-white' : 'bg-white/50'
+            aria-current={index === activeIndex ? 'true' : undefined}
+            className={`h-3 rounded-full transition-all duration-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/30 ${
+              index === activeIndex ? 'w-8 bg-white' : 'w-3 bg-white/50'
             }`}
           />
         ))}
