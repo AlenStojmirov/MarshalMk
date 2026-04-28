@@ -225,7 +225,7 @@ export default function ProductImageGallery({
 
       {/* Thumbnail strip */}
       {images.length > 1 && (
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
+        <div className="flex gap-2 mt-3 overflow-x-auto p-1" style={{ scrollbarWidth: 'thin' }}>
           {images.map((img, index) => (
             <button
               key={index}
