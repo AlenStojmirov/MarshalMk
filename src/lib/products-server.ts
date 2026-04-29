@@ -1,5 +1,4 @@
-import { collection, query, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { getAdminFirestore } from './firebase-admin';
 import { Product, PaginatedResult, ProductQueryParams } from '@/types';
 import { getProductImageMap, ProductImageMap } from './product-images';
 
@@ -21,8 +20,8 @@ function getEffectivePrice(product: Product): number {
   return product.sale?.isActive ? product.sale.salePrice : product.price;
 }
 
-function parseFirestoreProduct(doc: { id: string; data: () => Record<string, unknown> }): Product {
-  const data = doc.data();
+function parseFirestoreProduct(doc: { id: string; data: () => Record<string, unknown> | undefined }): Product {
+  const data = doc.data() || {};
   return {
     id: doc.id,
     ...data,
@@ -45,15 +44,15 @@ export async function fetchPaginatedProducts(
     sizes,
   } = params;
 
-  const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
-  const snapshot = await getDocs(q);
+  const db = getAdminFirestore();
+  const snapshot = await db.collection('products').orderBy('createdAt', 'desc').get();
   const imageMap = getProductImageMap();
 
   let allProducts = snapshot.docs
     .map(parseFirestoreProduct)
     .map((p) => enrichWithLocalImages(p, imageMap));
 
-  // Only include products that are visible and have sizes with quantity > 1
+  // Only include products that are visible and have sizes with quantity >= 1
   allProducts = allProducts.filter((p) =>
     p.isVisible !== false && p?.sizes?.some((s) => s.quantity >= 1)
   );
@@ -144,18 +143,18 @@ function computeFilterMeta(products: Product[]): PaginatedResult['filterMeta'] {
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
-  const docRef = doc(db, 'products', id);
-  const docSnap = await getDoc(docRef);
-  if (!docSnap.exists()) return null;
+  const db = getAdminFirestore();
+  const docSnap = await db.collection('products').doc(id).get();
+  if (!docSnap.exists) return null;
 
   const imageMap = getProductImageMap();
-  const product = parseFirestoreProduct(docSnap as unknown as { id: string; data: () => Record<string, unknown> });
+  const product = parseFirestoreProduct({ id: docSnap.id, data: () => docSnap.data() });
   return enrichWithLocalImages(product, imageMap);
 }
 
 export async function fetchAllVisibleProducts(): Promise<Product[]> {
-  const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
-  const snapshot = await getDocs(q);
+  const db = getAdminFirestore();
+  const snapshot = await db.collection('products').orderBy('createdAt', 'desc').get();
   const imageMap = getProductImageMap();
 
   return snapshot.docs
