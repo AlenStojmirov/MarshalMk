@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import FloatingContactButton from "@/components/FloatingContactButton";
 import Footer from "@/components/Footer";
 import MiniCart from "@/components/MiniCart";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -121,6 +122,7 @@ export default function RootLayout({
               <Footer />
               <FloatingContactButton />
               <MiniCart />
+              <Analytics />
             </CartProvider>
           </AuthProvider>
         </LanguageProvider>

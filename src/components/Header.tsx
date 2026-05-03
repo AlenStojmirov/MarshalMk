@@ -9,7 +9,7 @@ import { useTranslation, useLanguage, Language } from '@/lib/i18n';
 import { useCategories } from '@/hooks/useProducts';
 
 export default function Header() {
-  const { totalItems } = useCart();
+  const { totalItems, openMiniCart } = useCart();
   const { categories } = useCategories();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
@@ -161,10 +161,12 @@ export default function Header() {
                 )}
               </div>
 
-              <Link
-                href="/cart"
+              <button
+                type="button"
+                onClick={openMiniCart}
                 className="relative flex items-center text-gray-500 hover:text-black hover:scale-110 active:scale-95 transition-all duration-200"
                 title={t('common.cart')}
+                aria-label={t('common.cart')}
               >
                 <ShoppingCart className="h-6 w-6" />
                 {totalItems > 0 && (
@@ -172,7 +174,7 @@ export default function Header() {
                     {totalItems}
                   </span>
                 )}
-              </Link>
+              </button>
             </div>
 
             {/* Mobile menu button */}
@@ -184,10 +186,12 @@ export default function Header() {
               >
                 <span className={`fi ${language === 'mk' ? 'fi-mk' : 'fi-gb'} text-lg`}></span>
               </button>
-              <Link
-                href="/cart"
+              <button
+                type="button"
+                onClick={openMiniCart}
                 className="relative text-gray-500 hover:text-black hover:scale-110 active:scale-95 transition-all duration-200"
                 title={t('common.cart')}
+                aria-label={t('common.cart')}
               >
                 <ShoppingCart className="h-6 w-6" />
                 {totalItems > 0 && (
@@ -195,7 +199,7 @@ export default function Header() {
                     {totalItems}
                   </span>
                 )}
-              </Link>
+              </button>
               <button
                 className="p-2 rounded-md text-gray-700 hover:text-black hover:bg-gray-100 active:bg-gray-200 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
