@@ -64,7 +64,9 @@
     "miniCartSubtitle": "{count} item(s) in your bag",
     "subtotal": "Subtotal",
     "viewCart": "View Cart",
-    "checkout": "Checkout"
+    "checkout": "Checkout",
+    "freeShippingRemaining": "Spend {amount} ден. more to unlock free shipping",
+    "freeShippingUnlocked": "🎉 You unlocked free shipping!"
   },
   "product": {
     "backToProducts": "Back to products",

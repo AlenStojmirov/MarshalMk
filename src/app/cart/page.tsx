@@ -6,6 +6,7 @@ import { useCart } from '@/context/CartContext';
 import CartItemComponent from '@/components/CartItem';
 import { useTranslation } from '@/lib/i18n';
 import { getShippingCost, getShippingLabel } from '@/config/shipping';
+import FreeShippingProgress from '@/components/FreeShippingProgress';
 import { getEffectivePrice } from '@/lib/pricing';
 
 export default function CartPage() {
@@ -81,6 +82,8 @@ export default function CartPage() {
         <div className="lg:col-span-5 xl:col-span-4">
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6 lg:sticky lg:top-24">
             <h2 className="text-lg font-bold text-gray-900 mb-5">{t('cart.orderSummary')}</h2>
+
+            <FreeShippingProgress subtotal={totalPrice} className="mb-5" />
 
             <div className="space-y-3 text-sm">
               <div className="flex justify-between text-gray-600">

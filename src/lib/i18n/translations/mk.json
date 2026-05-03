@@ -64,7 +64,9 @@
     "miniCartSubtitle": "{count} производ(и) во кошничката",
     "subtotal": "Меѓузбир",
     "viewCart": "Кошничка",
-    "checkout": "Наплата"
+    "checkout": "Наплата",
+    "freeShippingRemaining": "Потрошете уште {amount} ден. за бесплатна достава",
+    "freeShippingUnlocked": "🎉 Освоивте бесплатна достава!"
   },
   "product": {
     "backToProducts": "Назад кон производи",

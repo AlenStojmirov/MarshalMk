@@ -8,6 +8,7 @@ import { useCart } from '@/context/CartContext';
 import { useTranslation } from '@/lib/i18n';
 import { getProductDisplayName } from '@/lib/product-display';
 import { getEffectivePrice, isOnSale } from '@/lib/pricing';
+import FreeShippingProgress from './FreeShippingProgress';
 
 export default function MiniCart() {
   const {
@@ -223,6 +224,11 @@ export default function MiniCart() {
         {/* Footer */}
         {items.length > 0 && (
           <div className="border-t border-gray-100 px-5 py-4 bg-white">
+            <FreeShippingProgress
+              subtotal={totalPrice}
+              variant="compact"
+              className="mb-4"
+            />
             <div className="flex items-baseline justify-between mb-4">
               <span className="text-sm font-semibold uppercase tracking-wider text-gray-700">
                 {t('cart.subtotal')}

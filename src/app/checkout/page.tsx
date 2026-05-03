@@ -9,6 +9,7 @@ import { useCart } from '@/context/CartContext';
 import { CustomerInfo, OrderItem } from '@/types';
 import { useTranslation } from '@/lib/i18n';
 import { getShippingCost, getShippingLabel } from '@/config/shipping';
+import FreeShippingProgress from '@/components/FreeShippingProgress';
 import { getEffectivePrice, isOnSale, getPercentOff } from '@/lib/pricing';
 
 export default function CheckoutPage() {
@@ -390,6 +391,8 @@ export default function CheckoutPage() {
               <h2 className="text-xl font-bold text-gray-900 mb-4">
                 {t('checkout.orderSummary')}
               </h2>
+
+              <FreeShippingProgress subtotal={totalPrice} className="mb-5" />
 
               {/* Order Items */}
               <div className="mb-6 max-h-80 sm:max-h-72 overflow-y-auto -mx-2 px-2 scrollbar-thin">
