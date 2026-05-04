@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, Minus, Plus, ShoppingCart } from 'lucide-react';
 import { useProductsByCategory } from '@/hooks/useProducts';
 import { useCart } from '@/context/CartContext';
@@ -40,6 +40,7 @@ interface ProductPageClientProps {
 }
 
 export default function ProductPageClient({ product }: ProductPageClientProps) {
+  const router = useRouter();
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -106,13 +107,20 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
           {/* ─── Right Column: Product Information ─── */}
           <div className="flex flex-col py-0 lg:py-4 lg:sticky lg:top-8 lg:self-start">
             {/* Back Navigation */}
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 text-stone-400 hover:text-stone-900 hover:gap-3 transition-all duration-200 mb-6 text-sm tracking-wide w-fit"
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined' && window.history.length > 1) {
+                  router.back();
+                } else {
+                  router.push('/');
+                }
+              }}
+              className="inline-flex items-center gap-2 text-stone-400 hover:text-stone-900 hover:gap-3 transition-all duration-200 mb-6 text-sm tracking-wide w-fit cursor-pointer"
             >
               <ArrowLeft className="h-4 w-4" />
               {t('product.backToProducts')}
-            </Link>
+            </button>
             {/* Product Name */}
             <h1 className="text-2xl md:text-3xl font-light text-stone-900 leading-tight mb-4">
               {getProductDisplayName(product.name, product.category, product.brand)}
