@@ -46,7 +46,10 @@
     "welcome": "Добредојдовте во MyStore",
     "subtitle": "Откријте ја нашата неверојатна колекција на производи по одлични цени.",
     "showingProducts": "Прикажани {shown} од {total} производи",
-    "seoTitle": "Marshal — Машка мода и продавница за облека"
+    "seoTitle": "Marshal — Машка мода и продавница за облека",
+    "categoryPolos": "Поло Маици",
+    "categoryJeans": "Фармерки",
+    "categoryVests": "Елеци"
   },
   "benefits": {
     "secureShoppingTitle": "БЕЗБЕДЕН ШОПИНГ",

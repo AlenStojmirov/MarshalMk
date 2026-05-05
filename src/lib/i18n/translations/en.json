@@ -46,7 +46,10 @@
     "welcome": "Welcome to MyStore",
     "subtitle": "Discover our amazing collection of products at great prices.",
     "showingProducts": "Showing {shown} of {total} products",
-    "seoTitle": "Marshal — Men's Fashion & Clothing Store"
+    "seoTitle": "Marshal — Men's Fashion & Clothing Store",
+    "categoryPolos": "Polo Shirts",
+    "categoryJeans": "Jeans",
+    "categoryVests": "Vests"
   },
   "benefits": {
     "secureShoppingTitle": "SECURE SHOPPING",
