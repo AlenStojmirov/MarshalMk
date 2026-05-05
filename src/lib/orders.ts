@@ -1,22 +1,10 @@
 'use client';
 
-import {
-  collection,
-  addDoc,
-  getDocs,
-  getDoc,
-  doc,
-  updateDoc,
-  query,
-  orderBy,
-  where,
-  Timestamp,
-  runTransaction,
-} from 'firebase/firestore';
-import { db } from './firebase';
+import { supabase } from './supabase';
+import { rowToOrder, OrderRow, productToRow } from './db-mappers';
 import { Order, OrderStatus, CustomerInfo, OrderItem, ProductSize } from '@/types';
 
-const ORDERS_COLLECTION = 'orders';
+const ORDERS_TABLE = 'orders';
 
 function generateOrderNumber(): string {
   const timestamp = Date.now().toString(36).toUpperCase();
@@ -24,178 +12,136 @@ function generateOrderNumber(): string {
   return `ORD-${timestamp}-${random}`;
 }
 
+/**
+ * NOTE: in production, orders are created via the server-side API route
+ * (`/api/orders`) which uses the service-role key. This client-side helper
+ * is kept for parity with the previous Firestore implementation and should
+ * only be used by authenticated admins.
+ */
 export async function createOrder(
   customer: CustomerInfo,
   items: OrderItem[],
   subtotal: number
 ): Promise<Order> {
-  const now = new Date();
-  const orderData = {
-    orderNumber: generateOrderNumber(),
+  const row = {
+    order_number: generateOrderNumber(),
     customer,
     items,
     subtotal,
     shipping: 0,
     total: subtotal,
     status: 'pending' as OrderStatus,
-    paymentMethod: 'cash_on_delivery' as const,
-    createdAt: Timestamp.fromDate(now),
-    updatedAt: Timestamp.fromDate(now),
+    payment_method: 'cash_on_delivery' as const,
   };
 
-  const docRef = await addDoc(collection(db, ORDERS_COLLECTION), orderData);
+  const { data, error } = await supabase
+    .from(ORDERS_TABLE)
+    .insert(row)
+    .select()
+    .single();
 
-  return {
-    id: docRef.id,
-    ...orderData,
-    createdAt: now,
-    updatedAt: now,
-  };
+  if (error) throw error;
+  return rowToOrder(data as OrderRow);
 }
 
 export async function getOrders(): Promise<Order[]> {
-  const q = query(
-    collection(db, ORDERS_COLLECTION),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from(ORDERS_TABLE)
+    .select('*')
+    .order('created_at', { ascending: false });
 
-  return snapshot.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      orderNumber: data.orderNumber,
-      customer: data.customer,
-      items: data.items,
-      subtotal: data.subtotal,
-      shipping: data.shipping,
-      total: data.total,
-      status: data.status,
-      paymentMethod: data.paymentMethod,
-      createdAt: data.createdAt?.toDate() || new Date(),
-      updatedAt: data.updatedAt?.toDate() || new Date(),
-    } as Order;
-  });
+  if (error) throw error;
+  return ((data as OrderRow[] | null) ?? []).map(rowToOrder);
 }
 
 export async function getOrderById(id: string): Promise<Order | null> {
-  const docRef = doc(db, ORDERS_COLLECTION, id);
-  const snapshot = await getDoc(docRef);
+  const { data, error } = await supabase
+    .from(ORDERS_TABLE)
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
 
-  if (!snapshot.exists()) {
-    return null;
-  }
-
-  const data = snapshot.data();
-  return {
-    id: snapshot.id,
-    orderNumber: data.orderNumber,
-    customer: data.customer,
-    items: data.items,
-    subtotal: data.subtotal,
-    shipping: data.shipping,
-    total: data.total,
-    status: data.status,
-    paymentMethod: data.paymentMethod,
-    createdAt: data.createdAt?.toDate() || new Date(),
-    updatedAt: data.updatedAt?.toDate() || new Date(),
-  } as Order;
+  if (error) throw error;
+  return data ? rowToOrder(data as OrderRow) : null;
 }
 
 export async function getOrderByNumber(orderNumber: string): Promise<Order | null> {
-  const q = query(
-    collection(db, ORDERS_COLLECTION),
-    where('orderNumber', '==', orderNumber)
-  );
-  const snapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from(ORDERS_TABLE)
+    .select('*')
+    .eq('order_number', orderNumber)
+    .maybeSingle();
 
-  if (snapshot.empty) {
-    return null;
-  }
-
-  const doc = snapshot.docs[0];
-  const data = doc.data();
-  return {
-    id: doc.id,
-    orderNumber: data.orderNumber,
-    customer: data.customer,
-    items: data.items,
-    subtotal: data.subtotal,
-    shipping: data.shipping,
-    total: data.total,
-    status: data.status,
-    paymentMethod: data.paymentMethod,
-    createdAt: data.createdAt?.toDate() || new Date(),
-    updatedAt: data.updatedAt?.toDate() || new Date(),
-  } as Order;
+  if (error) throw error;
+  return data ? rowToOrder(data as OrderRow) : null;
 }
 
-export async function updateOrderStatus(
-  id: string,
-  status: OrderStatus
-): Promise<void> {
-  const orderRef = doc(db, ORDERS_COLLECTION, id);
-
-  // If status is changing to "shipped", deduct stock from products
-  if (status === 'shipped') {
-    await runTransaction(db, async (transaction) => {
-      // Get the order first
-      const orderDoc = await transaction.get(orderRef);
-      if (!orderDoc.exists()) {
-        throw new Error('Order not found');
-      }
-
-      const orderData = orderDoc.data();
-      const currentStatus = orderData.status;
-
-      // Only deduct stock if the order was not already shipped
-      if (currentStatus !== 'shipped' && currentStatus !== 'delivered') {
-        const items = orderData.items as OrderItem[];
-
-        // Deduct stock for each item
-        for (const item of items) {
-          const productRef = doc(db, 'products', item.productId);
-          const productDoc = await transaction.get(productRef);
-
-          if (productDoc.exists()) {
-            const productData = productDoc.data();
-            const currentStock = productData.stock || 0;
-            const currentSizes = productData.sizes as ProductSize[] || [];
-
-            // Deduct from total stock
-            const newStock = Math.max(0, currentStock - item.quantity);
-
-            // Deduct from size-specific stock if applicable
-            let newSizes = currentSizes;
-            if (item.size && currentSizes.length > 0) {
-              newSizes = currentSizes.map((s) => {
-                if (s.size === item.size) {
-                  return { ...s, quantity: Math.max(0, s.quantity - item.quantity) };
-                }
-                return s;
-              });
-            }
-
-            transaction.update(productRef, {
-              stock: newStock,
-              sizes: newSizes,
-              updatedAt: Timestamp.fromDate(new Date()),
-            });
-          }
-        }
-      }
-
-      // Update the order status
-      transaction.update(orderRef, {
-        status,
-        updatedAt: Timestamp.fromDate(new Date()),
-      });
-    });
-  } else {
-    // For other status changes, just update the status
-    await updateDoc(orderRef, {
-      status,
-      updatedAt: Timestamp.fromDate(new Date()),
-    });
+/**
+ * Update an order's status. When transitioning to "shipped", deduct the
+ * ordered quantities from each product's stock and size buckets.
+ *
+ * Postgres doesn't have a multi-row equivalent of Firestore transactions
+ * accessible from the client, but each per-product update is atomic and
+ * the read-modify-write window is small. For stricter consistency,
+ * promote this logic to a server action / RPC.
+ */
+export async function updateOrderStatus(id: string, status: OrderStatus): Promise<void> {
+  if (status !== 'shipped') {
+    const { error } = await supabase
+      .from(ORDERS_TABLE)
+      .update({ status })
+      .eq('id', id);
+    if (error) throw error;
+    return;
   }
+
+  // Load order to know its current status + items
+  const { data: orderData, error: orderErr } = await supabase
+    .from(ORDERS_TABLE)
+    .select('status, items')
+    .eq('id', id)
+    .single();
+
+  if (orderErr) throw orderErr;
+  if (!orderData) throw new Error('Order not found');
+
+  const currentStatus = orderData.status as OrderStatus;
+  const items = (orderData.items ?? []) as OrderItem[];
+
+  // Only deduct stock if not already shipped/delivered
+  if (currentStatus !== 'shipped' && currentStatus !== 'delivered') {
+    for (const item of items) {
+      const { data: productData, error: productErr } = await supabase
+        .from('products')
+        .select('stock, sizes')
+        .eq('id', item.productId)
+        .maybeSingle();
+
+      if (productErr || !productData) continue;
+
+      const currentStock = (productData.stock as number) || 0;
+      const currentSizes = (productData.sizes as ProductSize[] | null) || [];
+
+      const newStock = Math.max(0, currentStock - item.quantity);
+      let newSizes = currentSizes;
+      if (item.size && currentSizes.length > 0) {
+        newSizes = currentSizes.map((s) =>
+          s.size === item.size
+            ? { ...s, quantity: Math.max(0, s.quantity - item.quantity) }
+            : s
+        );
+      }
+
+      await supabase
+        .from('products')
+        .update(productToRow({ stock: newStock, sizes: newSizes }))
+        .eq('id', item.productId);
+    }
+  }
+
+  const { error: statusErr } = await supabase
+    .from(ORDERS_TABLE)
+    .update({ status })
+    .eq('id', id);
+  if (statusErr) throw statusErr;
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminFirestore } from '@/lib/firebase-admin';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { rowToOrder, OrderRow } from '@/lib/db-mappers';
 
 export async function GET(request: NextRequest) {
   const orderNumber = request.nextUrl.searchParams.get('orderNumber');
@@ -12,74 +13,44 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const searchValue = orderNumber.trim().toUpperCase();
-    console.log('[ORDER_TRACK] Searching for orderNumber:', searchValue);
+    const supabase = getSupabaseAdmin();
+    const trimmed = orderNumber.trim();
+    const upper = trimmed.toUpperCase();
 
-    const db = getAdminFirestore();
-    const snapshot = await db
-      .collection('orders')
-      .where('orderNumber', '==', searchValue)
-      .limit(1)
-      .get();
+    console.log('[ORDER_TRACK] Searching for orderNumber:', upper);
 
-    console.log('[ORDER_TRACK] Query result - empty:', snapshot.empty, 'size:', snapshot.size);
+    // Try uppercase first (current format), then exact case as a fallback.
+    let { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('order_number', upper)
+      .maybeSingle();
 
-    if (snapshot.empty) {
-      // Also try without uppercase in case orders were stored differently
-      const snapshotOriginal = await db
-        .collection('orders')
-        .where('orderNumber', '==', orderNumber.trim())
-        .limit(1)
-        .get();
-
-      console.log('[ORDER_TRACK] Retry with original case - empty:', snapshotOriginal.empty);
-
-      if (snapshotOriginal.empty) {
-        return NextResponse.json(
-          { error: 'Order not found.' },
-          { status: 404 }
-        );
-      }
-
-      // Use the result from the retry
-      const retryDoc = snapshotOriginal.docs[0];
-      const retryData = retryDoc.data();
-
-      const order = {
-        id: retryDoc.id,
-        orderNumber: retryData.orderNumber,
-        customer: retryData.customer,
-        items: retryData.items,
-        subtotal: retryData.subtotal,
-        shipping: retryData.shipping,
-        total: retryData.total,
-        status: retryData.status,
-        paymentMethod: retryData.paymentMethod,
-        createdAt: retryData.createdAt?.toDate()?.toISOString() || new Date().toISOString(),
-        updatedAt: retryData.updatedAt?.toDate()?.toISOString() || new Date().toISOString(),
-      };
-
-      return NextResponse.json({ order }, { status: 200 });
+    if (!data && !error) {
+      ({ data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('order_number', trimmed)
+        .maybeSingle());
     }
 
-    const doc = snapshot.docs[0];
-    const data = doc.data();
+    if (error) throw error;
+    if (!data) {
+      return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
+    }
 
-    const order = {
-      id: doc.id,
-      orderNumber: data.orderNumber,
-      customer: data.customer,
-      items: data.items,
-      subtotal: data.subtotal,
-      shipping: data.shipping,
-      total: data.total,
-      status: data.status,
-      paymentMethod: data.paymentMethod,
-      createdAt: data.createdAt?.toDate()?.toISOString() || new Date().toISOString(),
-      updatedAt: data.updatedAt?.toDate()?.toISOString() || new Date().toISOString(),
-    };
+    const order = rowToOrder(data as OrderRow);
 
-    return NextResponse.json({ order }, { status: 200 });
+    return NextResponse.json(
+      {
+        order: {
+          ...order,
+          createdAt: order.createdAt.toISOString(),
+          updatedAt: order.updatedAt.toISOString(),
+        },
+      },
+      { status: 200 }
+    );
   } catch (err) {
     console.error('[ORDER_TRACK_ERROR]', err);
     return NextResponse.json(

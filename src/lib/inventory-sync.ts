@@ -1,16 +1,9 @@
 'use client';
 
-import { ref, get, set, onValue, off, Database } from 'firebase/database';
-import {
-  collection,
-  doc,
-  setDoc,
-  getDoc,
-  getDocs,
-  writeBatch,
-  Timestamp,
-} from 'firebase/firestore';
-import { getRealtimeDatabase, isRealtimeDatabaseConfigured as checkRtdbConfigured, db } from './firebase';
+import { ref, get, set, onValue, off } from 'firebase/database';
+import { getRealtimeDatabase, isRealtimeDatabaseConfigured as checkRtdbConfigured } from './firebase-rtdb';
+import { supabase } from './supabase';
+import { productToRow, ProductRow, rowToProduct } from './db-mappers';
 import { Product, ProductSize } from '@/types';
 
 // Re-export the check function
@@ -54,15 +47,12 @@ function inventoryToProduct(
     if (Array.isArray(inv.sizes)) {
       sizes = inv.sizes;
     } else {
-      // Convert object format { 0: { size, quantity }, 1: { size, quantity } } to array
       sizes = Object.values(inv.sizes as Record<string, ProductSize>);
     }
   }
 
-  // Calculate total stock from sizes
   const totalStock = sizes.reduce((sum, s) => sum + (s.quantity || 0), 0);
 
-  // Handle sold items - convert from object format if needed
   let sold: Array<{ size: string; price: number; soldDate: string }> = [];
   if (inv.sold) {
     if (Array.isArray(inv.sold)) {
@@ -72,7 +62,6 @@ function inventoryToProduct(
         soldDate: item.soldDate || '',
       }));
     } else {
-      // Convert object format { 0: { size, price, soldDate }, ... } to array
       sold = Object.values(inv.sold as Record<string, { size: string; price: number | string; soldDate: string }>)
         .map(item => ({
           size: item.size || '',
@@ -103,7 +92,7 @@ function inventoryToProduct(
 export async function fetchInventoryProducts(): Promise<InventoryData> {
   const rtdb = getRealtimeDatabase();
   if (!rtdb) {
-    throw new Error('Realtime Database is not configured. Please set NEXT_PUBLIC_FIREBASE_DATABASE_URL.');
+    throw new Error('Realtime Database is not configured. Please set NEXT_PUBLIC_INVENTORY_FIREBASE_DATABASE_URL.');
   }
 
   const productsRef = ref(rtdb, 'products');
@@ -137,36 +126,36 @@ export function subscribeToInventory(
     }
   });
 
-  // Return unsubscribe function
   return () => off(productsRef);
 }
 
-// Sync a single product from inventory to Firestore
-export async function syncProductToFirestore(
+// Sync a single product from inventory to Supabase
+export async function syncProductToSupabase(
   id: string,
   invProduct: InventoryProduct
 ): Promise<void> {
-  const docRef = doc(db, 'products', id);
-  const existingDoc = await getDoc(docRef);
-  const existingData = existingDoc.exists() ? existingDoc.data() : undefined;
+  const { data: existing } = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
 
-  const productData = inventoryToProduct(id, invProduct, existingData as Partial<Product>);
-  const now = Timestamp.fromDate(new Date());
+  const existingProduct = existing
+    ? rowToProduct(existing as ProductRow)
+    : undefined;
 
-  await setDoc(
-    docRef,
-    {
-      ...productData,
-      updatedAt: now,
-      createdAt: existingDoc.exists() ? existingData?.createdAt : now,
-    },
-    { merge: true }
-  );
+  const productData = inventoryToProduct(id, invProduct, existingProduct);
+  const row = { id, ...productToRow(productData) };
+
+  const { error } = await supabase.from('products').upsert(row);
+  if (error) throw error;
 }
 
-// Sync all products from Realtime Database to Firestore
-// - Existing products: only update sizes and sold fields
-// - New products: full migrate with isVisible: true
+/**
+ * Sync all products from Realtime Database to Supabase.
+ *  - Existing products: only update sizes, sold, stock
+ *  - New products: full insert with is_visible: false
+ */
 export async function migrateAllProducts(): Promise<{
   migrated: number;
   updated: number;
@@ -177,45 +166,45 @@ export async function migrateAllProducts(): Promise<{
   let migrated = 0;
   let updated = 0;
 
-  const batch = writeBatch(db);
-  const now = Timestamp.fromDate(new Date());
+  // Pull existing IDs once to decide insert vs update
+  const { data: existingRows, error: existingErr } = await supabase
+    .from('products')
+    .select('id');
+
+  if (existingErr) {
+    return { migrated: 0, updated: 0, errors: [existingErr.message] };
+  }
+  const existingIds = new Set((existingRows ?? []).map((r) => (r as { id: string }).id));
 
   for (const [id, invProduct] of Object.entries(inventory)) {
     try {
-      const docRef = doc(db, 'products', id);
-      const existingDoc = await getDoc(docRef);
-
-      if (existingDoc.exists()) {
-        // Product exists - only update sizes and sold
-        const productData = inventoryToProduct(id, invProduct);
-
-        batch.update(docRef, {
-          sizes: productData.sizes,
-          sold: productData.sold,
-          stock: productData.stock,
-          updatedAt: now,
-        });
-
+      const productData = inventoryToProduct(id, invProduct);
+      if (existingIds.has(id)) {
+        const { error } = await supabase
+          .from('products')
+          .update(
+            productToRow({
+              sizes: productData.sizes,
+              sold: productData.sold,
+              stock: productData.stock,
+            })
+          )
+          .eq('id', id);
+        if (error) throw error;
         updated++;
       } else {
-        // New product - full migrate with isVisible: true
-        const productData = inventoryToProduct(id, invProduct);
-
-        batch.set(docRef, {
-          ...productData,
-          isVisible: false,
-          createdAt: now,
-          updatedAt: now,
-        });
-
+        const row = {
+          id,
+          ...productToRow({ ...productData, isVisible: false }),
+        };
+        const { error } = await supabase.from('products').insert(row);
+        if (error) throw error;
         migrated++;
       }
     } catch (err) {
-      errors.push(`Failed to process ${id}: ${err}`);
+      errors.push(`Failed to process ${id}: ${err instanceof Error ? err.message : err}`);
     }
   }
-
-  await batch.commit();
 
   return { migrated, updated, errors };
 }
@@ -256,25 +245,25 @@ export async function importInventoryData(jsonData: string): Promise<{
       await set(productRef, product);
       imported++;
     } catch (err) {
-      errors.push(`Failed to import ${id}: ${err}`);
+      errors.push(`Failed to import ${id}: ${err instanceof Error ? err.message : err}`);
     }
   }
 
   return { imported, errors };
 }
 
-// Get products that exist in Firestore but not in inventory (orphaned)
+// Get products that exist in Supabase but not in inventory (orphaned)
 export async function findOrphanedProducts(): Promise<string[]> {
   const inventory = await fetchInventoryProducts();
   const inventoryIds = new Set(Object.keys(inventory));
 
-  const productsSnapshot = await getDocs(collection(db, 'products'));
-  const orphaned: string[] = [];
+  const { data, error } = await supabase.from('products').select('id');
+  if (error) return [];
 
-  productsSnapshot.forEach((doc) => {
-    if (!inventoryIds.has(doc.id)) {
-      orphaned.push(doc.id);
-    }
+  const orphaned: string[] = [];
+  (data ?? []).forEach((row) => {
+    const id = (row as { id: string }).id;
+    if (!inventoryIds.has(id)) orphaned.push(id);
   });
 
   return orphaned;
@@ -291,13 +280,9 @@ export async function updateProductEcommerceFields(
     featured?: boolean;
   }
 ): Promise<void> {
-  const docRef = doc(db, 'products', id);
-  await setDoc(
-    docRef,
-    {
-      ...fields,
-      updatedAt: Timestamp.fromDate(new Date()),
-    },
-    { merge: true }
-  );
+  const { error } = await supabase
+    .from('products')
+    .update(productToRow(fields))
+    .eq('id', id);
+  if (error) throw error;
 }

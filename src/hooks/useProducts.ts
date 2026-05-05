@@ -1,22 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  collection,
-  getDocs,
-  getDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  setDoc,
-  doc,
-  query,
-  where,
-  orderBy,
-  Timestamp,
-} from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '@/lib/firebase';
+import { supabase, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase';
+import { rowToProduct, productToRow, ProductRow } from '@/lib/db-mappers';
 import { Product, ProductFormData } from '@/types';
 
 async function fetchImageMap(): Promise<Record<string, string[]>> {
@@ -49,21 +35,21 @@ export function useProducts() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const productsRef = collection(db, 'products');
-      const q = query(productsRef, orderBy('createdAt', 'desc'));
-      const [snapshot, imageMap] = await Promise.all([getDocs(q), fetchImageMap()]);
+      const [{ data, error: dbError }, imageMap] = await Promise.all([
+        supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        fetchImageMap(),
+      ]);
 
-      const fetchedProducts: Product[] = snapshot.docs.map(doc => {
-        const product = {
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate() || new Date(),
-          updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        } as Product;
-        return enrichWithLocalImages(product, imageMap);
-      });
+      if (dbError) throw dbError;
 
-      setProducts(fetchedProducts);
+      const fetched = ((data as ProductRow[] | null) ?? [])
+        .map(rowToProduct)
+        .map((p) => enrichWithLocalImages(p, imageMap));
+
+      setProducts(fetched);
       setError(null);
     } catch (err) {
       setError('Failed to fetch products');
@@ -89,17 +75,15 @@ export function useProduct(id: string) {
     const fetchProduct = async () => {
       try {
         setLoading(true);
-        const docRef = doc(db, 'products', id);
-        const [docSnap, imageMap] = await Promise.all([getDoc(docRef), fetchImageMap()]);
+        const [{ data, error: dbError }, imageMap] = await Promise.all([
+          supabase.from('products').select('*').eq('id', id).maybeSingle(),
+          fetchImageMap(),
+        ]);
 
-        if (docSnap.exists()) {
-          const product = {
-            id: docSnap.id,
-            ...docSnap.data(),
-            createdAt: docSnap.data().createdAt?.toDate() || new Date(),
-            updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
-          } as Product;
-          setProduct(enrichWithLocalImages(product, imageMap));
+        if (dbError) throw dbError;
+
+        if (data) {
+          setProduct(enrichWithLocalImages(rowToProduct(data as ProductRow), imageMap));
         } else {
           setError('Product not found');
         }
@@ -128,24 +112,27 @@ export function useProductsByCategory(category: string) {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const productsRef = collection(db, 'products');
-        const q = category
-          ? query(productsRef, where('category', '==', category), orderBy('createdAt', 'desc'))
-          : query(productsRef, orderBy('createdAt', 'desc'));
+        let query = supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-        const [snapshot, imageMap] = await Promise.all([getDocs(q), fetchImageMap()]);
+        if (category) {
+          query = query.eq('category', category);
+        }
 
-        const fetchedProducts: Product[] = snapshot.docs.map(doc => {
-          const product = {
-            id: doc.id,
-            ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate() || new Date(),
-            updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-          } as Product;
-          return enrichWithLocalImages(product, imageMap);
-        });
+        const [{ data, error: dbError }, imageMap] = await Promise.all([
+          query,
+          fetchImageMap(),
+        ]);
 
-        setProducts(fetchedProducts);
+        if (dbError) throw dbError;
+
+        const fetched = ((data as ProductRow[] | null) ?? [])
+          .map(rowToProduct)
+          .map((p) => enrichWithLocalImages(p, imageMap));
+
+        setProducts(fetched);
         setError(null);
       } catch (err) {
         setError('Failed to fetch products');
@@ -161,54 +148,56 @@ export function useProductsByCategory(category: string) {
   return { products, loading, error };
 }
 
+// ---------------------------------------------------------------------------
 // Admin functions for product management
+// ---------------------------------------------------------------------------
+
 export async function uploadProductImage(file: File): Promise<string> {
-  const fileName = `products/${Date.now()}-${file.name}`;
-  const storageRef = ref(storage, fileName);
-  await uploadBytes(storageRef, file);
-  return getDownloadURL(storageRef);
+  const ext = file.name.includes('.') ? file.name.split('.').pop() : 'jpg';
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from(PRODUCT_IMAGES_BUCKET)
+    .upload(path, file, { cacheControl: '3600', upsert: false });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
 }
 
 export async function deleteProductImage(imageUrl: string): Promise<void> {
   try {
-    const storageRef = ref(storage, imageUrl);
-    await deleteObject(storageRef);
+    // Extract the storage path from the public URL
+    const marker = `/${PRODUCT_IMAGES_BUCKET}/`;
+    const idx = imageUrl.indexOf(marker);
+    if (idx === -1) return; // not a Supabase Storage URL, skip
+
+    const path = imageUrl.substring(idx + marker.length);
+    await supabase.storage.from(PRODUCT_IMAGES_BUCKET).remove([path]);
   } catch (err) {
     console.error('Failed to delete image:', err);
   }
 }
 
 export async function createProduct(data: ProductFormData, customId?: string): Promise<string> {
-  const productData = {
-    ...data,
-    createdAt: Timestamp.now(),
-    updatedAt: Timestamp.now(),
-  };
+  const id = customId?.trim() || `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const row = { id, ...productToRow(data) };
 
-  if (customId && customId.trim()) {
-    // Use custom ID with setDoc
-    const docRef = doc(db, 'products', customId.trim());
-    await setDoc(docRef, productData);
-    return customId.trim();
-  } else {
-    // Auto-generate ID with addDoc
-    const productsRef = collection(db, 'products');
-    const docRef = await addDoc(productsRef, productData);
-    return docRef.id;
-  }
+  const { error } = await supabase.from('products').insert(row);
+  if (error) throw error;
+  return id;
 }
 
 export async function updateProduct(id: string, data: Partial<ProductFormData>): Promise<void> {
-  const docRef = doc(db, 'products', id);
-  await updateDoc(docRef, {
-    ...data,
-    updatedAt: Timestamp.now(),
-  });
+  const row = productToRow(data);
+  const { error } = await supabase.from('products').update(row).eq('id', id);
+  if (error) throw error;
 }
 
 export async function deleteProduct(id: string): Promise<void> {
-  const docRef = doc(db, 'products', id);
-  await deleteDoc(docRef);
+  const { error } = await supabase.from('products').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export function useCategories() {
@@ -219,14 +208,16 @@ export function useCategories() {
     const fetchCategories = async () => {
       try {
         setLoading(true);
-        const productsRef = collection(db, 'products');
-        const snapshot = await getDocs(productsRef);
+        const { data, error } = await supabase
+          .from('products')
+          .select('category, is_visible, stock');
+
+        if (error) throw error;
 
         const categorySet = new Set<string>();
-        snapshot.docs.forEach(doc => {
-          const data = doc.data();
-          if (data.category && data.isVisible !== false && data.stock > 0) {
-            categorySet.add(data.category);
+        (data ?? []).forEach((row: { category: string; is_visible: boolean; stock: number }) => {
+          if (row.category && row.is_visible !== false && row.stock > 0) {
+            categorySet.add(row.category);
           }
         });
 

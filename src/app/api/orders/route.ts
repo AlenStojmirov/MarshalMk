@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminFirestore } from '@/lib/firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import {
   isRateLimited,
   isGloballyThrottled,
@@ -43,9 +42,7 @@ export async function POST(request: NextRequest) {
 
   // ── Layer 2: Global circuit breaker ───────────────────────────────────
   if (isGloballyThrottled()) {
-    console.error(
-      `[ORDER_ALERT] Global order rate exceeded. ip=${ip}`
-    );
+    console.error(`[ORDER_ALERT] Global order rate exceeded. ip=${ip}`);
     return NextResponse.json(
       { error: 'We are experiencing high demand. Please try again shortly.' },
       { status: 503 }
@@ -73,10 +70,8 @@ export async function POST(request: NextRequest) {
 
   // ── Layer 4: Honeypot ─────────────────────────────────────────────────
   if (body.website) {
-    // Real users never fill this hidden field — bots do.
     recordViolation(ip);
     console.warn(`[ORDER_HONEYPOT] ip=${ip}`);
-    // Return 200 so the bot thinks it succeeded (don't reveal detection)
     return NextResponse.json({ orderNumber: 'ORD-OK' }, { status: 200 });
   }
 
@@ -85,9 +80,7 @@ export async function POST(request: NextRequest) {
   const submissionMs = Date.now() - formLoadedAt;
   if (formLoadedAt === 0 || submissionMs < 3000) {
     recordViolation(ip);
-    console.warn(
-      `[ORDER_TIMING] ip=${ip} submissionMs=${submissionMs}`
-    );
+    console.warn(`[ORDER_TIMING] ip=${ip} submissionMs=${submissionMs}`);
     return NextResponse.json(
       { error: 'Please fill in the form before submitting.' },
       { status: 400 }
@@ -152,13 +145,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // ── Create order in Firestore (server-side) ───────────────────────────
+  // ── Create order in Supabase (server-side, service-role) ──────────────
   try {
-    const db = getAdminFirestore();
+    const supabase = getSupabaseAdmin();
     const orderNumber = generateOrderNumber();
 
-    const orderData = {
-      orderNumber,
+    const orderRow = {
+      order_number: orderNumber,
       customer: {
         firstName: customer.firstName.trim(),
         lastName: customer.lastName.trim(),
@@ -183,12 +176,11 @@ export async function POST(request: NextRequest) {
       shipping: 0,
       total: subtotal,
       status: 'pending',
-      paymentMethod: 'cash_on_delivery',
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+      payment_method: 'cash_on_delivery',
     };
 
-    await db.collection('orders').add(orderData);
+    const { error } = await supabase.from('orders').insert(orderRow);
+    if (error) throw error;
 
     console.log(
       `[ORDER_CREATED] orderNumber=${orderNumber} ip=${ip} email=${email} items=${items.length}`

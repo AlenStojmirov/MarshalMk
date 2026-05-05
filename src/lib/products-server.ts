@@ -1,4 +1,5 @@
-import { getAdminFirestore } from './firebase-admin';
+import { getSupabaseAdmin } from './supabase-admin';
+import { rowToProduct, ProductRow } from './db-mappers';
 import { Product, PaginatedResult, ProductQueryParams } from '@/types';
 import { getProductImageMap, ProductImageMap } from './product-images';
 
@@ -20,16 +21,6 @@ function getEffectivePrice(product: Product): number {
   return product.sale?.isActive ? product.sale.salePrice : product.price;
 }
 
-function parseFirestoreProduct(doc: { id: string; data: () => Record<string, unknown> | undefined }): Product {
-  const data = doc.data() || {};
-  return {
-    id: doc.id,
-    ...data,
-    createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.() || new Date(),
-    updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.() || new Date(),
-  } as Product;
-}
-
 export async function fetchPaginatedProducts(
   params: ProductQueryParams
 ): Promise<PaginatedResult> {
@@ -44,12 +35,17 @@ export async function fetchPaginatedProducts(
     sizes,
   } = params;
 
-  const db = getAdminFirestore();
-  const snapshot = await db.collection('products').orderBy('createdAt', 'desc').get();
-  const imageMap = getProductImageMap();
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending: false });
 
-  let allProducts = snapshot.docs
-    .map(parseFirestoreProduct)
+  if (error) throw error;
+
+  const imageMap = getProductImageMap();
+  let allProducts: Product[] = ((data as ProductRow[] | null) ?? [])
+    .map(rowToProduct)
     .map((p) => enrichWithLocalImages(p, imageMap));
 
   // Only include products that are visible and have sizes with quantity >= 1
@@ -57,7 +53,6 @@ export async function fetchPaginatedProducts(
     p.isVisible !== false && p?.sizes?.some((s) => s.quantity >= 1)
   );
 
-  // Filter sale products in JS to avoid composite index requirement
   if (saleOnly) {
     allProducts = allProducts.filter((p) => p.sale?.isActive);
   }
@@ -74,7 +69,6 @@ export async function fetchPaginatedProducts(
   // Compute filter metadata from the base result set (before user filters)
   const filterMeta = computeFilterMeta(allProducts);
 
-  // Apply price filter
   if (minPrice !== undefined || maxPrice !== undefined) {
     allProducts = allProducts.filter((p) => {
       const price = getEffectivePrice(p);
@@ -84,21 +78,18 @@ export async function fetchPaginatedProducts(
     });
   }
 
-  // Apply size filter
   if (sizes && sizes.length > 0) {
     allProducts = allProducts.filter((p) =>
       p.sizes?.some((s) => sizes.includes(s.size) && s.quantity > 0)
     );
   }
 
-  // Apply sorting
   if (sort === 'price_asc') {
     allProducts.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
   } else if (sort === 'price_desc') {
     allProducts.sort((a, b) => getEffectivePrice(b) - getEffectivePrice(a));
   }
 
-  // Paginate
   const totalCount = allProducts.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / limit));
   const safePage = Math.min(Math.max(1, page), totalPages);
@@ -143,22 +134,32 @@ function computeFilterMeta(products: Product[]): PaginatedResult['filterMeta'] {
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
-  const db = getAdminFirestore();
-  const docSnap = await db.collection('products').doc(id).get();
-  if (!docSnap.exists) return null;
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
 
   const imageMap = getProductImageMap();
-  const product = parseFirestoreProduct({ id: docSnap.id, data: () => docSnap.data() });
-  return enrichWithLocalImages(product, imageMap);
+  return enrichWithLocalImages(rowToProduct(data as ProductRow), imageMap);
 }
 
 export async function fetchAllVisibleProducts(): Promise<Product[]> {
-  const db = getAdminFirestore();
-  const snapshot = await db.collection('products').orderBy('createdAt', 'desc').get();
-  const imageMap = getProductImageMap();
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending: false });
 
-  return snapshot.docs
-    .map(parseFirestoreProduct)
+  if (error) throw error;
+
+  const imageMap = getProductImageMap();
+  return ((data as ProductRow[] | null) ?? [])
+    .map(rowToProduct)
     .map((p) => enrichWithLocalImages(p, imageMap))
     .filter((p) => p.isVisible !== false && p?.sizes?.some((s) => s.quantity >= 1));
 }
