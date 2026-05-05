@@ -1,41 +1,29 @@
+/* eslint-disable no-console */
 /**
- * Migration script to add sale fields to existing products in Firestore
- *
- * This script:
- * 1. Adds default sale fields to all products that don't have them
- * 2. Optionally marks specific products as on sale
+ * Add a default `sale` JSON object to every Supabase product that doesn't
+ * have one yet. Optionally mark a fixed list of products as on sale.
  *
  * Run with: npx tsx scripts/migrate-sale-fields.ts
  */
 
 import { config } from 'dotenv';
-// Load environment variables from .env.local
 config({ path: '.env.local' });
 
-import { initializeApp } from 'firebase/app';
-import {
-  getFirestore,
-  collection,
-  getDocs,
-  writeBatch,
-  doc
-} from 'firebase/firestore';
+import { createClient } from '@supabase/supabase-js';
 
-// Firebase configuration - uses same config as the app
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
-};
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!url || !key) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local');
+  process.exit(1);
+}
 
-// Products to mark as ON SALE (by ID)
-// Modify this array with your actual product IDs and sale percentages
+const supabase = createClient(url, key, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+
 const PRODUCTS_ON_SALE: Array<{ id: string; percentageOff: number }> = [
-  // Example: { id: 'product-id-1', percentageOff: 20 },
-  // Example: { id: 'product-id-2', percentageOff: 30 },
+  // { id: 'product-id-1', percentageOff: 20 },
 ];
 
 interface SaleInfo {
@@ -44,115 +32,77 @@ interface SaleInfo {
   percentageOff: number;
 }
 
-interface ProductData {
-  price?: number;
-  sale?: SaleInfo;
-  [key: string]: unknown;
-}
-
 async function migrateSaleFields() {
-  console.log('🚀 Starting sale fields migration...\n');
+  console.log('Starting sale fields migration...\n');
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  const { data, error } = await supabase
+    .from('products')
+    .select('id, name, price, sale');
 
-  const productsRef = collection(db, 'products');
-  const snapshot = await getDocs(productsRef);
+  if (error) throw error;
 
-  if (snapshot.empty) {
-    console.log('❌ No products found in database.');
+  const rows = (data ?? []) as Array<{
+    id: string;
+    name: string | null;
+    price: number | null;
+    sale: SaleInfo | null;
+  }>;
+
+  if (rows.length === 0) {
+    console.log('No products found.');
     return;
   }
 
-  console.log(`📦 Found ${snapshot.docs.length} products in database.\n`);
+  console.log(`Found ${rows.length} products.\n`);
 
-  // Create a Set for quick lookup of products to mark on sale
-  const saleProductIds = new Set(PRODUCTS_ON_SALE.map(p => p.id));
-  const salePercentages = new Map(PRODUCTS_ON_SALE.map(p => [p.id, p.percentageOff]));
+  const saleMap = new Map(PRODUCTS_ON_SALE.map((p) => [p.id, p.percentageOff]));
 
-  // Firestore batch has a limit of 500 operations
-  const BATCH_SIZE = 500;
-  let batch = writeBatch(db);
-  let operationCount = 0;
-  let updatedCount = 0;
-  let skippedCount = 0;
+  let updated = 0;
+  let skipped = 0;
   let saleCount = 0;
 
-  for (const docSnapshot of snapshot.docs) {
-    const productId = docSnapshot.id;
-    const data = docSnapshot.data() as ProductData;
-
-    // Skip if product already has sale field
-    if (data.sale !== undefined) {
-      console.log(`⏭️  Skipping "${data.name || productId}" - already has sale field`);
-      skippedCount++;
+  for (const row of rows) {
+    if (row.sale !== null) {
+      console.log(`Skipping "${row.name || row.id}" - already has sale field`);
+      skipped++;
       continue;
     }
 
-    const price = data.price || 0;
+    const price = Number(row.price) || 0;
     let saleInfo: SaleInfo;
 
-    // Check if this product should be on sale
-    if (saleProductIds.has(productId)) {
-      const percentageOff = salePercentages.get(productId) || 0;
-      const salePrice = Math.round((price * (1 - percentageOff / 100)) * 100) / 100;
-
-      saleInfo = {
-        isActive: true,
-        salePrice,
-        percentageOff
-      };
+    if (saleMap.has(row.id)) {
+      const percentageOff = saleMap.get(row.id) ?? 0;
+      const salePrice = Math.round(price * (1 - percentageOff / 100) * 100) / 100;
+      saleInfo = { isActive: true, salePrice, percentageOff };
       saleCount++;
-      console.log(`🏷️  Marking "${data.name || productId}" ON SALE: ${percentageOff}% off (${price} ден. → ${salePrice} ден.)`);
+      console.log(`Marking "${row.name || row.id}" ON SALE: ${percentageOff}% off (${price} -> ${salePrice})`);
     } else {
-      // Default: not on sale
-      saleInfo = {
-        isActive: false,
-        salePrice: 0,
-        percentageOff: 0
-      };
-      console.log(`✅ Adding default sale field to "${data.name || productId}"`);
+      saleInfo = { isActive: false, salePrice: 0, percentageOff: 0 };
+      console.log(`Adding default sale field to "${row.name || row.id}"`);
     }
 
-    // Add update to batch
-    const productRef = doc(db, 'products', productId);
-    batch.update(productRef, { sale: saleInfo });
-    operationCount++;
-    updatedCount++;
+    const { error: updErr } = await supabase
+      .from('products')
+      .update({ sale: saleInfo })
+      .eq('id', row.id);
 
-    // Commit batch if we hit the limit
-    if (operationCount >= BATCH_SIZE) {
-      console.log(`\n📤 Committing batch of ${operationCount} updates...`);
-      await batch.commit();
-      batch = writeBatch(db);
-      operationCount = 0;
+    if (updErr) {
+      console.error(`  Failed: ${updErr.message}`);
+      continue;
     }
-  }
-
-  // Commit any remaining operations
-  if (operationCount > 0) {
-    console.log(`\n📤 Committing final batch of ${operationCount} updates...`);
-    await batch.commit();
+    updated++;
   }
 
   console.log('\n' + '='.repeat(50));
-  console.log('✨ Migration completed successfully!');
+  console.log('Migration completed.');
   console.log('='.repeat(50));
-  console.log(`📊 Summary:`);
-  console.log(`   - Total products: ${snapshot.docs.length}`);
-  console.log(`   - Updated: ${updatedCount}`);
-  console.log(`   - Skipped (already had sale field): ${skippedCount}`);
-  console.log(`   - Marked on sale: ${saleCount}`);
+  console.log(`Total: ${rows.length} | Updated: ${updated} | Skipped: ${skipped} | On sale: ${saleCount}`);
 }
 
-// Run the migration
 migrateSaleFields()
-  .then(() => {
-    console.log('\n👋 Done!');
-    process.exit(0);
-  })
+  .then(() => process.exit(0))
   .catch((error) => {
-    console.error('\n❌ Migration failed:', error);
+    console.error('Migration failed:', error);
     process.exit(1);
   });
