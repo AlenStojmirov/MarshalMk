@@ -1,6 +1,9 @@
-import { Truck, Headphones, ShieldCheck, Shirt } from 'lucide-react';
+'use client';
+
+import { Truck, Headphones, ShieldCheck } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { SHIPPING_CONFIG } from '@/config/shipping';
+import { useTranslation } from '@/lib/i18n';
 
 interface Benefit {
   icon: LucideIcon;
@@ -8,30 +11,29 @@ interface Benefit {
   description: string;
 }
 
-const benefits: Benefit[] = [
-  {
-    icon: ShieldCheck,
-    title: 'БЕЗБЕДЕН ШОПИНГ',
-    description: 'Вие сте во сигурни раце',
-  },
-  {
-    icon: Truck,
-    title: 'БЕСПЛАТНА ИСПОРАКА',
-    description: `Бесплатна испорака за нарачка над ${SHIPPING_CONFIG.freeShippingThreshold} ден`,
-  },
-  {
-    icon: Headphones,
-    title: 'ПОДДРШКА',
-    description: 'Корисничка поддршка 24/7',
-  },
-  // {
-  //   icon: Shirt,
-  //   title: 'НАД 1000 СТИЛОВИ',
-  //   description: 'Имаме се што ви треба',
-  // },
-];
-
 export default function HomeBenefitsSection() {
+  const { t } = useTranslation();
+
+  const benefits: Benefit[] = [
+    {
+      icon: ShieldCheck,
+      title: t('benefits.secureShoppingTitle'),
+      description: t('benefits.secureShoppingDescription'),
+    },
+    {
+      icon: Truck,
+      title: t('benefits.freeShippingTitle'),
+      description: t('benefits.freeShippingDescription', {
+        amount: SHIPPING_CONFIG.freeShippingThreshold,
+      }),
+    },
+    {
+      icon: Headphones,
+      title: t('benefits.supportTitle'),
+      description: t('benefits.supportDescription'),
+    },
+  ];
+
   return (
     <section className="bg-white py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

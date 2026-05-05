@@ -5,8 +5,10 @@ import { useProducts } from '@/hooks/useProducts';
 import HomeCategoriesSection from '@/components/HomeCategoriesSection';
 import HomeBenefitsSection from '@/components/HomeBenefitsSection';
 import NewProductsSection from '@/components/NewProductsSection';
+import { useTranslation } from '@/lib/i18n';
 
 export default function Home() {
+  const { t } = useTranslation();
   const { products, loading, error } = useProducts();
 
   // Get 12 newest available products (already sorted by createdAt desc from hook)
@@ -26,7 +28,7 @@ export default function Home() {
 
   return (
     <div>
-      <h1 className="sr-only">Marshal — Men&apos;s Fashion & Clothing Store</h1>
+      <h1 className="sr-only">{t('home.seoTitle')}</h1>
 
       {/* Section 1: Category Heroes */}
       <HomeCategoriesSection />

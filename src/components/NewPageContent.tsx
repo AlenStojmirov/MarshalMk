@@ -82,10 +82,10 @@ export default function NewPageContent({ paginatedData }: NewPageContentProps) {
       <section className="border-t border-stone-200">
         <div className="max-w-3xl mx-auto px-6 sm:px-8 lg:px-10 py-20 md:py-28 text-center">
           <p className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-stone-400 mb-6">
-            Our Philosophy
+            {t('newProducts.philosophyLabel')}
           </p>
           <h3 className="text-2xl md:text-3xl lg:text-4xl font-extralight text-stone-900 leading-relaxed tracking-wide">
-            Modern essentials for everyday wear
+            {t('newProducts.philosophyTitle')}
           </h3>
           <div className="w-12 h-px bg-stone-300 mx-auto mt-10" />
         </div>

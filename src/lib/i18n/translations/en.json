@@ -45,7 +45,16 @@
   "home": {
     "welcome": "Welcome to MyStore",
     "subtitle": "Discover our amazing collection of products at great prices.",
-    "showingProducts": "Showing {shown} of {total} products"
+    "showingProducts": "Showing {shown} of {total} products",
+    "seoTitle": "Marshal — Men's Fashion & Clothing Store"
+  },
+  "benefits": {
+    "secureShoppingTitle": "SECURE SHOPPING",
+    "secureShoppingDescription": "You are in safe hands",
+    "freeShippingTitle": "FREE DELIVERY",
+    "freeShippingDescription": "Free delivery for orders over {amount} den",
+    "supportTitle": "SUPPORT",
+    "supportDescription": "Customer support 24/7"
   },
   "cart": {
     "title": "Shopping Cart",
@@ -379,7 +388,9 @@
     "subtitle": "Check out our latest products",
     "noProducts": "No new products at the moment",
     "checkBackSoon": "Check back soon for new arrivals!",
-    "productCount": "{count} new products"
+    "productCount": "{count} new products",
+    "philosophyLabel": "Our Philosophy",
+    "philosophyTitle": "Modern essentials for everyday wear"
   },
   "inventory": {
     "title": "Inventory Sync",

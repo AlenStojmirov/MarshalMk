@@ -45,7 +45,16 @@
   "home": {
     "welcome": "Добредојдовте во MyStore",
     "subtitle": "Откријте ја нашата неверојатна колекција на производи по одлични цени.",
-    "showingProducts": "Прикажани {shown} од {total} производи"
+    "showingProducts": "Прикажани {shown} од {total} производи",
+    "seoTitle": "Marshal — Машка мода и продавница за облека"
+  },
+  "benefits": {
+    "secureShoppingTitle": "БЕЗБЕДЕН ШОПИНГ",
+    "secureShoppingDescription": "Вие сте во сигурни раце",
+    "freeShippingTitle": "БЕСПЛАТНА ИСПОРАКА",
+    "freeShippingDescription": "Бесплатна испорака за нарачка над {amount} ден",
+    "supportTitle": "ПОДДРШКА",
+    "supportDescription": "Корисничка поддршка 24/7"
   },
   "cart": {
     "title": "Кошничка",
@@ -379,7 +388,9 @@
     "subtitle": "Погледнете ги нашите најнови производи",
     "noProducts": "Моментално нема нови производи",
     "checkBackSoon": "Проверете повторно наскоро за нови производи!",
-    "productCount": "{count} нови производи"
+    "productCount": "{count} нови производи",
+    "philosophyLabel": "Нашата филозофија",
+    "philosophyTitle": "Модерни есенцијали за секојдневно носење"
   },
   "inventory": {
     "title": "Синхронизација на залиха",
