@@ -103,7 +103,7 @@ export default function RootLayout({
               "@type": "Organization",
               name: "Marshal",
               url: "https://marshal.mk",
-              logo: "https://marshal.mk/logo_white_bg.png",
+              logo: "https://marshal.mk/logo_white.png",
               description:
                 "Men's fashion and clothing store — premium t-shirts, polos, shirts, pants, jackets and more.",
               sameAs: [
