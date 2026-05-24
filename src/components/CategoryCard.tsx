@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTranslation } from '@/lib/i18n';
 
 interface CategoryCardProps {
   title: string;
@@ -8,6 +9,7 @@ interface CategoryCardProps {
 }
 
 export default function CategoryCard({ title, href, imageSrc }: CategoryCardProps) {
+  const { t } = useTranslation();
   return (
     <Link
       href={href}
@@ -27,7 +29,7 @@ export default function CategoryCard({ title, href, imageSrc }: CategoryCardProp
           {title}
         </h2>
         <span className="px-8 py-3 bg-white text-gray-900 font-semibold text-sm uppercase tracking-wider shadow-md transition-all duration-300 group-hover:bg-gray-100 group-hover:shadow-xl group-hover:-translate-y-0.5">
-          Купи Веднаш
+          {t('common.buyNow')}
         </span>
       </div>
     </Link>
