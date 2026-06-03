@@ -1,6 +1,6 @@
 export const SHIPPING_CONFIG = {
   /** Order total threshold for free shipping (in ден.) */
-  freeShippingThreshold: 2500,
+  freeShippingThreshold: 3000,
   /** Standard shipping cost (in ден.) */
   shippingCost: 150,
 };
