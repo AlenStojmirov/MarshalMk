@@ -34,7 +34,7 @@
     "storeName": "MyStore",
     "switchLanguage": "Switch Language",
     "trackOrder": "Track Order",
-    "freeShippingBanner": "FREE DELIVERY FOR ORDERS OVER 2500 DEN",
+    "freeShippingBanner": "FREE DELIVERY FOR ORDERS OVER {amount} DEN",
     "home": "Home",
     "new": "New",
     "mens": "Mens",

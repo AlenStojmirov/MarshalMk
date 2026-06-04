@@ -34,7 +34,7 @@
     "storeName": "MyStore",
     "switchLanguage": "Промени јазик",
     "trackOrder": "Следи нарачка",
-    "freeShippingBanner": "БЕСПЛАТНА ИСПОРАКА ЗА НАРАЧКА НАД 2500 ДЕН",
+    "freeShippingBanner": "БЕСПЛАТНА ИСПОРАКА ЗА НАРАЧКА НАД {amount} ДЕН",
     "home": "Почетна",
     "new": "Ново",
     "mens": "Машко",
