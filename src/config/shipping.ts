@@ -2,7 +2,7 @@ export const SHIPPING_CONFIG = {
   /** Order total threshold for free shipping (in ден.) */
   freeShippingThreshold: 3000,
   /** Standard shipping cost (in ден.) */
-  shippingCost: 150,
+  shippingCost: 170,
 };
 
 /**
@@ -16,7 +16,7 @@ export function getShippingCost(orderTotal: number): number {
 }
 
 /**
- * Returns a formatted shipping label (e.g. "150 ден." or the free translation).
+ * Returns a formatted shipping label (e.g. "170 ден." or the free translation).
  */
 export function getShippingLabel(orderTotal: number, freeText: string): string {
   const cost = getShippingCost(orderTotal);
