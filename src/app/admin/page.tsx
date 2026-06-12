@@ -744,7 +744,7 @@ function AdminDashboard() {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <Link href={`/admin/product/${product.id}`} className="font-semibold text-slate-800 hover:text-blue-600 transition-colors text-sm sm:text-base truncate block max-w-[120px] sm:max-w-none">{product.name}</Link>
+                          <Link href={`/product/${product.id}`} className="font-semibold text-slate-800 hover:text-blue-600 transition-colors text-sm sm:text-base truncate block max-w-[120px] sm:max-w-none">{product.name}</Link>
                           <span className="text-xs text-slate-400 sm:hidden">{product.category}</span>
                         </div>
                       </div>

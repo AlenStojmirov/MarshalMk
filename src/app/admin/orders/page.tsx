@@ -221,7 +221,7 @@ function OrdersManagement() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<OrderStatus | 'pending'>('pending');
+  const [filter, setFilter] = useState<OrderStatus | 'all' | 'pending'>('pending');
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -259,7 +259,7 @@ function OrdersManagement() {
   };
 
   const filteredOrders =
-    filter === 'all'
+    filter === 'pending'
       ? orders
       : orders.filter((order) => order.status === filter);
 
@@ -346,7 +346,7 @@ function OrdersManagement() {
         <div className="text-center py-12 bg-white rounded-lg shadow-md">
           <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <p className="text-xl text-gray-500">
-            {filter === 'all'
+            {filter === 'pending'
               ? t('orders.noOrders')
               : t('orders.noOrdersWithStatus', { status: t(STATUS_CONFIG[filter].labelKey).toLowerCase() })}
           </p>
