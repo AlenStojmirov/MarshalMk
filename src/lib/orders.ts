@@ -86,62 +86,62 @@ export async function getOrderByNumber(orderNumber: string): Promise<Order | nul
  * promote this logic to a server action / RPC.
  */
 export async function updateOrderStatus(id: string, status: OrderStatus): Promise<void> {
-  if (status !== 'shipped') {
+  // if (status !== 'shipped') {
     const { error } = await supabase
       .from(ORDERS_TABLE)
       .update({ status })
       .eq('id', id);
     if (error) throw error;
     return;
-  }
+  // }
 
-  // Load order to know its current status + items
-  const { data: orderData, error: orderErr } = await supabase
-    .from(ORDERS_TABLE)
-    .select('status, items')
-    .eq('id', id)
-    .single();
+  // // Load order to know its current status + items
+  // const { data: orderData, error: orderErr } = await supabase
+  //   .from(ORDERS_TABLE)
+  //   .select('status, items')
+  //   .eq('id', id)
+  //   .single();
 
-  if (orderErr) throw orderErr;
-  if (!orderData) throw new Error('Order not found');
+  // if (orderErr) throw orderErr;
+  // if (!orderData) throw new Error('Order not found');
 
-  const currentStatus = orderData.status as OrderStatus;
-  const items = (orderData.items ?? []) as OrderItem[];
+  // const currentStatus = orderData.status as OrderStatus;
+  // const items = (orderData.items ?? []) as OrderItem[];
 
-  // Only deduct stock if not already shipped/delivered
-  if (currentStatus !== 'shipped' && currentStatus !== 'delivered') {
-    for (const item of items) {
-      const { data: productData, error: productErr } = await supabase
-        .from('products')
-        .select('stock, sizes')
-        .eq('id', item.productId)
-        .maybeSingle();
+  // // Only deduct stock if not already shipped/delivered
+  // if (currentStatus !== 'shipped' && currentStatus !== 'delivered') {
+  //   for (const item of items) {
+  //     const { data: productData, error: productErr } = await supabase
+  //       .from('products')
+  //       .select('stock, sizes')
+  //       .eq('id', item.productId)
+  //       .maybeSingle();
 
-      if (productErr || !productData) continue;
+  //     if (productErr || !productData) continue;
 
-      const currentStock = (productData.stock as number) || 0;
-      const currentSizes = (productData.sizes as ProductSize[] | null) || [];
+  //     const currentStock = (productData.stock as number) || 0;
+  //     const currentSizes = (productData.sizes as ProductSize[] | null) || [];
 
-      const newStock = Math.max(0, currentStock - item.quantity);
-      let newSizes = currentSizes;
-      if (item.size && currentSizes.length > 0) {
-        newSizes = currentSizes.map((s) =>
-          s.size === item.size
-            ? { ...s, quantity: Math.max(0, s.quantity - item.quantity) }
-            : s
-        );
-      }
+  //     const newStock = Math.max(0, currentStock - item.quantity);
+  //     let newSizes = currentSizes;
+  //     if (item.size && currentSizes.length > 0) {
+  //       newSizes = currentSizes.map((s) =>
+  //         s.size === item.size
+  //           ? { ...s, quantity: Math.max(0, s.quantity - item.quantity) }
+  //           : s
+  //       );
+  //     }
 
-      await supabase
-        .from('products')
-        .update(productToRow({ stock: newStock, sizes: newSizes }))
-        .eq('id', item.productId);
-    }
-  }
+  //     await supabase
+  //       .from('products')
+  //       .update(productToRow({ stock: newStock, sizes: newSizes }))
+  //       .eq('id', item.productId);
+  //   }
+  // }
 
-  const { error: statusErr } = await supabase
-    .from(ORDERS_TABLE)
-    .update({ status })
-    .eq('id', id);
-  if (statusErr) throw statusErr;
+  // const { error: statusErr } = await supabase
+  //   .from(ORDERS_TABLE)
+  //   .update({ status })
+  //   .eq('id', id);
+  // if (statusErr) throw statusErr;
 }
