@@ -346,7 +346,7 @@ function OrdersManagement() {
         <div className="text-center py-12 bg-white rounded-lg shadow-md">
           <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <p className="text-xl text-gray-500">
-            {filter === 'pending'
+            {filter === 'pending' || filter === 'all'
               ? t('orders.noOrders')
               : t('orders.noOrdersWithStatus', { status: t(STATUS_CONFIG[filter].labelKey).toLowerCase() })}
           </p>
