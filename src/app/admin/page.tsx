@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts, createProduct, updateProduct, deleteProduct, uploadProductImage } from '@/hooks/useProducts';
 import { Product, ProductFormData, ProductSize } from '@/types';
@@ -8,6 +8,8 @@ import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, Plu
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
+import { getEffectivePrice, getPercentOff, isOnSale } from '@/lib/pricing';
+import { grossMargin, markup } from '@/lib/cost';
 
 function LoginForm() {
   const { t } = useTranslation();
@@ -72,6 +74,48 @@ function LoginForm() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Margin
+//
+// Margin is always computed on the *effective* price — the sale price when a
+// sale is active. That is the number that decides whether a discount is still
+// worth taking, which is the whole point of showing it here.
+// ---------------------------------------------------------------------------
+
+/** Below this the discount is eating the margin. */
+const MARGIN_LOW = 0.25;
+/** Below this it needs watching. */
+const MARGIN_WATCH = 0.4;
+
+interface MarginInfo {
+  cost?: number;
+  effectivePrice: number;
+  /** Gross margin at the effective price, 0-1. Null when cost is unknown. */
+  margin: number | null;
+  markupPct: number | null;
+  onSale: boolean;
+  percentOff: number;
+}
+
+function getMarginInfo(product: Product): MarginInfo {
+  const effectivePrice = getEffectivePrice(product);
+  return {
+    cost: product.purchasePrice,
+    effectivePrice,
+    margin: grossMargin(effectivePrice, product.purchasePrice),
+    markupPct: markup(effectivePrice, product.purchasePrice),
+    onSale: isOnSale(product),
+    percentOff: getPercentOff(product),
+  };
+}
+
+function marginToneClass(margin: number | null): string {
+  if (margin === null) return 'text-slate-400';
+  if (margin < MARGIN_LOW) return 'text-red-700';
+  if (margin < MARGIN_WATCH) return 'text-amber-700';
+  return 'text-green-700';
+}
+
 interface ProductFormProps {
   product?: Product;
   onSave: (data: ProductFormData, customId?: string) => Promise<void>;
@@ -84,6 +128,7 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     name: product?.name || '',
     description: product?.description || '',
     price: product?.price || 0,
+    purchasePrice: product?.purchasePrice,
     category: product?.category || '',
     imageUrl: product?.imageUrl || '',
     images: product?.images || [],
@@ -255,6 +300,37 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.purchasePrice')}</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.purchasePrice ?? ''}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  setFormData(prev => ({
+                    ...prev,
+                    purchasePrice: raw === '' ? undefined : Math.max(0, parseFloat(raw) || 0),
+                  }));
+                }}
+                placeholder="—"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {t('admin.purchasePriceHint')}
+                {formData.purchasePrice && formData.price > 0 ? (
+                  <>
+                    {' · '}
+                    <span className="font-semibold">
+                      {(((formData.price - formData.purchasePrice) / formData.price) * 100).toFixed(1)}%
+                    </span>
+                    {' '}{t('admin.margin').toLowerCase()}
+                  </>
+                ) : null}
+              </p>
             </div>
 
             <div>
@@ -486,6 +562,8 @@ function AdminDashboard() {
   const [filterStock, setFilterStock] = useState<'all' | 'in-stock' | 'out-of-stock'>('all');
   const [filterFeatured, setFilterFeatured] = useState<'all' | 'yes' | 'no'>('all');
   const [filterVisible, setFilterVisible] = useState<'all' | 'yes' | 'no'>('all');
+  const [filterMargin, setFilterMargin] = useState<'all' | 'onSale' | 'below40' | 'below25' | 'noCost'>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'marginAsc' | 'marginDesc' | 'priceAsc' | 'priceDesc' | 'stockAsc'>('newest');
 
   const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean))).sort();
 
@@ -498,10 +576,55 @@ function AdminDashboard() {
     if (filterFeatured === 'no' && product.featured) return false;
     if (filterVisible === 'yes' && product.isVisible === false) return false;
     if (filterVisible === 'no' && product.isVisible !== false) return false;
+    if (filterMargin !== 'all') {
+      const { margin, onSale } = getMarginInfo(product);
+      if (filterMargin === 'onSale' && !onSale) return false;
+      if (filterMargin === 'noCost' && margin !== null) return false;
+      if (filterMargin === 'below40' && (margin === null || margin >= MARGIN_WATCH)) return false;
+      if (filterMargin === 'below25' && (margin === null || margin >= MARGIN_LOW)) return false;
+    }
     return true;
   });
 
-  const hasActiveFilters = filterName || filterCategory || filterStock !== 'all' || filterFeatured !== 'all' || filterVisible !== 'all';
+  // Products with no known cost sort last on the margin orders — an unknown
+  // margin is not the same as a bad one and should not top the list.
+  const sortedProducts = useMemo(() => {
+    const list = [...filteredProducts];
+    const byMargin = (dir: 1 | -1) => (a: Product, b: Product) => {
+      const ma = getMarginInfo(a).margin;
+      const mb = getMarginInfo(b).margin;
+      if (ma === null && mb === null) return 0;
+      if (ma === null) return 1;
+      if (mb === null) return -1;
+      return (ma - mb) * dir;
+    };
+
+    switch (sortBy) {
+      case 'marginAsc': return list.sort(byMargin(1));
+      case 'marginDesc': return list.sort(byMargin(-1));
+      case 'priceAsc': return list.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
+      case 'priceDesc': return list.sort((a, b) => getEffectivePrice(b) - getEffectivePrice(a));
+      case 'stockAsc': return list.sort((a, b) => a.stock - b.stock);
+      default: return list;
+    }
+  }, [filteredProducts, sortBy]);
+
+  // Headline numbers for the discount freeze (A1 in docs/TURNAROUND.md).
+  const marginSummary = useMemo(() => {
+    const withCost = products.filter(p => getMarginInfo(p).margin !== null);
+    const margins = withCost.map(p => getMarginInfo(p).margin as number);
+    const avg = margins.length ? margins.reduce((a, m) => a + m, 0) / margins.length : null;
+    return {
+      onSale: products.filter(p => isOnSale(p)).length,
+      belowLow: margins.filter(m => m < MARGIN_LOW).length,
+      noCost: products.length - withCost.length,
+      avg,
+    };
+  }, [products]);
+
+  const hasActiveFilters =
+    filterName || filterCategory || filterStock !== 'all' || filterFeatured !== 'all' ||
+    filterVisible !== 'all' || filterMargin !== 'all' || sortBy !== 'newest';
 
   const clearFilters = () => {
     setFilterName('');
@@ -509,6 +632,8 @@ function AdminDashboard() {
     setFilterStock('all');
     setFilterFeatured('all');
     setFilterVisible('all');
+    setFilterMargin('all');
+    setSortBy('newest');
   };
 
   const handleCreate = async (data: ProductFormData, customId?: string) => {
@@ -611,6 +736,43 @@ function AdminDashboard() {
         </Link>
       </div>
 
+      {/* Margin summary — the numbers behind the discount freeze */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.avgMargin')}</p>
+          <p className={`text-2xl font-bold tabular-nums ${marginToneClass(marginSummary.avg)}`}>
+            {marginSummary.avg === null ? '—' : `${(marginSummary.avg * 100).toFixed(1)}%`}
+          </p>
+        </div>
+        <button
+          onClick={() => setFilterMargin(filterMargin === 'onSale' ? 'all' : 'onSale')}
+          className={`text-left bg-white rounded-xl border p-4 shadow-sm transition-colors hover:border-red-300 ${
+            filterMargin === 'onSale' ? 'border-red-400 ring-1 ring-red-200' : 'border-slate-200'
+          }`}
+        >
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.onSaleCount')}</p>
+          <p className="text-2xl font-bold text-red-700 tabular-nums">{marginSummary.onSale}</p>
+        </button>
+        <button
+          onClick={() => setFilterMargin(filterMargin === 'below25' ? 'all' : 'below25')}
+          className={`text-left bg-white rounded-xl border p-4 shadow-sm transition-colors hover:border-amber-300 ${
+            filterMargin === 'below25' ? 'border-amber-400 ring-1 ring-amber-200' : 'border-slate-200'
+          }`}
+        >
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.belowMarginFloor')}</p>
+          <p className="text-2xl font-bold text-amber-700 tabular-nums">{marginSummary.belowLow}</p>
+        </button>
+        <button
+          onClick={() => setFilterMargin(filterMargin === 'noCost' ? 'all' : 'noCost')}
+          className={`text-left bg-white rounded-xl border p-4 shadow-sm transition-colors hover:border-slate-300 ${
+            filterMargin === 'noCost' ? 'border-slate-400 ring-1 ring-slate-200' : 'border-slate-200'
+          }`}
+        >
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.noCostCount')}</p>
+          <p className="text-2xl font-bold text-slate-600 tabular-nums">{marginSummary.noCost}</p>
+        </button>
+      </div>
+
       {/* Products Table */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Filter Bar */}
@@ -627,7 +789,7 @@ function AdminDashboard() {
               </button>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
             <div className="relative col-span-2 sm:col-span-1">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
               <input
@@ -675,10 +837,33 @@ function AdminDashboard() {
               <option value="yes">Visible</option>
               <option value="no">Hidden</option>
             </select>
+            <select
+              value={filterMargin}
+              onChange={(e) => setFilterMargin(e.target.value as typeof filterMargin)}
+              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">{t('admin.margin')}: {t('admin.filterAll')}</option>
+              <option value="onSale">{t('admin.filterOnSale')}</option>
+              <option value="below40">{t('admin.filterMarginBelow', { pct: 40 })}</option>
+              <option value="below25">{t('admin.filterMarginBelow', { pct: 25 })}</option>
+              <option value="noCost">{t('admin.filterNoCost')}</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="newest">{t('admin.sortNewest')}</option>
+              <option value="marginAsc">{t('admin.sortMarginAsc')}</option>
+              <option value="marginDesc">{t('admin.sortMarginDesc')}</option>
+              <option value="priceAsc">{t('admin.sortPriceAsc')}</option>
+              <option value="priceDesc">{t('admin.sortPriceDesc')}</option>
+              <option value="stockAsc">{t('admin.sortStockAsc')}</option>
+            </select>
           </div>
           {hasActiveFilters && (
             <p className="text-xs text-slate-500 mt-2">
-              Showing {filteredProducts.length} of {products.length} products
+              Showing {sortedProducts.length} of {products.length} products
             </p>
           )}
         </div>
@@ -694,6 +879,9 @@ function AdminDashboard() {
                 </th>
                 <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   {t('admin.price')}
+                </th>
+                <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  {t('admin.costMargin')}
                 </th>
                 <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   {t('admin.stock')}
@@ -712,19 +900,20 @@ function AdminDashboard() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 sm:px-6 py-12 text-center text-slate-400">
+                  <td colSpan={8} className="px-4 sm:px-6 py-12 text-center text-slate-400">
                     {t('admin.loadingProducts')}
                   </td>
                 </tr>
-              ) : filteredProducts.length === 0 ? (
+              ) : sortedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 sm:px-6 py-12 text-center text-slate-400">
+                  <td colSpan={8} className="px-4 sm:px-6 py-12 text-center text-slate-400">
                     {hasActiveFilters ? 'No products match the current filters' : t('admin.noProducts')}
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map(product => {
+                sortedProducts.map(product => {
                   // Check if imageUrl is a valid URL
+                  const m = getMarginInfo(product);
                   const isValidImageUrl = product.imageUrl && (
                     product.imageUrl.startsWith('http://') ||
                     product.imageUrl.startsWith('https://') ||
@@ -750,7 +939,30 @@ function AdminDashboard() {
                       </div>
                     </td>
                     <td className="px-4 sm:px-6 py-3.5 sm:py-4 text-slate-500 text-sm hidden sm:table-cell">{product.category}</td>
-                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 text-slate-700 font-medium text-sm">{product.price.toFixed(2)} ден.</td>
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 text-slate-700 font-medium text-sm">
+                      {m.onSale ? (
+                        <span className="flex flex-col">
+                          <span className="text-red-700 tabular-nums">{m.effectivePrice.toFixed(2)} ден.</span>
+                          <span className="text-[11px] text-slate-400 line-through tabular-nums">{product.price.toFixed(2)} ден.</span>
+                        </span>
+                      ) : (
+                        <span className="tabular-nums">{product.price.toFixed(2)} ден.</span>
+                      )}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 text-sm">
+                      {m.margin === null ? (
+                        <span className="text-slate-400" title={t('admin.noCostHint')}>—</span>
+                      ) : (
+                        <span className="flex flex-col">
+                          <span className={`font-semibold tabular-nums ${marginToneClass(m.margin)}`}>
+                            {(m.margin * 100).toFixed(1)}%
+                          </span>
+                          <span className="text-[11px] text-slate-400 tabular-nums">
+                            {m.cost!.toFixed(0)} ден. · markup {((m.markupPct ?? 0) * 100).toFixed(0)}%
+                          </span>
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 sm:px-6 py-3.5 sm:py-4">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${product.stock > 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                         {product.stock}

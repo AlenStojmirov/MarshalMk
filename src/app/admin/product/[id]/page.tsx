@@ -18,6 +18,8 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
+import { getEffectivePrice, isOnSale } from '@/lib/pricing';
+import { grossMargin, markup } from '@/lib/cost';
 
 function formatDateKey(date: Date): string {
   const year = date.getFullYear();
@@ -150,6 +152,13 @@ function ProductDetailView() {
   // Available sizes with stock > 0
   const availableSizes = (localProduct.sizes || []).filter(sz => sz.quantity > 0);
 
+  // Margin is shown on the effective price — the sale price when one is active.
+  // That is the figure that says whether the discount is still worth taking.
+  const effective = getEffectivePrice(localProduct);
+  const onSaleNow = isOnSale(localProduct);
+  const marginNow = grossMargin(effective, localProduct.purchasePrice);
+  const markupNow = markup(effective, localProduct.purchasePrice);
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
       <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
@@ -182,7 +191,29 @@ function ProductDetailView() {
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{localProduct.name}</h1>
             <p className="text-sm sm:text-base text-gray-500 truncate">{localProduct.brand} | {localProduct.category}</p>
-            <p className="text-base sm:text-lg font-bold text-gray-900 mt-1">{localProduct.price.toFixed(2)} ден.</p>
+            <p className="text-base sm:text-lg font-bold text-gray-900 mt-1">
+              {effective.toFixed(2)} ден.
+              {onSaleNow ? (
+                <span className="ml-2 text-sm font-normal text-slate-400 line-through tabular-nums">
+                  {localProduct.price.toFixed(2)} ден.
+                </span>
+              ) : null}
+            </p>
+            <p className="text-xs sm:text-sm mt-0.5">
+              {marginNow === null ? (
+                <span className="text-slate-400">{t('admin.noCostHint')}</span>
+              ) : (
+                <>
+                  <span className={`font-semibold ${marginNow < 0.25 ? 'text-red-700' : marginNow < 0.4 ? 'text-amber-700' : 'text-green-700'}`}>
+                    {t('admin.margin')} {(marginNow * 100).toFixed(1)}%
+                  </span>
+                  <span className="text-slate-400">
+                    {' · '}{t('admin.purchasePrice')} {localProduct.purchasePrice!.toFixed(0)} ден.
+                    {' · markup '}{((markupNow ?? 0) * 100).toFixed(0)}%
+                  </span>
+                </>
+              )}
+            </p>
             {localProduct.color && (
               <p className="text-xs sm:text-sm text-gray-500">{t('productDetail.color')}: {localProduct.color}</p>
             )}
