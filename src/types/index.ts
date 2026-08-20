@@ -22,6 +22,8 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  /** Real unit cost. Already corrected for the Firebase doubling — see lib/cost.ts. */
+  purchasePrice?: number;
   category: string;
   imageUrl: string;
   images?: string[];

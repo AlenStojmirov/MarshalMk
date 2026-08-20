@@ -12,6 +12,7 @@ create table if not exists public.products (
   name          text not null default '',
   description   text not null default '',
   price         numeric(12,2) not null default 0,
+  purchase_price numeric(12,2), -- real unit cost; Firebase value already halved (D-002)
   category      text not null default '',
   image_url     text not null default '',
   images        jsonb not null default '[]'::jsonb,
@@ -103,3 +104,13 @@ create policy "orders: authenticated all"
   on public.orders for all
   to authenticated
   using (true) with check (true);
+
+-- ---------------------------------------------------------------------------
+-- Migration 001 · purchase_price (Task 1.1)
+--
+-- Safe to run on an existing database. The value stored here is the REAL unit
+-- cost — the Firebase RTDB value divided by 2 (see docs/DECISIONS.md D-002).
+-- Populated by "Sync All" in /admin/inventory.
+-- ---------------------------------------------------------------------------
+alter table public.products
+  add column if not exists purchase_price numeric(12,2);

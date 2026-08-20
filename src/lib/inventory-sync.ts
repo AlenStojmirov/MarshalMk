@@ -5,6 +5,7 @@ import { getRealtimeDatabase, isRealtimeDatabaseConfigured as checkRtdbConfigure
 import { supabase } from './supabase';
 import { productToRow, ProductRow, rowToProduct } from './db-mappers';
 import { Product, ProductSize } from '@/types';
+import { realPurchasePrice } from './cost';
 
 // Re-export the check function
 export const isRealtimeDatabaseConfigured = checkRtdbConfigured;
@@ -76,6 +77,7 @@ function inventoryToProduct(
     name: inv.name || '',
     description: existingProduct?.description || '',
     price: inv.price || 0,
+    purchasePrice: realPurchasePrice(inv.purchasePrice) ?? existingProduct?.purchasePrice,
     category: inv.category || '',
     imageUrl: existingProduct?.imageUrl || inv.image || '',
     images: existingProduct?.images || [],
@@ -187,6 +189,7 @@ export async function migrateAllProducts(): Promise<{
               sizes: productData.sizes,
               sold: productData.sold,
               stock: productData.stock,
+              purchasePrice: productData.purchasePrice,
             })
           )
           .eq('id', id);

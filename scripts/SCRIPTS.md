@@ -107,6 +107,22 @@ Firebase stores `purchasePrice` doubled — the script divides by 2 (see
 
 ---
 
+## 7. Backfill Purchase Price
+
+Fills `products.purchase_price` in Supabase from the Firebase RTDB inventory.
+Narrower and safer than "Sync All", which also rewrites sizes/sold/stock.
+
+```bash
+npx tsx scripts/backfill-purchase-price.ts          # dry run, writes nothing
+npx tsx scripts/backfill-purchase-price.ts apply    # writes
+```
+
+Requires `supabase/migrations/001_purchase_price.sql` to have been run first.
+The halving of the doubled Firebase value happens in `realPurchasePrice()`
+(`src/lib/cost.ts`) — never divide again on read.
+
+---
+
 ## Config Files
 
 | File | Purpose |

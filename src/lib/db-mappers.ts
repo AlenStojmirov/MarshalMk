@@ -8,6 +8,7 @@ export interface ProductRow {
   name: string;
   description: string;
   price: number | string;
+  purchase_price: number | string | null;
   category: string;
   image_url: string;
   images: string[] | null;
@@ -29,6 +30,10 @@ export function rowToProduct(row: ProductRow): Product {
     name: row.name ?? '',
     description: row.description ?? '',
     price: Number(row.price) || 0,
+    purchasePrice:
+      row.purchase_price === null || row.purchase_price === undefined
+        ? undefined
+        : Number(row.purchase_price) || undefined,
     category: row.category ?? '',
     imageUrl: row.image_url ?? '',
     images: row.images ?? [],
@@ -57,6 +62,7 @@ export function productToRow(
   if (data.name !== undefined) out.name = data.name;
   if (data.description !== undefined) out.description = data.description;
   if (data.price !== undefined) out.price = data.price;
+  if (data.purchasePrice !== undefined) out.purchase_price = data.purchasePrice;
   if (data.category !== undefined) out.category = data.category;
   if (data.imageUrl !== undefined) out.image_url = data.imageUrl;
   if (data.images !== undefined) out.images = data.images;

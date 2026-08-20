@@ -12,6 +12,7 @@ import {
   isRealtimeDatabaseConfigured,
   InventoryData,
 } from '@/lib/inventory-sync';
+import { realPurchasePrice } from '@/lib/cost';
 import {
   ArrowLeft,
   RefreshCw,
@@ -143,7 +144,7 @@ function InventoryManagement() {
   }, 0);
   const totalItemsPrice = Object.values(inventory).reduce((sum, product) => {
     const sizes = Array.isArray(product.sizes) ? product.sizes : Object.values(product.sizes || {});
-    return sum + sizes.reduce((s, size) => s + (size.quantity * ((product.purchasePrice || 0)/2) || 0), 0);
+    return sum + sizes.reduce((s, size) => s + (size.quantity * (realPurchasePrice(product.purchasePrice) ?? 0) || 0), 0);
   }, 0);
 
   return (
