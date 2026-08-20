@@ -265,7 +265,16 @@
     "sortMarginDesc": "Маржа: највисока прво",
     "sortPriceAsc": "Цена: најниска прво",
     "sortPriceDesc": "Цена: највисока прво",
-    "sortStockAsc": "Залиха: најмала прво"
+    "sortStockAsc": "Залиха: најмала прво",
+    "selectAllVisible": "Избери ги сите прикажани",
+    "selectedCount": "Избрани: {count}",
+    "selectedOnSale": "на попуст: {count}",
+    "bulkDisableSale": "Исклучи попуст ({count})",
+    "bulkWorking": "Работи…",
+    "clearSelection": "Откажи избор",
+    "confirmBulkDisableSale": "Да се исклучи попустот на {count} производи? Цените се враќаат на полна.",
+    "bulkDone": "Исклучен попуст на {done} производи",
+    "bulkFailed": "{failed} не успеаја"
   },
   "orders": {
     "title": "Нарачки",

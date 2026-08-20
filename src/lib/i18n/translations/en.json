@@ -265,7 +265,16 @@
     "sortMarginDesc": "Margin: highest first",
     "sortPriceAsc": "Price: lowest first",
     "sortPriceDesc": "Price: highest first",
-    "sortStockAsc": "Stock: lowest first"
+    "sortStockAsc": "Stock: lowest first",
+    "selectAllVisible": "Select all shown",
+    "selectedCount": "Selected: {count}",
+    "selectedOnSale": "on sale: {count}",
+    "bulkDisableSale": "Turn off sale ({count})",
+    "bulkWorking": "Working…",
+    "clearSelection": "Clear selection",
+    "confirmBulkDisableSale": "Turn off the sale on {count} products? Prices go back to full.",
+    "bulkDone": "Sale turned off on {done} products",
+    "bulkFailed": "{failed} failed"
   },
   "orders": {
     "title": "Orders",

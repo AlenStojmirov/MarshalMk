@@ -195,7 +195,8 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       sale: {
         isActive,
         salePrice: isActive ? Math.round((prev.price * (1 - (prev.sale?.percentageOff || 0) / 100)) * 100) / 100 : 0,
-        percentageOff: isActive ? (prev.sale?.percentageOff || 0) : 0,
+        // Kept whether active or not — turning a sale off should not forget its size.
+        percentageOff: prev.sale?.percentageOff || 0,
       },
     }));
   };
@@ -564,6 +565,9 @@ function AdminDashboard() {
   const [filterVisible, setFilterVisible] = useState<'all' | 'yes' | 'no'>('all');
   const [filterMargin, setFilterMargin] = useState<'all' | 'onSale' | 'below40' | 'below25' | 'noCost'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'marginAsc' | 'marginDesc' | 'priceAsc' | 'priceDesc' | 'stockAsc'>('newest');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ done: number; failed: number } | null>(null);
 
   const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean))).sort();
 
@@ -648,6 +652,77 @@ function AdminDashboard() {
       setEditingProduct(undefined);
       refetch();
     }
+  };
+
+  const selectedProducts = products.filter(p => selectedIds.has(p.id));
+  const selectedOnSale = selectedProducts.filter(isOnSale);
+
+  const toggleOne = (id: string) => {
+    setBulkResult(null);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const allVisibleSelected =
+    sortedProducts.length > 0 && sortedProducts.every(p => selectedIds.has(p.id));
+
+  const toggleAllVisible = () => {
+    setBulkResult(null);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        sortedProducts.forEach(p => next.delete(p.id));
+      } else {
+        sortedProducts.forEach(p => next.add(p.id));
+      }
+      return next;
+    });
+  };
+
+  /**
+   * Turn off the sale on every selected product that actually has one.
+   *
+   * The discount freeze is the largest single lever in docs/TURNAROUND.md, and
+   * doing it one product at a time across ~79 of them is why it does not get
+   * done. Products without an active sale are skipped rather than rewritten.
+   */
+  const handleBulkDisableSale = async () => {
+    if (selectedOnSale.length === 0) return;
+    if (!confirm(t('admin.confirmBulkDisableSale', { count: selectedOnSale.length }))) return;
+
+    setBulkRunning(true);
+    setBulkResult(null);
+
+    let done = 0;
+    let failed = 0;
+    const BATCH = 10;
+
+    for (let i = 0; i < selectedOnSale.length; i += BATCH) {
+      const batch = selectedOnSale.slice(i, i + BATCH);
+      const results = await Promise.allSettled(
+        batch.map(p =>
+          updateProduct(p.id, {
+            sale: {
+              isActive: false,
+              salePrice: 0,
+              // Keep the old percentage as a record. Every pricing helper gates on
+              // isActive, so a stored percentage on an inactive sale is inert —
+              // and it means a bulk freeze does not destroy what the discount was.
+              percentageOff: p.sale?.percentageOff ?? 0,
+            },
+          } as Partial<ProductFormData>)
+        )
+      );
+      results.forEach(r => (r.status === 'fulfilled' ? done++ : failed++));
+    }
+
+    setBulkRunning(false);
+    setBulkResult({ done, failed });
+    setSelectedIds(new Set());
+    refetch();
   };
 
   const handleToggleVisibility = async (product: Product) => {
@@ -773,6 +848,51 @@ function AdminDashboard() {
         </button>
       </div>
 
+      {/* Bulk actions — only rendered when something is selected */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-2 z-30 mb-4 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-blue-300 bg-blue-50 px-4 py-3 shadow-sm">
+          <p className="text-sm text-slate-700">
+            <span className="font-semibold">{t('admin.selectedCount', { count: selectedIds.size })}</span>
+            {' · '}
+            <span className={selectedOnSale.length > 0 ? 'text-red-700 font-semibold' : 'text-slate-500'}>
+              {t('admin.selectedOnSale', { count: selectedOnSale.length })}
+            </span>
+          </p>
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <button
+              onClick={handleBulkDisableSale}
+              disabled={bulkRunning || selectedOnSale.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-medium text-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+            >
+              <Tag className="h-4 w-4" />
+              {bulkRunning
+                ? t('admin.bulkWorking')
+                : t('admin.bulkDisableSale', { count: selectedOnSale.length })}
+            </button>
+            <button
+              onClick={() => { setSelectedIds(new Set()); setBulkResult(null); }}
+              disabled={bulkRunning}
+              className="px-3 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            >
+              {t('admin.clearSelection')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {bulkResult && (
+        <div
+          className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
+            bulkResult.failed > 0
+              ? 'border-amber-300 bg-amber-50 text-amber-800'
+              : 'border-green-300 bg-green-50 text-green-800'
+          }`}
+        >
+          {t('admin.bulkDone', { done: bulkResult.done })}
+          {bulkResult.failed > 0 ? ` · ${t('admin.bulkFailed', { failed: bulkResult.failed })}` : ''}
+        </div>
+      )}
+
       {/* Products Table */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Filter Bar */}
@@ -871,6 +991,16 @@ function AdminDashboard() {
           <table className="w-full min-w-[640px]">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="px-3 sm:px-4 py-3.5 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleAllVisible}
+                    aria-label={t('admin.selectAllVisible')}
+                    title={t('admin.selectAllVisible')}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                </th>
                 <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   {t('admin.product')}
                 </th>
@@ -900,13 +1030,13 @@ function AdminDashboard() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 sm:px-6 py-12 text-center text-slate-400">
+                  <td colSpan={9} className="px-4 sm:px-6 py-12 text-center text-slate-400">
                     {t('admin.loadingProducts')}
                   </td>
                 </tr>
               ) : sortedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 sm:px-6 py-12 text-center text-slate-400">
+                  <td colSpan={9} className="px-4 sm:px-6 py-12 text-center text-slate-400">
                     {hasActiveFilters ? 'No products match the current filters' : t('admin.noProducts')}
                   </td>
                 </tr>
@@ -921,6 +1051,15 @@ function AdminDashboard() {
                   );
                   return (
                   <tr key={product.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-3 sm:px-4 py-3.5 sm:py-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(product.id)}
+                        onChange={() => toggleOne(product.id)}
+                        aria-label={product.name}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                    </td>
                     <td className="px-4 sm:px-6 py-3.5 sm:py-4">
                       <div className="flex items-center gap-3">
                         <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden bg-slate-100 shrink-0">
