@@ -86,6 +86,27 @@ npx tsx scripts/replace-category.ts replace Shoes Footwear
 
 ---
 
+## 6. Baseline Report (read-only)
+
+Prints the real inventory and sales numbers behind the strategy: models per
+category, units and capital tied in stock, sales velocity, the actual size
+curve, realised gross margin, and months-of-supply / GMROI per category.
+
+**Writes nothing to any database.** Output goes to stdout and to
+`docs/baseline-<today>.md`.
+
+```bash
+npm run baseline
+# or
+npx tsx scripts/baseline-report.ts
+```
+
+Reads Supabase (`products`, `orders`) and the Firebase RTDB inventory. Note that
+Firebase stores `purchasePrice` doubled — the script divides by 2 (see
+`docs/DECISIONS.md` D-002).
+
+---
+
 ## Config Files
 
 | File | Purpose |
