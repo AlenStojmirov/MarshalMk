@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { CheckCircle, Package, Truck, Phone, Mail, MapPin, Copy, Check } from 'lucide-react';
 import { Order } from '@/types';
 import { useTranslation } from '@/lib/i18n';
-import { getShippingCost, getShippingLabel } from '@/config/shipping';
+
 
 function ConfirmationContent() {
   const searchParams = useSearchParams();
@@ -200,12 +200,12 @@ function ConfirmationContent() {
             })()}
             <div className="flex justify-between text-gray-600">
               <span>{t('common.shipping')}</span>
-              <span className="text-green-600">{getShippingLabel(order.total, t('common.free'))}</span>
+              <span className={order.shipping > 0 ? undefined : "text-green-600"}>{order.shipping > 0 ? `${order.shipping.toFixed(2)} ден.` : t('common.free')}</span>
             </div>
             <hr className="my-2" />
             <div className="flex justify-between text-lg font-bold text-gray-900">
               <span>{t('common.total')}</span>
-              <span>{(order.total + getShippingCost(order.total)).toFixed(2)} ден.</span>
+              <span>{order.total.toFixed(2)} ден.</span>
             </div>
           </div>
         </div>
@@ -257,7 +257,7 @@ function ConfirmationContent() {
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-8">
         <p className="font-medium text-amber-800">{t('confirmation.paymentMethod')}</p>
         <p className="text-sm text-amber-700 mt-1">
-          {t('confirmation.amountReady', { amount: (order.total + getShippingCost(order.total)).toFixed(2) })}
+          {t('confirmation.amountReady', { amount: order.total.toFixed(2) })}
         </p>
       </div>
 

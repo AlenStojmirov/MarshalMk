@@ -6,6 +6,7 @@ import {
   isBlocked,
   recordViolation,
 } from '@/lib/rate-limit';
+import { getShippingCost } from '@/config/shipping';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -150,6 +151,22 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdmin();
     const orderNumber = generateOrderNumber();
 
+    // Never trust the client for money. Recompute the line total from the
+    // submitted items, then derive shipping from it server-side.
+    const serverSubtotal =
+      Math.round(
+        items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0) * 100
+      ) / 100;
+
+    if (Math.abs(serverSubtotal - subtotal) > 1) {
+      console.warn(
+        `[ORDER_SUBTOTAL_MISMATCH] client=${subtotal} server=${serverSubtotal} ip=${ip}`
+      );
+    }
+
+    const shipping = getShippingCost(serverSubtotal);
+    const total = Math.round((serverSubtotal + shipping) * 100) / 100;
+
     const orderRow = {
       order_number: orderNumber,
       customer: {
@@ -172,9 +189,9 @@ export async function POST(request: NextRequest) {
         quantity: item.quantity,
         size: item.size || null,
       })),
-      subtotal,
-      shipping: 0,
-      total: subtotal,
+      subtotal: serverSubtotal,
+      shipping,
+      total,
       status: 'pending',
       payment_method: 'cash_on_delivery',
     };
