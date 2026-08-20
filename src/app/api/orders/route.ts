@@ -6,7 +6,11 @@ import {
   isBlocked,
   recordViolation,
 } from '@/lib/rate-limit';
-import { getShippingCost } from '@/config/shipping';
+import {
+  getShippingCost,
+  shippingAbsorptionPerUnit,
+  SHIPPING_CONFIG,
+} from '@/config/shipping';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -151,21 +155,54 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdmin();
     const orderNumber = generateOrderNumber();
 
-    // Never trust the client for money. Recompute the line total from the
-    // submitted items, then derive shipping from it server-side.
-    const serverSubtotal =
-      Math.round(
-        items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0) * 100
-      ) / 100;
+    // ── Money, computed server-side ───────────────────────────────────────
+    // Never trust the client for amounts. The gross value is what the customer
+    // agreed to pay for the goods; everything else is derived from it.
+    const round2 = (n: number) => Math.round(n * 100) / 100;
 
-    if (Math.abs(serverSubtotal - subtotal) > 1) {
+    const grossSubtotal = round2(
+      items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0)
+    );
+
+    if (Math.abs(grossSubtotal - subtotal) > 1) {
       console.warn(
-        `[ORDER_SUBTOTAL_MISMATCH] client=${subtotal} server=${serverSubtotal} ip=${ip}`
+        `[ORDER_SUBTOTAL_MISMATCH] client=${subtotal} server=${grossSubtotal} ip=${ip}`
       );
     }
 
-    const shipping = getShippingCost(serverSubtotal);
-    const total = Math.round((serverSubtotal + shipping) * 100) / 100;
+    const customerShipping = getShippingCost(grossSubtotal);
+
+    // Below the threshold the customer pays shipping on top and product prices
+    // stand. Above it, shipping is free for the customer but the store still
+    // pays the courier, so the cost is spread across the ordered units and
+    // deducted from their prices (docs/DECISIONS.md D-006).
+    let orderItems = items;
+    let absorbed = 0;
+
+    if (customerShipping === 0) {
+      const totalUnits = items.reduce((sum, item) => sum + Number(item.quantity), 0);
+      const perUnit = shippingAbsorptionPerUnit(totalUnits);
+
+      orderItems = items.map((item) => {
+        // Clamp so a cheap line can never end up with a negative price; the
+        // absorbed total tracks what was actually deducted either way.
+        const reduction = Math.min(perUnit, Number(item.price));
+        absorbed += reduction * Number(item.quantity);
+        return { ...item, price: round2(Number(item.price) - reduction) };
+      });
+      absorbed = round2(absorbed);
+
+      if (absorbed > SHIPPING_CONFIG.shippingCost * 1.25) {
+        console.warn(
+          `[ORDER_SHIPPING_ABSORB_HIGH] absorbed=${absorbed} cost=${SHIPPING_CONFIG.shippingCost} units=${totalUnits} ip=${ip}`
+        );
+      }
+    }
+
+    // Both branches reconcile: subtotal + shipping === total === what is collected.
+    const shipping = customerShipping === 0 ? absorbed : customerShipping;
+    const netSubtotal = round2(grossSubtotal - absorbed);
+    const total = round2(netSubtotal + shipping);
 
     const orderRow = {
       order_number: orderNumber,
@@ -178,7 +215,7 @@ export async function POST(request: NextRequest) {
         city: customer.city.trim(),
         notes: (customer.notes || '').trim().substring(0, 500),
       },
-      items: items.map((item) => ({
+      items: orderItems.map((item) => ({
         productId: item.productId,
         productName: item.productName,
         productImage: item.productImage,
@@ -189,7 +226,7 @@ export async function POST(request: NextRequest) {
         quantity: item.quantity,
         size: item.size || null,
       })),
-      subtotal: serverSubtotal,
+      subtotal: netSubtotal,
       shipping,
       total,
       status: 'pending',
