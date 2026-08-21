@@ -97,6 +97,28 @@ interface MarginInfo {
   percentOff: number;
 }
 
+/** Window used to decide whether a product is still moving. */
+const VELOCITY_WINDOW_DAYS = 90;
+
+/**
+ * Units sold in the last `days`, from `products.sold[]`.
+ *
+ * Entries with a zero price are giveaways or write-offs, not sales, so they are
+ * excluded (see docs/DECISIONS.md D-005).
+ *
+ * Note: `sold[]` records in-store sales only — online orders are not written
+ * there yet (Task 0.1). With the online channel at a handful of orders that is
+ * immaterial today, but this number will understate demand once it grows.
+ */
+function unitsSoldSince(product: Product, days: number): number {
+  const cutoff = Date.now() - days * 86_400_000;
+  return (product.sold ?? []).filter(s => {
+    if (!(Number(s.price) > 0)) return false;
+    const t = Date.parse(s.soldDate);
+    return Number.isFinite(t) && t >= cutoff;
+  }).length;
+}
+
 function getMarginInfo(product: Product): MarginInfo {
   const effectivePrice = getEffectivePrice(product);
   return {
@@ -563,7 +585,7 @@ function AdminDashboard() {
   const [filterStock, setFilterStock] = useState<'all' | 'in-stock' | 'out-of-stock'>('all');
   const [filterFeatured, setFilterFeatured] = useState<'all' | 'yes' | 'no'>('all');
   const [filterVisible, setFilterVisible] = useState<'all' | 'yes' | 'no'>('all');
-  const [filterMargin, setFilterMargin] = useState<'all' | 'onSale' | 'below40' | 'below25' | 'noCost'>('all');
+  const [filterMargin, setFilterMargin] = useState<'all' | 'onSale' | 'onSaleMoving' | 'onSaleStale' | 'below40' | 'below25' | 'noCost'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'marginAsc' | 'marginDesc' | 'priceAsc' | 'priceDesc' | 'stockAsc'>('newest');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkRunning, setBulkRunning] = useState(false);
@@ -583,6 +605,8 @@ function AdminDashboard() {
     if (filterMargin !== 'all') {
       const { margin, onSale } = getMarginInfo(product);
       if (filterMargin === 'onSale' && !onSale) return false;
+      if (filterMargin === 'onSaleMoving' && (!onSale || unitsSoldSince(product, VELOCITY_WINDOW_DAYS) === 0)) return false;
+      if (filterMargin === 'onSaleStale' && (!onSale || unitsSoldSince(product, VELOCITY_WINDOW_DAYS) > 0)) return false;
       if (filterMargin === 'noCost' && margin !== null) return false;
       if (filterMargin === 'below40' && (margin === null || margin >= MARGIN_WATCH)) return false;
       if (filterMargin === 'below25' && (margin === null || margin >= MARGIN_LOW)) return false;
@@ -620,6 +644,12 @@ function AdminDashboard() {
     const avg = margins.length ? margins.reduce((a, m) => a + m, 0) / margins.length : null;
     return {
       onSale: products.filter(p => isOnSale(p)).length,
+      onSaleMoving: products.filter(
+        p => isOnSale(p) && unitsSoldSince(p, VELOCITY_WINDOW_DAYS) > 0
+      ).length,
+      onSaleStale: products.filter(
+        p => isOnSale(p) && unitsSoldSince(p, VELOCITY_WINDOW_DAYS) === 0
+      ).length,
       belowLow: margins.filter(m => m < MARGIN_LOW).length,
       noCost: products.length - withCost.length,
       avg,
@@ -812,7 +842,7 @@ function AdminDashboard() {
       </div>
 
       {/* Margin summary — the numbers behind the discount freeze */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.avgMargin')}</p>
           <p className={`text-2xl font-bold tabular-nums ${marginToneClass(marginSummary.avg)}`}>
@@ -820,13 +850,26 @@ function AdminDashboard() {
           </p>
         </div>
         <button
-          onClick={() => setFilterMargin(filterMargin === 'onSale' ? 'all' : 'onSale')}
+          onClick={() => setFilterMargin(filterMargin === 'onSaleMoving' ? 'all' : 'onSaleMoving')}
+          title={t('admin.onSaleMovingHint')}
           className={`text-left bg-white rounded-xl border p-4 shadow-sm transition-colors hover:border-red-300 ${
-            filterMargin === 'onSale' ? 'border-red-400 ring-1 ring-red-200' : 'border-slate-200'
+            filterMargin === 'onSaleMoving' ? 'border-red-400 ring-1 ring-red-200' : 'border-slate-200'
           }`}
         >
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.onSaleCount')}</p>
-          <p className="text-2xl font-bold text-red-700 tabular-nums">{marginSummary.onSale}</p>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.onSaleMoving')}</p>
+          <p className="text-2xl font-bold text-red-700 tabular-nums">{marginSummary.onSaleMoving}</p>
+          <p className="text-[11px] text-slate-400">{t('admin.onSaleMovingSub')}</p>
+        </button>
+        <button
+          onClick={() => setFilterMargin(filterMargin === 'onSaleStale' ? 'all' : 'onSaleStale')}
+          title={t('admin.onSaleStaleHint')}
+          className={`text-left bg-white rounded-xl border p-4 shadow-sm transition-colors hover:border-slate-300 ${
+            filterMargin === 'onSaleStale' ? 'border-slate-400 ring-1 ring-slate-200' : 'border-slate-200'
+          }`}
+        >
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.onSaleStale')}</p>
+          <p className="text-2xl font-bold text-slate-600 tabular-nums">{marginSummary.onSaleStale}</p>
+          <p className="text-[11px] text-slate-400">{t('admin.onSaleStaleSub')}</p>
         </button>
         <button
           onClick={() => setFilterMargin(filterMargin === 'below25' ? 'all' : 'below25')}
@@ -964,6 +1007,8 @@ function AdminDashboard() {
             >
               <option value="all">{t('admin.margin')}: {t('admin.filterAll')}</option>
               <option value="onSale">{t('admin.filterOnSale')}</option>
+              <option value="onSaleMoving">{t('admin.filterOnSaleMoving')}</option>
+              <option value="onSaleStale">{t('admin.filterOnSaleStale')}</option>
               <option value="below40">{t('admin.filterMarginBelow', { pct: 40 })}</option>
               <option value="below25">{t('admin.filterMarginBelow', { pct: 25 })}</option>
               <option value="noCost">{t('admin.filterNoCost')}</option>
@@ -1013,6 +1058,9 @@ function AdminDashboard() {
                 <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   {t('admin.costMargin')}
                 </th>
+                <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">
+                  {t('admin.soldWindow')}
+                </th>
                 <th className="px-4 sm:px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   {t('admin.stock')}
                 </th>
@@ -1030,13 +1078,13 @@ function AdminDashboard() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 sm:px-6 py-12 text-center text-slate-400">
+                  <td colSpan={10} className="px-4 sm:px-6 py-12 text-center text-slate-400">
                     {t('admin.loadingProducts')}
                   </td>
                 </tr>
               ) : sortedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 sm:px-6 py-12 text-center text-slate-400">
+                  <td colSpan={10} className="px-4 sm:px-6 py-12 text-center text-slate-400">
                     {hasActiveFilters ? 'No products match the current filters' : t('admin.noProducts')}
                   </td>
                 </tr>
@@ -1044,6 +1092,7 @@ function AdminDashboard() {
                 sortedProducts.map(product => {
                   // Check if imageUrl is a valid URL
                   const m = getMarginInfo(product);
+                  const sold90 = unitsSoldSince(product, VELOCITY_WINDOW_DAYS);
                   const isValidImageUrl = product.imageUrl && (
                     product.imageUrl.startsWith('http://') ||
                     product.imageUrl.startsWith('https://') ||
@@ -1100,6 +1149,13 @@ function AdminDashboard() {
                             {m.cost!.toFixed(0)} ден. · markup {((m.markupPct ?? 0) * 100).toFixed(0)}%
                           </span>
                         </span>
+                      )}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 text-sm hidden lg:table-cell">
+                      {sold90 > 0 ? (
+                        <span className="tabular-nums font-medium text-slate-700">{sold90}</span>
+                      ) : (
+                        <span className="text-slate-300 tabular-nums">0</span>
                       )}
                     </td>
                     <td className="px-4 sm:px-6 py-3.5 sm:py-4">

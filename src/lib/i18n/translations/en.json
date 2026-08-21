@@ -274,7 +274,16 @@
     "clearSelection": "Clear selection",
     "confirmBulkDisableSale": "Turn off the sale on {count} products? Prices go back to full.",
     "bulkDone": "Sale turned off on {done} products",
-    "bulkFailed": "{failed} failed"
+    "bulkFailed": "{failed} failed",
+    "soldWindow": "Sold 90d",
+    "onSaleMoving": "On sale · moving",
+    "onSaleMovingSub": "sold in the last 90 days",
+    "onSaleMovingHint": "Discount on stock that sells anyway — this is where margin leaks",
+    "onSaleStale": "On sale · idle",
+    "onSaleStaleSub": "no sales in 90 days",
+    "onSaleStaleHint": "The discount is not working — this is clearance, keep it",
+    "filterOnSaleMoving": "On sale + moving",
+    "filterOnSaleStale": "On sale + idle"
   },
   "orders": {
     "title": "Orders",

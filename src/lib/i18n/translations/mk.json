@@ -274,7 +274,16 @@
     "clearSelection": "Откажи избор",
     "confirmBulkDisableSale": "Да се исклучи попустот на {count} производи? Цените се враќаат на полна.",
     "bulkDone": "Исклучен попуст на {done} производи",
-    "bulkFailed": "{failed} не успеаја"
+    "bulkFailed": "{failed} не успеаја",
+    "soldWindow": "Продадени 90д",
+    "onSaleMoving": "Попуст · се движи",
+    "onSaleMovingSub": "продавани последните 90 дена",
+    "onSaleMovingHint": "Попуст на стока што и така се продава — тука истекува маржата",
+    "onSaleStale": "Попуст · мирен",
+    "onSaleStaleSub": "ниту една продажба 90 дена",
+    "onSaleStaleHint": "Попустот не помага — тоа е расчистување, задржи го",
+    "filterOnSaleMoving": "Попуст + се движи",
+    "filterOnSaleStale": "Попуст + мирен"
   },
   "orders": {
     "title": "Нарачки",
