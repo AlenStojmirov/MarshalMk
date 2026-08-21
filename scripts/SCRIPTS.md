@@ -123,6 +123,28 @@ The halving of the doubled Firebase value happens in `realPurchasePrice()`
 
 ---
 
+## 8. Backfill Sales Ledger
+
+Populates `sales_ledger` from `products.sold[]` and `orders.items` (Task 0.1).
+
+```bash
+npm run ledger:backfill          # dry run, writes nothing
+npm run ledger:backfill apply    # writes
+```
+
+Requires `supabase/migrations/002_sales_ledger.sql` to have been run.
+
+The dry run builds every row in memory and reconciles the totals against the
+source before anything is written; a mismatch aborts. `apply` saves a JSON
+snapshot of the source under `docs/snapshots/` first, then re-reads the table
+afterwards and reconciles again. It refuses to run twice, so re-running cannot
+double the history.
+
+Cancelled orders are excluded. Entries with a zero price become
+`reason: personal` rather than sales (see `docs/DECISIONS.md` D-005).
+
+---
+
 ## Config Files
 
 | File | Purpose |

@@ -114,3 +114,8 @@ create policy "orders: authenticated all"
 -- ---------------------------------------------------------------------------
 alter table public.products
   add column if not exists purchase_price numeric(12,2);
+
+-- ---------------------------------------------------------------------------
+-- sales_ledger (Task 0.1) — see supabase/migrations/002_sales_ledger.sql for
+-- the runnable migration and the reasoning behind the denormalised columns.
+-- ---------------------------------------------------------------------------
