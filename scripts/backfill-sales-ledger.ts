@@ -207,31 +207,63 @@ async function main() {
 
   const unmatched: OrderItemRef[] = [];
   const priceGaps: Array<{ ref: OrderItemRef; recorded: number }> = [];
+  const looseMatches: Array<{ ref: OrderItemRef; row: SalesLedgerRow; daysOff: number }> = [];
   let attributed = 0;
 
-  for (const ref of orderRefs) {
-    const row = rows.find(
-      (r) => r.channel === 'store' && matchKey(r.product_id, r.size, dayOf(r.occurred_at)) === ref.key
-    );
-    if (!row) {
-      unmatched.push(ref);
-      continue;
-    }
+  const attach = (row: SalesLedgerRow, ref: OrderItemRef) => {
     row.channel = 'online';
     row.order_id = ref.orderId;
     row.order_number = ref.orderNumber;
     row.source = SOURCE_ATTRIBUTED;
     attributed += 1;
 
-    // The order carries the price that was quoted at checkout; sold[] carries
-    // what was actually charged after any discount given by hand off-app
-    // (D-007, Q7). Recording the quoted price as the list price is what lets
-    // that manual discount be derived instead of lost.
+    // The order carries the price quoted at checkout; sold[] carries what was
+    // actually charged after any discount given by hand off-app (D-007, Q7).
+    // Recording the quoted price as the list price is what lets that manual
+    // discount be derived instead of lost.
     const recorded = Number(row.unit_price);
     if (ref.orderPrice > recorded + 0.5) {
       row.unit_list_price = Math.round(ref.orderPrice * 100) / 100;
       priceGaps.push({ ref, recorded });
     }
+  };
+
+  // Pass 1 — exact: same product, same size, same day.
+  const stillOpen: OrderItemRef[] = [];
+  for (const ref of orderRefs) {
+    const row = rows.find(
+      (r) => r.channel === 'store' && matchKey(r.product_id, r.size, dayOf(r.occurred_at)) === ref.key
+    );
+    if (!row) {
+      stillOpen.push(ref);
+      continue;
+    }
+    attach(row, ref);
+  }
+
+  // Pass 2 — exchanges. A customer swapping size means the row that finally
+  // settled has a different size and a later date than the order (D-007, Q8).
+  // Same product, a real sale, within the window, and only when there is
+  // exactly one candidate — anything ambiguous is left alone and reported.
+  const EXCHANGE_WINDOW_DAYS = 7;
+  for (const ref of stillOpen) {
+    const refTime = Date.parse(ref.day + 'T12:00:00.000Z');
+    const candidates = rows.filter((r) => {
+      if (r.channel !== 'store') return false;
+      if (r.product_id !== ref.productId) return false;
+      if (r.reason !== 'sale') return false;
+      const days = Math.abs(Date.parse(r.occurred_at) - refTime) / 86_400_000;
+      return days <= EXCHANGE_WINDOW_DAYS;
+    });
+
+    if (candidates.length !== 1) {
+      unmatched.push(ref);
+      continue;
+    }
+    const row = candidates[0];
+    const daysOff = Math.round((Date.parse(row.occurred_at) - refTime) / 86_400_000);
+    attach(row, ref);
+    looseMatches.push({ ref, row, daysOff });
   }
 
   // --- reporting -----------------------------------------------------------
@@ -261,6 +293,14 @@ async function main() {
   console.log('ПРИПИШУВАЊЕ НА КАНАЛ — нарачките не создаваат редови');
   console.log('  ставки во живи нарачки: ' + fmt(orderRefs.length));
   console.log('  препознаени во sold[]:  ' + fmt(attributed));
+  console.log('  препознаени точно:      ' + fmt(attributed - looseMatches.length));
+  console.log('  препознаени како замена: ' + fmt(looseMatches.length));
+  looseMatches.forEach((l) =>
+    console.log('    ' + l.ref.orderNumber + ' · ' + l.ref.productId +
+      ' · нарачка size=' + (l.ref.size || '-') + ' ' + l.ref.day +
+      ' -> запис size=' + (l.row.size || '-') + ' ' + dayOf(l.row.occurred_at) +
+      ' (' + (l.daysOff >= 0 ? '+' : '') + l.daysOff + ' дена)')
+  );
   console.log('  НЕ најдени:             ' + fmt(unmatched.length));
   unmatched.forEach((u) =>
     console.log('    ' + u.orderNumber + ' · ' + u.productId + ' · size=' + (u.size || '-') +
