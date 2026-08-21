@@ -1,17 +1,22 @@
 /* eslint-disable no-console */
 /**
- * Backfill `sales_ledger` from `products.sold[]` and `orders.items` (Task 0.1).
+ * Backfill `sales_ledger` from `products.sold[]` (Task 0.1).
  *
  *   npx tsx scripts/backfill-sales-ledger.ts          # dry run, writes nothing
  *   npx tsx scripts/backfill-sales-ledger.ts apply    # writes
  *
- * The dry run builds the full row set in memory and prints the reconciliation
- * it has to satisfy. Nothing is written until `apply`, and `apply` saves a JSON
- * snapshot of the source data first — the ledger is derived, so that snapshot is
- * what makes the step reversible.
+ * `products.sold[]` is the only source of rows. Online orders are entered into
+ * it by hand, so `orders.items` duplicates rows that already exist — building
+ * ledger rows from it would double-count (see docs/DECISIONS.md D-007).
  *
- * Refuses to run twice: if backfill rows already exist it stops rather than
- * doubling the history.
+ * Orders are still read, but only to relabel the rows they produced as the
+ * online channel and attach the order reference. No row is created from an
+ * order.
+ *
+ * The dry run builds everything in memory and reconciles against the source
+ * before writing; a mismatch aborts. `apply` saves a JSON snapshot of the
+ * source first and re-reconciles from the table afterwards, and refuses to run
+ * twice so re-running cannot double the history.
  *
  * Requires supabase/migrations/002_sales_ledger.sql to have been run.
  */
@@ -27,7 +32,7 @@ import { buildLedgerRow, reasonForPrice, SalesLedgerRow } from '../src/lib/sales
 const APPLY = process.argv[2] === 'apply';
 
 const SOURCE_SOLD = 'backfill:sold-array';
-const SOURCE_ORDERS = 'backfill:orders';
+const SOURCE_ATTRIBUTED = 'backfill:sold-array+order';
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString('mk-MK', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -47,9 +52,7 @@ interface OrderRow {
   created_at: string;
   items: Array<{
     productId?: string;
-    productName?: string;
     price?: number | string;
-    originalPrice?: number | string;
     quantity?: number;
     size?: string | null;
   }> | null;
@@ -59,7 +62,7 @@ async function pageAll<T>(sb: SupabaseClient, table: string, columns: string): P
   const out: T[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await sb.from(table).select(columns).range(from, from + 999);
-    if (error) throw new Error(`${table}: ${error.message}`);
+    if (error) throw new Error(table + ': ' + error.message);
     const batch = (data ?? []) as T[];
     out.push(...batch);
     if (batch.length < 1000) break;
@@ -71,7 +74,22 @@ async function pageAll<T>(sb: SupabaseClient, table: string, columns: string): P
 function dateOnlyToIso(dateStr: string): string | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr ?? '');
   if (!m) return null;
-  return `${m[1]}-${m[2]}-${m[3]}T12:00:00.000Z`;
+  return m[1] + '-' + m[2] + '-' + m[3] + 'T12:00:00.000Z';
+}
+
+const dayOf = (iso: string) => (iso ?? '').slice(0, 10);
+
+const matchKey = (productId: string, size: string | null | undefined, day: string) =>
+  productId + '|' + String(size ?? '') + '|' + day;
+
+interface OrderItemRef {
+  key: string;
+  orderId: string;
+  orderNumber: string;
+  productId: string;
+  size: string;
+  day: string;
+  orderPrice: number;
 }
 
 async function main() {
@@ -80,13 +98,12 @@ async function main() {
   if (!url || !key) throw new Error('Missing Supabase env vars in .env.local');
   const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 
-  // --- preflight: table reachable, and not already populated ---------------
+  // --- preflight -----------------------------------------------------------
   // Probe with a real column. A count with head:true returns no error when the
   // table is missing, so it cannot be used to test reachability.
   const { error: reachErr } = await sb.from('sales_ledger').select('id').limit(1);
-
   if (reachErr) {
-    console.error(`\nsales_ledger не е достапна: ${reachErr.message}`);
+    console.error('\nsales_ledger не е достапна: ' + reachErr.message);
     console.error('Пушти supabase/migrations/002_sales_ledger.sql во Supabase SQL editor.\n');
     process.exit(1);
   }
@@ -94,14 +111,14 @@ async function main() {
   const { count: existing } = await sb
     .from('sales_ledger')
     .select('*', { count: 'exact', head: true });
-
   const { count: alreadyBackfilled } = await sb
     .from('sales_ledger')
     .select('*', { count: 'exact', head: true })
     .like('source', 'backfill:%');
 
   console.log(
-    `sales_ledger: ${fmt(existing ?? 0)} редови, од кои ${fmt(alreadyBackfilled ?? 0)} од backfill\n`
+    'sales_ledger: ' + fmt(existing ?? 0) + ' редови, од кои ' +
+    fmt(alreadyBackfilled ?? 0) + ' од backfill\n'
   );
 
   if ((alreadyBackfilled ?? 0) > 0 && APPLY) {
@@ -113,24 +130,18 @@ async function main() {
 
   // --- source data ---------------------------------------------------------
   const products = await pageAll<ProductRow>(
-    sb,
-    'products',
-    'id, name, category, purchase_price, sold'
+    sb, 'products', 'id, name, category, purchase_price, sold'
   );
   const orders = await pageAll<OrderRow>(
-    sb,
-    'orders',
-    'id, order_number, status, created_at, items'
+    sb, 'orders', 'id, order_number, status, created_at, items'
   );
 
   const costOf = new Map(
     products.map((p) => [p.id, p.purchase_price === null ? null : Number(p.purchase_price)])
   );
-  const nameOf = new Map(products.map((p) => [p.id, p.name]));
-  const catOf = new Map(products.map((p) => [p.id, p.category]));
 
-  // --- rows from products.sold[] -------------------------------------------
-  const storeRows: SalesLedgerRow[] = [];
+  // --- rows, every one of them from products.sold[] ------------------------
+  const rows: SalesLedgerRow[] = [];
   let skippedNoDate = 0;
   let soldTotalEntries = 0;
   let soldTotalValue = 0;
@@ -147,7 +158,7 @@ async function main() {
       }
       soldTotalValue += price;
 
-      storeRows.push(
+      rows.push(
         buildLedgerRow({
           occurredAt: iso,
           channel: 'store',
@@ -169,121 +180,120 @@ async function main() {
     }
   }
 
-  // --- rows from orders.items ----------------------------------------------
-  // Cancelled orders are not sales. Nothing else is excluded.
+  // --- relabel the rows that came from an online order ---------------------
+  // Matched on product + size + calendar day. Price is deliberately not part of
+  // the key: the recorded price often differs from the order price, and sold[]
+  // is the figure the shop actually books.
   const liveOrders = orders.filter((o) => o.status !== 'cancelled');
-  const onlineRows: SalesLedgerRow[] = [];
 
+  const orderRefs: OrderItemRef[] = [];
   for (const o of liveOrders) {
     for (const it of o.items ?? []) {
-      const pid = it.productId;
-      if (!pid) continue;
+      if (!it.productId) continue;
       const qty = Math.max(1, Math.round(Number(it.quantity) || 1));
-      const price = Number(it.price) || 0;
-      const list = it.originalPrice === undefined ? null : Number(it.originalPrice);
-
-      onlineRows.push(
-        buildLedgerRow({
-          occurredAt: o.created_at,
-          channel: 'online',
-          reason: reasonForPrice(price),
+      for (let n = 0; n < qty; n += 1) {
+        orderRefs.push({
+          key: matchKey(it.productId, it.size, dayOf(o.created_at)),
           orderId: o.id,
           orderNumber: o.order_number,
-          productId: pid,
-          productName: it.productName ?? nameOf.get(pid) ?? null,
-          productCategory: catOf.get(pid) ?? null,
-          size: it.size ?? null,
-          qty,
-          unitPrice: price,
-          unitListPrice: list,
-          unitCost: costOf.get(pid) ?? null,
-          source: SOURCE_ORDERS,
-        })
-      );
+          productId: it.productId,
+          size: String(it.size ?? ''),
+          day: dayOf(o.created_at),
+          orderPrice: Number(it.price) || 0,
+        });
+      }
     }
   }
 
-  const all = [...storeRows, ...onlineRows];
+  const unmatched: OrderItemRef[] = [];
+  const priceGaps: Array<{ ref: OrderItemRef; recorded: number }> = [];
+  let attributed = 0;
 
-  // --- what the numbers must add up to ------------------------------------
-  const sum = (rows: SalesLedgerRow[]) =>
-    rows.reduce((a, r) => a + Number(r.unit_price) * r.qty, 0);
-  const units = (rows: SalesLedgerRow[]) => rows.reduce((a, r) => a + r.qty, 0);
+  for (const ref of orderRefs) {
+    const row = rows.find(
+      (r) => r.channel === 'store' && matchKey(r.product_id, r.size, dayOf(r.occurred_at)) === ref.key
+    );
+    if (!row) {
+      unmatched.push(ref);
+      continue;
+    }
+    row.channel = 'online';
+    row.order_id = ref.orderId;
+    row.order_number = ref.orderNumber;
+    row.source = SOURCE_ATTRIBUTED;
+    attributed += 1;
+    const recorded = Number(row.unit_price);
+    if (Math.abs(recorded - ref.orderPrice) > 0.5) priceGaps.push({ ref, recorded });
+  }
 
-  const byReason = (rows: SalesLedgerRow[]) => {
+  // --- reporting -----------------------------------------------------------
+  const sum = (rs: SalesLedgerRow[]) => rs.reduce((a, r) => a + Number(r.unit_price) * r.qty, 0);
+  const byReason = (rs: SalesLedgerRow[]) => {
     const m = new Map<string, number>();
-    rows.forEach((r) => m.set(r.reason, (m.get(r.reason) ?? 0) + 1));
+    rs.forEach((r) => m.set(r.reason, (m.get(r.reason) ?? 0) + 1));
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   };
+  const storeRows = rows.filter((r) => r.channel === 'store');
+  const onlineRows = rows.filter((r) => r.channel === 'online');
 
-  const itemUnits = (o: OrderRow) =>
-    (o.items ?? []).reduce((s, i) => s + Math.max(1, Math.round(Number(i.quantity) || 1)), 0);
-  const itemValue = (o: OrderRow) =>
-    (o.items ?? []).reduce(
-      (s, i) => s + (Number(i.price) || 0) * Math.max(1, Math.round(Number(i.quantity) || 1)),
-      0
-    );
-
-  const orderItemUnits = liveOrders.reduce((a, o) => a + itemUnits(o), 0);
-  const orderItemValue = liveOrders.reduce((a, o) => a + itemValue(o), 0);
-
-  console.log('ИЗВОР');
-  console.log(`  products.sold[] записи:         ${fmt(soldTotalEntries)}`);
-  console.log(`  без валиден датум (прескокнати): ${fmt(skippedNoDate)}`);
-  console.log(`  вредност на датираните:         ${fmt(soldTotalValue)} ден.`);
-  console.log(
-    `  нарачки:                       ${fmt(orders.length)} (${fmt(orders.length - liveOrders.length)} откажани, исклучени)`
-  );
-  console.log(
-    `  ставки во живи нарачки:        ${fmt(orderItemUnits)} парчиња · ${fmt(orderItemValue)} ден.`
-  );
+  console.log('ИЗВОР — само products.sold[]');
+  console.log('  записи:                          ' + fmt(soldTotalEntries));
+  console.log('  без валиден датум (прескокнати):  ' + fmt(skippedNoDate));
+  console.log('  вредност на датираните:          ' + fmt(soldTotalValue) + ' ден.');
   console.log('');
   console.log('ЛЕДЖЕР ШТО СЕ ГРАДИ');
-  console.log(
-    `  store:  ${fmt(storeRows.length)} редови · ${fmt(units(storeRows))} парчиња · ${fmt(sum(storeRows))} ден.`
-  );
-  console.log(
-    `  online: ${fmt(onlineRows.length)} редови · ${fmt(units(onlineRows))} парчиња · ${fmt(sum(onlineRows))} ден.`
-  );
-  console.log(`  вкупно: ${fmt(all.length)} редови`);
+  console.log('  вкупно: ' + fmt(rows.length) + ' редови · ' + fmt(sum(rows)) + ' ден.');
+  console.log('    store:  ' + fmt(storeRows.length) + ' · ' + fmt(sum(storeRows)) + ' ден.');
+  console.log('    online: ' + fmt(onlineRows.length) + ' · ' + fmt(sum(onlineRows)) + ' ден. (препознаени, не додадени)');
   console.log('');
   console.log('  по причина:');
-  byReason(all).forEach(([r, n]) => console.log(`    ${r.padEnd(10)} ${fmt(n)}`));
+  byReason(rows).forEach(([r, n]) => console.log('    ' + r.padEnd(10) + fmt(n)));
+  console.log('');
+
+  console.log('ПРИПИШУВАЊЕ НА КАНАЛ — нарачките не создаваат редови');
+  console.log('  ставки во живи нарачки: ' + fmt(orderRefs.length));
+  console.log('  препознаени во sold[]:  ' + fmt(attributed));
+  console.log('  НЕ најдени:             ' + fmt(unmatched.length));
+  unmatched.forEach((u) =>
+    console.log('    ' + u.orderNumber + ' · ' + u.productId + ' · size=' + (u.size || '-') +
+      ' · ' + u.day + ' · цена во нарачка ' + fmt(u.orderPrice))
+  );
+  if (priceGaps.length) {
+    console.log('');
+    console.log('  ! цената во sold[] се разликува од цената во нарачката:');
+    priceGaps.forEach((g) => {
+      const pctOff = g.ref.orderPrice > 0
+        ? ((1 - g.recorded / g.ref.orderPrice) * 100).toFixed(1)
+        : '-';
+      console.log('    ' + g.ref.orderNumber + ' · ' + g.ref.productId +
+        ' · нарачка ' + fmt(g.ref.orderPrice) + ' -> запишано ' + fmt(g.recorded) +
+        ' (' + pctOff + '% помалку)');
+    });
+    console.log('  Ledger-от зема запишаното во sold[] — тоа е бројката што дуќанот книжи.');
+  }
   console.log('');
 
   // --- invariants ----------------------------------------------------------
   const problems: string[] = [];
-
-  if (storeRows.length !== soldTotalEntries - skippedNoDate) {
-    problems.push('store: број редови не одговара на број датирани записи');
+  if (rows.length !== soldTotalEntries - skippedNoDate) {
+    problems.push('број редови не одговара на број датирани записи');
   }
-  if (Math.abs(sum(storeRows) - soldTotalValue) > 0.5) {
-    problems.push(`store: вредност ${sum(storeRows)} vs извор ${soldTotalValue}`);
+  if (Math.abs(sum(rows) - soldTotalValue) > 0.5) {
+    problems.push('вредност ' + sum(rows) + ' vs извор ' + soldTotalValue);
   }
-  if (units(onlineRows) !== orderItemUnits) {
-    problems.push(`online: парчиња ${units(onlineRows)} vs извор ${orderItemUnits}`);
-  }
-  if (Math.abs(sum(onlineRows) - orderItemValue) > 0.5) {
-    problems.push(`online: вредност ${sum(onlineRows)} vs извор ${orderItemValue}`);
-  }
-  const badSales = all.filter((r) => r.reason === 'sale' && Number(r.unit_price) <= 0);
-  if (badSales.length) {
-    problems.push(`${badSales.length} редови со reason=sale и цена 0`);
-  }
-  const noCost = all.filter((r) => r.unit_cost === null).length;
+  const badSales = rows.filter((r) => r.reason === 'sale' && Number(r.unit_price) <= 0);
+  if (badSales.length) problems.push(badSales.length + ' редови со reason=sale и цена 0');
+  const noCost = rows.filter((r) => r.unit_cost === null).length;
 
   console.log('ПРОВЕРКИ');
   if (problems.length === 0) {
-    console.log('  OK  сите збирови се совпаѓаат со изворот');
+    console.log('  OK  збировите се совпаѓаат со sold[]');
     console.log('  OK  нема reason=sale со цена 0');
+    console.log('  OK  ниту еден ред не е создаден од orders — нема удвојување');
   } else {
-    problems.forEach((p) => console.log(`  ГРЕШКА  ${p}`));
+    problems.forEach((p) => console.log('  ГРЕШКА  ' + p));
   }
-  console.log(
-    `  ${noCost > 0 ? '!' : 'OK'}  без набавна цена: ${fmt(noCost)} редови${
-      noCost > 0 ? ' (маржата за тие остана непозната)' : ''
-    }`
-  );
+  console.log('  ' + (noCost > 0 ? '!' : 'OK') + '  без набавна цена: ' + fmt(noCost) + ' редови');
   console.log('');
 
   if (problems.length > 0) {
@@ -300,7 +310,7 @@ async function main() {
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   const dir = join(process.cwd(), 'docs', 'snapshots');
   mkdirSync(dir, { recursive: true });
-  const snapPath = join(dir, `pre-ledger-${stamp}.json`);
+  const snapPath = join(dir, 'pre-ledger-' + stamp + '.json');
   writeFileSync(
     snapPath,
     JSON.stringify(
@@ -314,32 +324,32 @@ async function main() {
     ),
     'utf8'
   );
-  console.log(`Снимка на изворот: ${snapPath}`);
+  console.log('Снимка на изворот: ' + snapPath);
 
   // --- write ---------------------------------------------------------------
   let written = 0;
   const errors: string[] = [];
   const CHUNK = 500;
-  for (let i = 0; i < all.length; i += CHUNK) {
-    const chunk = all.slice(i, i + CHUNK);
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const chunk = rows.slice(i, i + CHUNK);
     const { error } = await sb.from('sales_ledger').insert(chunk);
     if (error) {
-      errors.push(`${i}-${i + chunk.length}: ${error.message}`);
+      errors.push(i + '-' + (i + chunk.length) + ': ' + error.message);
       continue;
     }
     written += chunk.length;
-    console.log(`  ... ${written}/${all.length}`);
+    console.log('  ... ' + written + '/' + rows.length);
   }
 
   console.log('');
-  console.log(`Запишани: ${fmt(written)}`);
+  console.log('Запишани: ' + fmt(written));
   if (errors.length) {
-    console.log(`Грешки: ${errors.length}`);
-    errors.slice(0, 5).forEach((e) => console.log(`  ${e}`));
+    console.log('Грешки: ' + errors.length);
+    errors.slice(0, 5).forEach((e) => console.log('  ' + e));
     process.exit(1);
   }
 
-  // --- read back and reconcile against the source -------------------------
+  // --- read back and reconcile --------------------------------------------
   const check = await pageAll<{
     channel: string;
     qty: number;
@@ -347,29 +357,16 @@ async function main() {
     reason: string;
   }>(sb, 'sales_ledger', 'channel, qty, unit_price, reason');
 
-  const dbStore = check.filter((r) => r.channel === 'store');
-  const dbOnline = check.filter((r) => r.channel === 'online');
-  const dbSum = (rows: typeof check) =>
-    rows.reduce((a, r) => a + Number(r.unit_price) * Number(r.qty), 0);
+  const dbSum = check.reduce((a, r) => a + Number(r.unit_price) * Number(r.qty), 0);
+  const zeroSales = check.filter((r) => r.reason === 'sale' && Number(r.unit_price) <= 0).length;
   const mark = (ok: boolean) => (ok ? 'OK' : 'ГРЕШКА');
 
   console.log('');
   console.log('ПОВТОРНА ПРОВЕРКА ОД БАЗАТА');
-  console.log(
-    `  store:  ${fmt(dbStore.length)} редови · ${fmt(dbSum(dbStore))} ден. ${mark(
-      Math.abs(dbSum(dbStore) - soldTotalValue) < 0.5
-    )}`
-  );
-  console.log(
-    `  online: ${fmt(dbOnline.length)} редови · ${fmt(dbSum(dbOnline))} ден. ${mark(
-      Math.abs(dbSum(dbOnline) - orderItemValue) < 0.5
-    )}`
-  );
-  console.log(
-    `  sale со цена 0: ${check.filter((r) => r.reason === 'sale' && Number(r.unit_price) <= 0).length} ${mark(
-      check.filter((r) => r.reason === 'sale' && Number(r.unit_price) <= 0).length === 0
-    )}`
-  );
+  console.log('  редови: ' + fmt(check.length) + ' ' + mark(check.length === rows.length));
+  console.log('  вредност: ' + fmt(dbSum) + ' ден. ' + mark(Math.abs(dbSum - soldTotalValue) < 0.5));
+  console.log('  online: ' + fmt(check.filter((r) => r.channel === 'online').length));
+  console.log('  sale со цена 0: ' + zeroSales + ' ' + mark(zeroSales === 0));
 }
 
 main()
