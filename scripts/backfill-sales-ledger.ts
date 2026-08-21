@@ -222,8 +222,16 @@ async function main() {
     row.order_number = ref.orderNumber;
     row.source = SOURCE_ATTRIBUTED;
     attributed += 1;
+
+    // The order carries the price that was quoted at checkout; sold[] carries
+    // what was actually charged after any discount given by hand off-app
+    // (D-007, Q7). Recording the quoted price as the list price is what lets
+    // that manual discount be derived instead of lost.
     const recorded = Number(row.unit_price);
-    if (Math.abs(recorded - ref.orderPrice) > 0.5) priceGaps.push({ ref, recorded });
+    if (ref.orderPrice > recorded + 0.5) {
+      row.unit_list_price = Math.round(ref.orderPrice * 100) / 100;
+      priceGaps.push({ ref, recorded });
+    }
   }
 
   // --- reporting -----------------------------------------------------------
@@ -260,7 +268,7 @@ async function main() {
   );
   if (priceGaps.length) {
     console.log('');
-    console.log('  ! цената во sold[] се разликува од цената во нарачката:');
+    console.log('  рачен попуст на нарачка (цената од нарачката е зачувана како листа):');
     priceGaps.forEach((g) => {
       const pctOff = g.ref.orderPrice > 0
         ? ((1 - g.recorded / g.ref.orderPrice) * 100).toFixed(1)
@@ -269,7 +277,7 @@ async function main() {
         ' · нарачка ' + fmt(g.ref.orderPrice) + ' -> запишано ' + fmt(g.recorded) +
         ' (' + pctOff + '% помалку)');
     });
-    console.log('  Ledger-от зема запишаното во sold[] — тоа е бројката што дуќанот книжи.');
+    console.log('  unit_price = наплатено · unit_list_price = квотирано · разликата е попустот.');
   }
   console.log('');
 
