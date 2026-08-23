@@ -42,3 +42,7 @@ service-account-key.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Source snapshots taken before ledger writes. They contain customer data
+# (names, addresses, phone numbers) — local safety copies, never committed.
+/docs/snapshots/
