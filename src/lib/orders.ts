@@ -1,8 +1,9 @@
 'use client';
 
 import { supabase } from './supabase';
-import { rowToOrder, OrderRow, productToRow } from './db-mappers';
-import { Order, OrderStatus, CustomerInfo, OrderItem, ProductSize } from '@/types';
+import { rowToOrder, OrderRow } from './db-mappers';
+import { applyOrderToStock, revertOrderFromStock, StockLine } from './stock';
+import { Order, OrderStatus, CustomerInfo, OrderItem } from '@/types';
 
 const ORDERS_TABLE = 'orders';
 
@@ -77,71 +78,64 @@ export async function getOrderByNumber(orderNumber: string): Promise<Order | nul
 }
 
 /**
- * Update an order's status. When transitioning to "shipped", deduct the
- * ordered quantities from each product's stock and size buckets.
+ * Stock lines for an order, as they were reserved when it was created.
  *
- * Postgres doesn't have a multi-row equivalent of Firestore transactions
- * accessible from the client, but each per-product update is atomic and
- * the read-modify-write window is small. For stricter consistency,
- * promote this logic to a server action / RPC.
+ * `soldDate` is derived from the order's own date because that is what the API
+ * used when it wrote the `sold[]` entries — matching it is how those entries are
+ * found again on a cancel.
+ */
+function stockLinesFor(order: Order): StockLine[] {
+  const soldDate = order.createdAt.toISOString().slice(0, 10);
+  return order.items.map((item) => ({
+    productId: item.productId,
+    size: item.size ?? null,
+    quantity: Math.max(1, Math.round(item.quantity || 1)),
+    unitPrice: Number(item.price) || 0,
+    soldDate,
+  }));
+}
+
+/**
+ * Move an order to a new status, putting stock back or taking it again when the
+ * move crosses the cancelled boundary.
+ *
+ * Stock is reserved at order time (D-001), so cancelling has to release it — and
+ * that means removing the `sold[]` entries and the ledger rows the order added,
+ * or the sale stays on the books for goods still on the shelf.
+ *
+ * Un-cancelling re-reserves the stock and restores the `sold[]` entries. The
+ * ledger rows are not rebuilt here; the next `npm run ledger:sync` inserts them
+ * and attributes them to the order. `sold[]` is the source of truth (D-008), so
+ * reports are already right in the meantime.
  */
 export async function updateOrderStatus(id: string, status: OrderStatus): Promise<void> {
-  // if (status !== 'shipped') {
-    const { error } = await supabase
-      .from(ORDERS_TABLE)
-      .update({ status })
-      .eq('id', id);
-    if (error) throw error;
-    return;
-  // }
+  const order = await getOrderById(id);
+  if (!order) throw new Error('Order not found');
 
-  // // Load order to know its current status + items
-  // const { data: orderData, error: orderErr } = await supabase
-  //   .from(ORDERS_TABLE)
-  //   .select('status, items')
-  //   .eq('id', id)
-  //   .single();
+  const wasCancelled = order.status === 'cancelled';
+  const willBeCancelled = status === 'cancelled';
 
-  // if (orderErr) throw orderErr;
-  // if (!orderData) throw new Error('Order not found');
+  if (willBeCancelled && !wasCancelled) {
+    await revertOrderFromStock(supabase, stockLinesFor(order));
+    const { error: ledgerErr } = await supabase
+      .from('sales_ledger')
+      .delete()
+      .eq('order_id', id);
+    if (ledgerErr) {
+      console.error('Failed to remove ledger rows for cancelled order:', ledgerErr.message);
+    }
+  } else if (!willBeCancelled && wasCancelled) {
+    const result = await applyOrderToStock(supabase, stockLinesFor(order));
+    if (!result.ok) {
+      const detail = result.shortages.length
+        ? result.shortages
+            .map((s) => `${s.productId}/${s.size}: ${s.available} од ${s.requested}`)
+            .join(', ')
+        : (result.error ?? 'unknown');
+      throw new Error('Не може да се врати нарачката — нема доволно залиха: ' + detail);
+    }
+  }
 
-  // const currentStatus = orderData.status as OrderStatus;
-  // const items = (orderData.items ?? []) as OrderItem[];
-
-  // // Only deduct stock if not already shipped/delivered
-  // if (currentStatus !== 'shipped' && currentStatus !== 'delivered') {
-  //   for (const item of items) {
-  //     const { data: productData, error: productErr } = await supabase
-  //       .from('products')
-  //       .select('stock, sizes')
-  //       .eq('id', item.productId)
-  //       .maybeSingle();
-
-  //     if (productErr || !productData) continue;
-
-  //     const currentStock = (productData.stock as number) || 0;
-  //     const currentSizes = (productData.sizes as ProductSize[] | null) || [];
-
-  //     const newStock = Math.max(0, currentStock - item.quantity);
-  //     let newSizes = currentSizes;
-  //     if (item.size && currentSizes.length > 0) {
-  //       newSizes = currentSizes.map((s) =>
-  //         s.size === item.size
-  //           ? { ...s, quantity: Math.max(0, s.quantity - item.quantity) }
-  //           : s
-  //       );
-  //     }
-
-  //     await supabase
-  //       .from('products')
-  //       .update(productToRow({ stock: newStock, sizes: newSizes }))
-  //       .eq('id', item.productId);
-  //   }
-  // }
-
-  // const { error: statusErr } = await supabase
-  //   .from(ORDERS_TABLE)
-  //   .update({ status })
-  //   .eq('id', id);
-  // if (statusErr) throw statusErr;
+  const { error } = await supabase.from(ORDERS_TABLE).update({ status }).eq('id', id);
+  if (error) throw error;
 }

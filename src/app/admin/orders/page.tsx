@@ -254,7 +254,10 @@ function OrdersManagement() {
       );
     } catch (err) {
       console.error('Error updating order status:', err);
-      alert(t('orders.updateFailed'));
+      // A stock failure on un-cancelling names exactly what is short; a generic
+      // message would send the user hunting for it.
+      const detail = err instanceof Error && err.message ? err.message : null;
+      alert(detail ?? t('orders.updateFailed'));
     }
   };
 

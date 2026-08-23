@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { applyOrderToStock, revertOrderFromStock } from '@/lib/stock';
+import { buildLedgerRow } from '@/lib/sales-ledger';
 import {
   isRateLimited,
   isGloballyThrottled,
@@ -204,6 +206,47 @@ export async function POST(request: NextRequest) {
     const netSubtotal = round2(grossSubtotal - absorbed);
     const total = round2(netSubtotal + shipping);
 
+    // ── Reserve the stock before the order exists ─────────────────────────
+    // Decided in D-001: stock drops at order time, as a reservation. With one
+    // or two pieces per variant, showing something as available after someone
+    // has ordered it is worse than briefly hiding a piece that comes back.
+    //
+    // This also appends to `products.sold[]`, which is still the source of
+    // truth for reporting (D-008) — so staff must stop entering online orders
+    // by hand or the sale lands twice (D-007).
+    const soldDate = new Date().toISOString().slice(0, 10);
+    const stockLines = orderItems.map((item) => ({
+      productId: item.productId,
+      size: item.size ?? null,
+      quantity: Math.max(1, Math.round(Number(item.quantity) || 1)),
+      unitPrice: Number(item.price) || 0,
+      soldDate,
+    }));
+
+    const reservation = await applyOrderToStock(supabase, stockLines);
+    if (!reservation.ok) {
+      if (reservation.shortages.length > 0) {
+        console.warn(
+          `[ORDER_OUT_OF_STOCK] ip=${ip} ${reservation.shortages
+            .map((s) => `${s.productId}/${s.size} want=${s.requested} have=${s.available}`)
+            .join(' ')}`
+        );
+        return NextResponse.json(
+          {
+            error: 'Некои производи веќе не се достапни во избраната големина.',
+            shortages: reservation.shortages,
+          },
+          { status: 409 }
+        );
+      }
+      console.error(`[ORDER_RESERVE_FAILED] ip=${ip} ${reservation.error ?? ''}`);
+      return NextResponse.json(
+        { error: 'Failed to create order. Please try again.' },
+        { status: 500 }
+      );
+    }
+
+
     const orderRow = {
       order_number: orderNumber,
       customer: {
@@ -234,7 +277,73 @@ export async function POST(request: NextRequest) {
     };
 
     const { error } = await supabase.from('orders').insert(orderRow);
-    if (error) throw error;
+    if (error) {
+      // The order does not exist, so the reservation must not either.
+      await revertOrderFromStock(supabase, stockLines);
+      throw error;
+    }
+
+    // ── Ledger ────────────────────────────────────────────────────────────
+    // Written after the order so it can carry the order reference. A failure
+    // here is recoverable and deliberately not fatal: `sold[]` already has the
+    // sale, so `npm run ledger:sync` closes the gap. Losing the order over a
+    // ledger write would be the worse trade.
+    const { data: orderRowBack } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('order_number', orderNumber)
+      .maybeSingle();
+
+    const productIds = [...new Set(orderItems.map((i) => i.productId))];
+    const { data: productMeta } = await supabase
+      .from('products')
+      .select('id, name, category, purchase_price')
+      .in('id', productIds);
+    const metaById = new Map(
+      ((productMeta ?? []) as Array<{
+        id: string;
+        name: string | null;
+        category: string | null;
+        purchase_price: number | string | null;
+      }>).map((p) => [p.id, p])
+    );
+
+    const ledgerRows = orderItems.flatMap((item) => {
+      const meta = metaById.get(item.productId);
+      const cost = meta?.purchase_price === null || meta?.purchase_price === undefined
+        ? null
+        : Number(meta.purchase_price);
+      const units = Math.max(1, Math.round(Number(item.quantity) || 1));
+      return Array.from({ length: units }, () =>
+        buildLedgerRow({
+          occurredAt: soldDate + 'T12:00:00.000Z',
+          channel: 'online',
+          orderId: orderRowBack?.id ?? null,
+          orderNumber,
+          productId: item.productId,
+          productName: meta?.name ?? item.productName ?? null,
+          productCategory: meta?.category ?? null,
+          size: item.size ?? null,
+          qty: 1,
+          unitPrice: Number(item.price) || 0,
+          // Quoted vs charged differ when shipping was absorbed above the
+          // threshold; keeping the quoted figure makes that derivable.
+          unitListPrice:
+            typeof item.originalPrice === 'number' && item.originalPrice > Number(item.price)
+              ? item.originalPrice
+              : null,
+          unitCost: cost,
+          source: 'online',
+        })
+      );
+    });
+
+    const { error: ledgerErr } = await supabase.from('sales_ledger').insert(ledgerRows);
+    if (ledgerErr) {
+      console.error(
+        `[ORDER_LEDGER_FAILED] orderNumber=${orderNumber} ${ledgerErr.message} — run "npm run ledger:sync"`
+      );
+    }
 
     console.log(
       `[ORDER_CREATED] orderNumber=${orderNumber} ip=${ip} email=${email} items=${items.length}`
