@@ -123,25 +123,27 @@ The halving of the doubled Firebase value happens in `realPurchasePrice()`
 
 ---
 
-## 8. Backfill Sales Ledger
+## 8. Sync Sales Ledger
 
-Populates `sales_ledger` from `products.sold[]` and `orders.items` (Task 0.1).
+Keeps `sales_ledger` in step with `products.sold[]`. Idempotent — run it as
+often as you like. Supersedes the one-shot backfill (see git history).
 
 ```bash
-npm run ledger:backfill          # dry run, writes nothing
-npm run ledger:backfill apply    # writes
+npm run ledger:sync                 # report drift, write nothing
+npm run ledger:sync apply           # insert what is missing
+npm run ledger:sync apply --prune   # also delete rows sold[] no longer has
 ```
 
-Requires `supabase/migrations/002_sales_ledger.sql` to have been run.
+Nothing writes to the ledger live yet, so it drifts from the moment it is
+filled — two days after the initial fill it was already 11 rows short and one
+row over. Run this before any report that depends on the ledger, and see
+`docs/DECISIONS.md` D-008 for why reports still read `sold[]`.
 
-The dry run builds every row in memory and reconciles the totals against the
-source before anything is written; a mismatch aborts. `apply` saves a JSON
-snapshot of the source under `docs/snapshots/` first, then re-reads the table
-afterwards and reconciles again. It refuses to run twice, so re-running cannot
-double the history.
-
-Cancelled orders are excluded. Entries with a zero price become
-`reason: personal` rather than sales (see `docs/DECISIONS.md` D-005).
+Matching is a multiset comparison per product on size + day + price, because
+`sold[]` entries have no id, entries get added with past dates, and two
+identical sales on one day are legitimate. Extras are reported rather than
+deleted unless `--prune` is passed, and even then only rows this tooling
+wrote — a row written live is never touched.
 
 ---
 

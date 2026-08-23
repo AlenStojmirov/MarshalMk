@@ -11,8 +11,8 @@
     "sale:set": "tsx scripts/set-products-on-sale.ts",
     "category:replace": "tsx scripts/replace-category.ts",
     "baseline": "tsx scripts/baseline-report.ts",
-    "ledger:backfill": "tsx scripts/backfill-sales-ledger.ts",
-    "cost:backfill": "tsx scripts/backfill-purchase-price.ts"
+    "cost:backfill": "tsx scripts/backfill-purchase-price.ts",
+    "ledger:sync": "tsx scripts/sync-sales-ledger.ts"
   },
   "dependencies": {
     "@radix-ui/react-slider": "^1.3.6",
