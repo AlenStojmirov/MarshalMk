@@ -85,7 +85,7 @@ function ExpensesView() {
           <div>
             <h1 className="text-xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
               <Receipt className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
-              {t('expenses.title')}
+              {t('expenses.title')} <span className="text-sm font-normal text-slate-400">· подароци и лична потрошувачка</span>
             </h1>
             <p className="text-sm sm:text-base text-gray-500">
               {t('expenses.subtitle', { count: expenseItems.length })}
