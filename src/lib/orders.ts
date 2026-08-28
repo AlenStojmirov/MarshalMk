@@ -2,7 +2,11 @@
 
 import { supabase } from './supabase';
 import { rowToOrder, OrderRow } from './db-mappers';
-import { applyOrderToStock, revertOrderFromStock, StockLine } from './stock';
+import { applyOrderToStock, revertOrderFromStock, repriceSoldEntries, StockLine } from './stock';
+import { previewCorrection } from './order-math';
+
+export { previewCorrection } from './order-math';
+export type { CorrectionPreview, CorrectionLine } from './order-math';
 import { Order, OrderStatus, CustomerInfo, OrderItem } from '@/types';
 
 const ORDERS_TABLE = 'orders';
@@ -137,5 +141,72 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
   }
 
   const { error } = await supabase.from(ORDERS_TABLE).update({ status }).eq('id', id);
+  if (error) throw error;
+}
+
+/**
+ * Record what was actually collected for an order.
+ *
+ * A discount given by hand after checkout has nowhere else to go: the API books
+ * the quoted price, so without this the revenue is overstated by whatever was
+ * knocked off — the same leak A1 exists to close, from the other end (D-007 Q7).
+ *
+ * All three records move together, or the next `npm run ledger:sync` reports the
+ * order as drift: the `sold[]` entries, the ledger rows, and the order itself.
+ * The quoted price is kept in `unit_list_price`, so the discount stays derivable
+ * rather than simply disappearing into a lower price.
+ */
+export async function correctOrderCollected(order: Order, collectedTotal: number): Promise<void> {
+  const preview = previewCorrection(order, collectedTotal);
+  if (preview.itemsTotal <= 0) {
+    throw new Error('Наплатената сума мора да биде поголема од поштарината.');
+  }
+
+  const soldDate = order.createdAt.toISOString().slice(0, 10);
+  const changed = preview.items.filter((l) => Math.abs(l.newPrice - l.oldPrice) > 0.005);
+
+  if (changed.length > 0) {
+    const result = await repriceSoldEntries(
+      supabase,
+      changed.map((l) => ({
+        productId: l.productId,
+        size: l.size ?? null,
+        quantity: l.quantity,
+        oldUnitPrice: l.oldPrice,
+        newUnitPrice: l.newPrice,
+        soldDate,
+      }))
+    );
+    if (!result.ok) throw new Error(result.error ?? 'Не може да се ажурира sold[].');
+
+    for (const l of changed) {
+      let q = supabase
+        .from('sales_ledger')
+        .update({ unit_price: l.newPrice, unit_list_price: l.oldPrice })
+        .eq('order_id', order.id)
+        .eq('product_id', l.productId)
+        .eq('unit_price', l.oldPrice);
+      q = l.size ? q.eq('size', l.size) : q.is('size', null);
+      const { error } = await q;
+      if (error) {
+        console.error('Ledger reprice failed for', l.productId, error.message);
+      }
+    }
+  }
+
+  const items = order.items.map((item, idx) => ({
+    ...item,
+    price: preview.items[idx]?.newPrice ?? item.price,
+    // Keep the quoted figure visible on the order too, not only in the ledger.
+    originalPrice:
+      item.originalPrice ?? (preview.items[idx]?.oldPrice !== preview.items[idx]?.newPrice
+        ? preview.items[idx]?.oldPrice
+        : undefined),
+  }));
+
+  const { error } = await supabase
+    .from(ORDERS_TABLE)
+    .update({ items, subtotal: preview.itemsTotal, total: preview.total })
+    .eq('id', order.id);
   if (error) throw error;
 }

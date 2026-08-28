@@ -236,3 +236,77 @@ export async function revertOrderFromStock(
 
   return { ok: true, shortages: [] };
 }
+
+export interface RepriceLine {
+  productId: string;
+  size?: string | null;
+  /** How many units of this line to reprice. */
+  quantity: number;
+  /** Price the entries were written with — this is how they are found. */
+  oldUnitPrice: number;
+  newUnitPrice: number;
+  soldDate: string;
+}
+
+/**
+ * Change the price on `sold[]` entries an order wrote, without touching stock.
+ *
+ * Used when a discount was given by hand after checkout: the goods left, so the
+ * quantities stand, but the amount booked has to match what was actually
+ * collected (docs/DECISIONS.md D-007).
+ *
+ * Entries are found by size + old price + date and only `quantity` of them are
+ * changed — `sold[]` has no ids, and repricing every match would catch
+ * unrelated sales of the same item on the same day.
+ */
+export async function repriceSoldEntries(
+  sb: SupabaseClient,
+  lines: RepriceLine[]
+): Promise<StockResult> {
+  if (lines.length === 0) return { ok: true, shortages: [] };
+
+  const grouped = new Map<string, RepriceLine[]>();
+  for (const l of lines) {
+    const list = grouped.get(l.productId) ?? [];
+    list.push(l);
+    grouped.set(l.productId, list);
+  }
+
+  for (const [productId, group] of grouped) {
+    let done = false;
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS && !done; attempt += 1) {
+      const product = await readProduct(sb, productId);
+      if (!product) break;
+
+      const sizes = (product.sizes ?? []).map((s) => ({ ...s }));
+      const sold = [...(product.sold ?? [])];
+
+      for (const line of group) {
+        const wanted = norm(line.size);
+        const oldPrice = round2(line.oldUnitPrice);
+        let left = line.quantity;
+
+        for (let i = 0; i < sold.length && left > 0; i += 1) {
+          const s = sold[i];
+          const match =
+            norm(s.size) === wanted &&
+            round2(Number(s.price) || 0) === oldPrice &&
+            String(s.soldDate).slice(0, 10) === line.soldDate.slice(0, 10);
+          if (!match) continue;
+          sold[i] = { ...s, price: round2(line.newUnitPrice) };
+          left -= 1;
+        }
+      }
+
+      const stock = sizes.reduce((sum, s) => sum + (Number(s.quantity) || 0), 0);
+      done = await casWrite(sb, productId, product.updated_at, { sizes, stock, sold });
+    }
+
+    if (!done) {
+      return { ok: false, shortages: [], error: 'Could not reprice ' + productId };
+    }
+  }
+
+  return { ok: true, shortages: [] };
+}

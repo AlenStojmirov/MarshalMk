@@ -4,7 +4,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
-import { getOrders, updateOrderStatus } from '@/lib/orders';
+import {
+  getOrders,
+  updateOrderStatus,
+  previewCorrection,
+  correctOrderCollected,
+} from '@/lib/orders';
 import { Order, OrderStatus } from '@/types';
 import { useTranslation } from '@/lib/i18n';
 import {
@@ -46,14 +51,42 @@ const STATUS_OPTIONS: OrderStatus[] = [
 function OrderCard({
   order,
   onStatusChange,
+  onCorrected,
   t,
 }: {
   order: Order;
   onStatusChange: (id: string, status: OrderStatus) => void;
+  onCorrected: () => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [correcting, setCorrecting] = useState(false);
+  const [collected, setCollected] = useState('');
+  const [savingCorrection, setSavingCorrection] = useState(false);
+
+  // Recomputed as the amount is typed, so the split is visible before it is saved.
+  const preview = (() => {
+    const n = Number(collected);
+    if (!correcting || !Number.isFinite(n) || n <= 0) return null;
+    const p = previewCorrection(order, n);
+    return p.itemsTotal > 0 ? p : null;
+  })();
+
+  const handleCorrect = async () => {
+    const n = Number(collected);
+    if (!Number.isFinite(n) || n <= 0) return;
+    setSavingCorrection(true);
+    try {
+      await correctOrderCollected(order, n);
+      setCorrecting(false);
+      onCorrected();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : t('orders.updateFailed'));
+    } finally {
+      setSavingCorrection(false);
+    }
+  };
   const statusInfo = STATUS_CONFIG[order.status];
   const StatusIcon = statusInfo.icon;
 
@@ -209,6 +242,84 @@ function OrderCard({
               <span className="text-sm sm:text-base">{t('orders.total')}</span>
               <span className="text-sm sm:text-base">{order.total.toFixed(2)} ден.</span>
             </div>
+
+            {/* Collected-amount correction — a discount given by hand after
+                checkout has nowhere else to go, and without it the revenue is
+                overstated by whatever was knocked off (D-007 Q7). */}
+            <div className="mt-3 pt-3 border-t">
+              {!correcting ? (
+                <button
+                  onClick={() => { setCorrecting(true); setCollected(order.total.toFixed(0)); }}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  {t('orders.correctCollected')}
+                </button>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-medium text-gray-600">
+                    {t('orders.collectedAmount')}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={collected}
+                      onChange={(e) => setCollected(e.target.value)}
+                      className="w-32 px-2 py-1 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 tabular-nums"
+                    />
+                    <span className="text-xs text-gray-500">ден.</span>
+                    <button
+                      onClick={handleCorrect}
+                      disabled={savingCorrection || !preview}
+                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-40"
+                    >
+                      {savingCorrection ? t('admin.saving') : t('common.save')}
+                    </button>
+                    <button
+                      onClick={() => setCorrecting(false)}
+                      disabled={savingCorrection}
+                      className="px-3 py-1 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
+                    >
+                      {t('common.cancel')}
+                    </button>
+                  </div>
+                  {preview && (
+                    <div className="text-xs text-gray-600 bg-gray-50 rounded-lg p-2 space-y-0.5">
+                      {preview.items.map((l, i) => (
+                        <div key={i} className="flex justify-between tabular-nums">
+                          <span>
+                            {l.productId}{l.size ? ' · ' + l.size : ''}{l.quantity > 1 ? ' × ' + l.quantity : ''}
+                          </span>
+                          <span>
+                            <span className="text-gray-400 line-through">{l.oldPrice.toFixed(0)}</span>
+                            {' → '}
+                            <span className="font-semibold text-gray-900">{l.newPrice.toFixed(0)}</span>
+                          </span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between pt-1 border-t tabular-nums font-semibold text-gray-900">
+                        <span>{t('orders.total')}</span>
+                        <span>{preview.total.toFixed(2)} ден.</span>
+                      </div>
+                      {!preview.exact && (
+                        <p className="text-[11px] text-amber-700">
+                          {t('orders.notExact', {
+                            requested: preview.requested.toFixed(0),
+                            actual: preview.total.toFixed(0),
+                          })}
+                        </p>
+                      )}
+                      {preview.shipping > 0 && (
+                        <p className="text-[11px] text-gray-400">
+                          {t('common.shipping')}: {preview.shipping.toFixed(0)} ден.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -361,6 +472,7 @@ function OrdersManagement() {
               key={order.id}
               order={order}
               onStatusChange={handleStatusChange}
+              onCorrected={fetchOrders}
               t={t}
             />
           ))}

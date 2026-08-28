@@ -319,7 +319,10 @@
     "updateFailed": "Failed to update order status",
     "tryAgain": "Try again",
     "loginRequired": "Please log in to view orders",
-    "goToLogin": "Go to Admin Login"
+    "goToLogin": "Go to Admin Login",
+    "correctCollected": "Correct collected amount",
+    "collectedAmount": "Actually collected (incl. shipping)",
+    "notExact": "Exactly {requested} is not reachable with whole prices — {actual} den. will be recorded."
   },
   "tracking": {
     "title": "Track Your Order",
