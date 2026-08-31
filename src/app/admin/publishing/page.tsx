@@ -87,8 +87,11 @@ function PublishingView() {
   const [activeGroup, setActiveGroup] = useState<string>('all');
   const [publishing, setPublishing] = useState<string | null>(null);
 
+  // Frozen once per mount rather than read during render: ages do not need to
+  // tick, and reading the clock inside a memo makes the render impure.
+  const [now] = useState(() => Date.now());
+
   const model = useMemo(() => {
-    const now = Date.now();
     const merch = products.filter((p) => !NON_MERCHANDISE.has(p.category));
 
     const unitsOf = (p: Product) =>
@@ -157,7 +160,7 @@ function PublishingView() {
     const hiddenMerch = entries.length;
 
     return { ready, queue, dead, groups, publishedMerch, hiddenMerch };
-  }, [products]);
+  }, [products, now]);
 
   const handlePublish = async (p: Product) => {
     setPublishing(p.id);

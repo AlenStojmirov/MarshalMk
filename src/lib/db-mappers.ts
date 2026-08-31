@@ -20,6 +20,9 @@ export interface ProductRow {
   featured: boolean;
   is_visible: boolean;
   sale: SaleInfo | null;
+  first_received_at: string | null;
+  first_received_estimated: boolean | null;
+  supplier_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -45,6 +48,9 @@ export function rowToProduct(row: ProductRow): Product {
     featured: row.featured ?? false,
     isVisible: row.is_visible !== false,
     sale: row.sale ?? undefined,
+    firstReceivedAt: row.first_received_at ? new Date(row.first_received_at) : undefined,
+    firstReceivedEstimated: row.first_received_estimated ?? undefined,
+    supplierId: row.supplier_id ?? undefined,
     createdAt: row.created_at ? new Date(row.created_at) : new Date(),
     updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
   };
@@ -74,6 +80,7 @@ export function productToRow(
   if (data.featured !== undefined) out.featured = data.featured;
   if (data.isVisible !== undefined) out.is_visible = data.isVisible;
   if (data.sale !== undefined) out.sale = data.sale ?? null;
+  // firstReceivedAt is written at receiving, never through the product form.
   return out;
 }
 

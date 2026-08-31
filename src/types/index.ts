@@ -35,6 +35,11 @@ export interface Product {
   featured: boolean;
   isVisible?: boolean;
   sale?: SaleInfo;
+  /** When the goods first arrived. Ageing measures from here. */
+  firstReceivedAt?: Date;
+  /** True when firstReceivedAt was inferred, not recorded — such ages are lower bounds. */
+  firstReceivedEstimated?: boolean;
+  supplierId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

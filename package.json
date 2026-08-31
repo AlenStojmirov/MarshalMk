@@ -13,7 +13,9 @@
     "baseline": "tsx scripts/baseline-report.ts",
     "cost:backfill": "tsx scripts/backfill-purchase-price.ts",
     "ledger:sync": "tsx scripts/sync-sales-ledger.ts",
-    "publish:candidates": "tsx scripts/publish-candidates.ts"
+    "publish:candidates": "tsx scripts/publish-candidates.ts",
+    "ageing:estimate": "tsx scripts/estimate-first-received.ts",
+    "snapshot": "tsx scripts/snapshot-inventory.ts"
   },
   "dependencies": {
     "@radix-ui/react-slider": "^1.3.6",

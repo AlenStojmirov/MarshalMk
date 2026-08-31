@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts, createProduct, updateProduct, deleteProduct, uploadProductImage } from '@/hooks/useProducts';
 import { Product, ProductFormData, ProductSize } from '@/types';
-import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff, Search, Filter, Camera, Wallet, Truck } from 'lucide-react';
+import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff, Search, Filter, Camera, Wallet, Truck, Clock } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
@@ -846,6 +846,14 @@ function AdminDashboard() {
           <Truck className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="hidden xs:inline">Прием на стока</span>
           <span className="xs:hidden">Прием</span>
+        </Link>
+        <Link
+          href="/admin/aging"
+          className="flex items-center justify-center gap-2 px-3 py-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl font-medium hover:bg-rose-100 transition-colors text-sm shadow-sm"
+        >
+          <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="hidden xs:inline">Стареење</span>
+          <span className="xs:hidden">Возраст</span>
         </Link>
         <Link
           href="/admin/finance"
