@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts, createProduct, updateProduct, deleteProduct, uploadProductImage } from '@/hooks/useProducts';
 import { Product, ProductFormData, ProductSize } from '@/types';
-import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff, Search, Filter, Camera, Wallet } from 'lucide-react';
+import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff, Search, Filter, Camera, Wallet, Truck } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
@@ -798,7 +798,7 @@ function AdminDashboard() {
       </div>
 
       {/* Navigation Links */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4 mb-6 sm:mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <Link
           href="/admin/inventory"
           className="flex items-center justify-center gap-2 px-3 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors text-sm shadow-sm"
@@ -838,6 +838,14 @@ function AdminDashboard() {
           <Camera className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="hidden xs:inline">Објавување</span>
           <span className="xs:hidden">Фото</span>
+        </Link>
+        <Link
+          href="/admin/receiving"
+          className="flex items-center justify-center gap-2 px-3 py-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl font-medium hover:bg-amber-100 transition-colors text-sm shadow-sm"
+        >
+          <Truck className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="hidden xs:inline">Прием на стока</span>
+          <span className="xs:hidden">Прием</span>
         </Link>
         <Link
           href="/admin/finance"

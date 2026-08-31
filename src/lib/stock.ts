@@ -310,3 +310,88 @@ export async function repriceSoldEntries(
 
   return { ok: true, shortages: [] };
 }
+
+export interface ReceiveLine {
+  productId: string;
+  size?: string | null;
+  qty: number;
+  unitCost: number;
+}
+
+/**
+ * Add received goods to stock.
+ *
+ * Same compare-and-set as a reservation, because receiving and selling can land
+ * in the same minute. A size that does not exist yet is created rather than
+ * dropped — a delivery is often the first time a size is carried at all.
+ *
+ * Two fields ride along because receiving is the only moment they are knowable:
+ * `purchase_price` becomes the newest cost, and `first_received_at` is set once
+ * and never overwritten, since ageing has to run from the first arrival rather
+ * than the latest one.
+ */
+export async function receiveIntoStock(
+  sb: SupabaseClient,
+  lines: ReceiveLine[],
+  receivedOn: string
+): Promise<StockResult> {
+  if (lines.length === 0) return { ok: true, shortages: [] };
+
+  const grouped = new Map<string, ReceiveLine[]>();
+  for (const l of lines) {
+    const list = grouped.get(l.productId) ?? [];
+    list.push(l);
+    grouped.set(l.productId, list);
+  }
+
+  for (const [productId, group] of grouped) {
+    let done = false;
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS && !done; attempt += 1) {
+      const { data, error } = await sb
+        .from('products')
+        .select('id, sizes, stock, sold, updated_at, first_received_at')
+        .eq('id', productId)
+        .maybeSingle();
+      if (error) throw new Error('read ' + productId + ': ' + error.message);
+      const product = data as (ProductState & { first_received_at: string | null }) | null;
+      if (!product) {
+        return { ok: false, shortages: [], error: 'Product not found: ' + productId };
+      }
+
+      const sizes = (product.sizes ?? []).map((s) => ({ ...s }));
+      for (const line of group) {
+        const wanted = norm(line.size);
+        const entry = sizes.find((s) => norm(s.size) === wanted);
+        if (entry) {
+          entry.quantity = (Number(entry.quantity) || 0) + line.qty;
+        } else {
+          sizes.push({ size: wanted, quantity: line.qty });
+        }
+      }
+
+      const stock = sizes.reduce((sum, s) => sum + (Number(s.quantity) || 0), 0);
+      const newest = group[group.length - 1];
+
+      const { data: written, error: writeErr } = await sb
+        .from('products')
+        .update({
+          sizes,
+          stock,
+          purchase_price: round2(newest.unitCost),
+          first_received_at: product.first_received_at ?? receivedOn,
+        })
+        .eq('id', productId)
+        .eq('updated_at', product.updated_at)
+        .select('id');
+      if (writeErr) throw new Error('write ' + productId + ': ' + writeErr.message);
+      done = (written ?? []).length > 0;
+    }
+
+    if (!done) {
+      return { ok: false, shortages: [], error: 'Could not receive ' + productId };
+    }
+  }
+
+  return { ok: true, shortages: [] };
+}
