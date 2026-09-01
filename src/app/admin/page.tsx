@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts, createProduct, updateProduct, deleteProduct, uploadProductImage } from '@/hooks/useProducts';
 import { Product, ProductFormData, ProductSize } from '@/types';
-import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff, Search, Filter, Camera, Wallet, Truck, Clock } from 'lucide-react';
+import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff, Search, Filter, Camera, Wallet, Truck, Clock, Coins } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
@@ -854,6 +854,14 @@ function AdminDashboard() {
           <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="hidden xs:inline">Стареење</span>
           <span className="xs:hidden">Возраст</span>
+        </Link>
+        <Link
+          href="/admin/capital"
+          className="flex items-center justify-center gap-2 px-3 py-3 bg-teal-50 border border-teal-200 text-teal-700 rounded-xl font-medium hover:bg-teal-100 transition-colors text-sm shadow-sm"
+        >
+          <Coins className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="hidden xs:inline">Каде да инвестирам</span>
+          <span className="xs:hidden">Капитал</span>
         </Link>
         <Link
           href="/admin/finance"
