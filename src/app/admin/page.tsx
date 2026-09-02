@@ -8,6 +8,7 @@ import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, Plu
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
+import DashboardSummary from '@/components/admin/DashboardSummary';
 import { getEffectivePrice, getPercentOff, isOnSale } from '@/lib/pricing';
 import { grossMargin, markup } from '@/lib/cost';
 
@@ -797,6 +798,15 @@ function AdminDashboard() {
         </div>
       </div>
 
+      <DashboardSummary
+        products={products}
+        onShowLeak={() => {
+          setFilterMargin('onSaleMoving');
+          setSortBy('marginAsc');
+          document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
+        }}
+      />
+
       {/* Navigation Links */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <Link
@@ -977,7 +987,7 @@ function AdminDashboard() {
       )}
 
       {/* Products Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div id="catalog" className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Filter Bar */}
         <div className="px-4 sm:px-6 py-3 border-b border-slate-200 bg-slate-50/50">
           <div className="flex items-center gap-2 mb-2">
