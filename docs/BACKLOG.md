@@ -65,13 +65,20 @@
 
 ---
 
-### 0.4 · Поправка на `shipping` и `total` во order API
-`P0` `area:api` · зависи од: —
+### 0.4 · Поправка на `shipping` и `total` во order API ✅
+`P0` `area:api` · зависи од: — · **завршено 2026-09-06**
 
-Checkout наплаќа 170 ден. под праг од 3.000, но API-то запишува `shipping: 0`
-и `total: subtotal`. Приходот од online е потценет.
+Checkout наплаќа 170 ден. под праг од 3.000, но API-то запишуваше `shipping: 0`
+и `total: subtotal`.
 
-**Done кога** `shipping` се пресметува преку `getShippingCost()` и `total = subtotal + shipping`
+- Напред: решено со D-006 (`ecf1eb4`) — двете гранки затвораат
+  `subtotal + shipping === total`.
+- Наназад: `npm run orders:shipping` ги поправи двете стари нарачки
+  (+340 ден. поштарина што поминала низ каса, но не низ евиденција).
+- Извештајот повеќе не чита `total` како приход: приходот и AOV одат по
+  `subtotal`, зашто поштарината нетира на нула во двата случаја.
+
+**Done кога** `shipping` се пресметува преку `getShippingCost()` и `total = subtotal + shipping` ✅
 
 ---
 

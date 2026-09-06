@@ -508,6 +508,11 @@ async function main() {
   // =======================================================================
   // 4. Orders
   // =======================================================================
+  // `subtotal` is product revenue and `total` is what the customer handed over
+  // at the door. They differ by shipping, and shipping is not revenue: below the
+  // threshold the 170 is collected and paid straight to the courier, above it
+  // the courier is paid out of the item prices (D-006). Either way it nets to
+  // zero, so every margin and AOV figure here is built on `subtotal`.
   const statusCount = new Map<string, number>();
   const ordersByMonth = new Map<string, { count: number; revenue: number }>();
   let shippingZero = 0;
@@ -519,11 +524,13 @@ async function main() {
     if (!k) continue;
     const m = ordersByMonth.get(k) ?? { count: 0, revenue: 0 };
     m.count += 1;
-    m.revenue += num(o.total);
+    m.revenue += num(o.subtotal);
     ordersByMonth.set(k, m);
   }
 
-  const orderRevenue = orders.reduce((a, o) => a + num(o.total), 0);
+  const orderRevenue = orders.reduce((a, o) => a + num(o.subtotal), 0);
+  const orderCollected = orders.reduce((a, o) => a + num(o.total), 0);
+  const orderShipping = orders.reduce((a, o) => a + num(o.shipping), 0);
 
   say('## 4. Online нарачки');
   say();
@@ -531,11 +538,21 @@ async function main() {
     ['Метрика', 'Вредност'],
     [
       ['Вкупно нарачки', fmt(orders.length)],
-      ['Вкупен `total`', `${fmt(orderRevenue)} ден.`],
-      ['AOV', orders.length ? `${fmt(orderRevenue / orders.length)} ден.` : '—'],
-      ['Нарачки со `shipping = 0`', `${fmt(shippingZero)} / ${fmt(orders.length)} (${pct(shippingZero, orders.length)}) ← Task 0.4`],
+      ['Приход од производи (`subtotal`)', `${fmt(orderRevenue)} ден.`],
+      ['Поштарина (`shipping`)', `${fmt(orderShipping)} ден.`],
+      ['Наплатено на врата (`total`)', `${fmt(orderCollected)} ден.`],
+      ['AOV по производи', orders.length ? `${fmt(orderRevenue / orders.length)} ден.` : '—'],
+      ['Нарачки со `shipping = 0`', `${fmt(shippingZero)} / ${fmt(orders.length)} (${pct(shippingZero, orders.length)})`],
     ]
   ));
+  say();
+  say('> Поштарината не е приход. Под прагот се наплаќа и веднаш се плаќа на курирот;');
+  say('> над прагот курирот се плаќа од цените на ставките (D-006). Во двата случаи');
+  say('> нетира на нула, па AOV и маржата се мерат на `subtotal`, не на `total`.');
+  if (shippingZero > 0) {
+    say('>');
+    say('> Нарачки со `shipping = 0` се однапред D-006. Пушти `npm run orders:shipping`.');
+  }
   say();
   if (statusCount.size) {
     say(table(
