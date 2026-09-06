@@ -101,9 +101,9 @@ npm run baseline
 npx tsx scripts/baseline-report.ts
 ```
 
-Reads Supabase (`products`, `orders`) and the Firebase RTDB inventory. Note that
-Firebase stores `purchasePrice` doubled — the script divides by 2 (see
-`docs/DECISIONS.md` D-002).
+Reads Supabase only. Cost comes from `products.purchase_price`, the same column
+the admin screens read — the Firebase doubling is handled once, at sync
+(`docs/DECISIONS.md` D-002).
 
 ---
 
