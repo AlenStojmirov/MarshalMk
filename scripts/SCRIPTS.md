@@ -147,6 +147,27 @@ wrote — a row written live is never touched.
 
 ---
 
+## 9. Refresh — one command before any analysis
+
+```bash
+npm run refresh          # report only, writes nothing
+npm run refresh apply    # sync the ledger, capture a snapshot, run the report
+```
+
+Runs the ledger sync, the inventory snapshot and the baseline report in that
+order, then prints the headline figures. A failing step stops the rest: a
+snapshot taken on top of a half-synced ledger is worse than no snapshot,
+because it looks like data.
+
+Safe to re-run — the sync is idempotent and the snapshot overwrites the same
+day rather than duplicating it.
+
+Run it weekly while any long piece of work is in progress. The snapshot is the
+part that cannot be caught up later: turnover and GMROI need average inventory
+over time, so a week not captured is a week gone.
+
+---
+
 ## Config Files
 
 | File | Purpose |
