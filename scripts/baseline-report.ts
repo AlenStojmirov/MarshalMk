@@ -2,7 +2,7 @@
 /**
  * Baseline report — READ ONLY.
  *
- * Reads Supabase (products, orders) and the Firebase RTDB inventory, then prints
+ * Reads Supabase and prints
  * the real numbers behind the inventory strategy: models per category, units and
  * capital tied in stock, sales velocity, the actual size curve, and realised
  * gross margin.
@@ -12,24 +12,20 @@
  *
  * Run with: npx tsx scripts/baseline-report.ts
  *
- * NOTE: Firebase stores `purchasePrice` DOUBLED — real cost is purchasePrice / 2.
- * See docs/DECISIONS.md D-002.
+ * Cost comes from `products.purchase_price`, the same column the admin screens
+ * read. The Firebase doubling is handled once, at sync (docs/DECISIONS.md D-002).
  */
 
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 import { createClient } from '@supabase/supabase-js';
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, get, goOffline } from 'firebase/database';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
-
-const PURCHASE_PRICE_DIVISOR = 2; // D-002: Firebase stores the value doubled
 
 /** Proposed 23 -> 9 consolidation from the strategy doc (Task 2.4). */
 const CATEGORY_GROUPS: Record<string, string> = {
@@ -83,6 +79,7 @@ interface ProductRow {
   sizes: SizeEntry[] | null;
   sold: SoldEntry[] | null;
   brand: string | null;
+  purchase_price: number | string | null;
   is_visible: boolean | null;
   created_at: string | null;
 }
@@ -95,11 +92,6 @@ interface OrderRow {
   total: number | string | null;
   status: string;
   created_at: string | null;
-}
-
-interface InventoryEntry {
-  purchasePrice?: number;
-  sizes?: SizeEntry[] | Record<string, SizeEntry>;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,7 +163,7 @@ async function loadSupabase() {
 
   const products = await pageAll<ProductRow>(
     'products',
-    'id, name, category, price, stock, sizes, sold, brand, is_visible, created_at'
+    'id, name, category, price, stock, sizes, sold, brand, purchase_price, is_visible, created_at'
   );
   const orders = await pageAll<OrderRow>(
     'orders',
@@ -179,38 +171,6 @@ async function loadSupabase() {
   );
 
   return { products, orders };
-}
-
-async function loadFirebaseInventory(): Promise<Record<string, InventoryEntry> | null> {
-  const databaseURL = process.env.NEXT_PUBLIC_INVENTORY_FIREBASE_DATABASE_URL;
-  if (!databaseURL) {
-    console.warn('⚠  NEXT_PUBLIC_INVENTORY_FIREBASE_DATABASE_URL not set — skipping cost data.');
-    return null;
-  }
-
-  const app = initializeApp(
-    {
-      apiKey: process.env.NEXT_PUBLIC_INVENTORY_FIREBASE_API_KEY,
-      authDomain: process.env.NEXT_PUBLIC_INVENTORY_FIREBASE_AUTH_DOMAIN,
-      projectId: process.env.NEXT_PUBLIC_INVENTORY_FIREBASE_PROJECT_ID,
-      databaseURL,
-      storageBucket: process.env.NEXT_PUBLIC_INVENTORY_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: process.env.NEXT_PUBLIC_INVENTORY_FIREBASE_MESSAGING_SENDER_ID,
-      appId: process.env.NEXT_PUBLIC_INVENTORY_FIREBASE_APP_ID,
-    },
-    'baseline-inventory'
-  );
-
-  const db = getDatabase(app);
-  try {
-    const snap = await get(ref(db, 'products'));
-    return snap.exists() ? (snap.val() as Record<string, InventoryEntry>) : {};
-  } catch (err) {
-    console.warn(`⚠  Firebase read failed (${err instanceof Error ? err.message : err}) — continuing without cost data.`);
-    return null;
-  } finally {
-    goOffline(db);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -221,11 +181,8 @@ async function main() {
   const now = Date.now();
   const today = new Date(now).toISOString().slice(0, 10);
 
-  console.log('Reading Supabase and Firebase (read-only)…\n');
-  const [{ products: allProducts, orders }, inventory] = await Promise.all([
-    loadSupabase(),
-    loadFirebaseInventory(),
-  ]);
+  console.log('Reading Supabase (read-only)…\n');
+  const { products: allProducts, orders } = await loadSupabase();
 
   const vouchers = allProducts.filter((p) => NON_MERCHANDISE.has(p.category ?? ''));
   const products = allProducts.filter((p) => !NON_MERCHANDISE.has(p.category ?? ''));
@@ -246,13 +203,15 @@ async function main() {
   say();
 
   // ---- cost lookup ------------------------------------------------------
-  const costOf = (productId: string): number | null => {
-    if (!inventory) return null;
-    const raw = inventory[productId]?.purchasePrice;
-    if (raw === undefined || raw === null) return null;
-    const n = num(raw);
-    return n > 0 ? n / PURCHASE_PRICE_DIVISOR : null;
-  };
+  // Cost comes from Supabase, the same column every admin screen reads.
+  // It used to be read from Firebase and halved here, which worked only while
+  // the two agreed: editing a purchase price in the admin writes to Supabase
+  // alone, so this report would have kept quoting the stale Firebase figure.
+  // The halving still happens, once, at sync (D-002).
+  const costById = new Map(
+    products.map((p) => [p.id, p.purchase_price === null ? null : num(p.purchase_price)])
+  );
+  const costOf = (productId: string): number | null => costById.get(productId) ?? null;
 
   // =======================================================================
   // 1. Products
@@ -292,9 +251,9 @@ async function main() {
       ['Парчиња на залиха (сума од `sizes`)', fmt(totalUnits)],
       ['Просечно парчиња по модел', products.length ? (totalUnits / products.length).toFixed(1) : '—'],
       ['Вредност на залиха по продажна цена', `${fmt(stockRetail)} ден.`],
-      ['Вредност на залиха по набавна (÷2)', inventory ? `${fmt(stockCost)} ден.` : 'нема податок'],
-      ['Покриеност со набавна цена', inventory ? `${fmt(withCost.length)} / ${fmt(products.length)} модели (${pct(withCost.length, products.length)})` : '—'],
-      ['Парчиња покриени со набавна цена', inventory ? `${fmt(stockCostUnitsCovered)} / ${fmt(totalUnits)} (${pct(stockCostUnitsCovered, totalUnits)})` : '—'],
+      ['Вредност на залиха по набавна', `${fmt(stockCost)} ден.`],
+      ['Покриеност со набавна цена', `${fmt(withCost.length)} / ${fmt(products.length)} модели (${pct(withCost.length, products.length)})`],
+      ['Парчиња покриени со набавна цена', `${fmt(stockCostUnitsCovered)} / ${fmt(totalUnits)} (${pct(stockCostUnitsCovered, totalUnits)})`],
     ]
   ));
   say();
@@ -334,8 +293,8 @@ async function main() {
         fmt(s.live),
         fmt(s.units),
         s.models ? (s.units / s.models).toFixed(1) : '—',
-        inventory ? `${fmt(s.cost)} ден.` : '—',
-        inventory ? pct(s.cost, stockCost) : '—',
+        `${fmt(s.cost)} ден.`,
+        pct(s.cost, stockCost),
       ])
   ));
   say();
@@ -618,7 +577,7 @@ async function main() {
       ['Активни модели', fmt(liveProducts.length), '~120', 'живи на storefront'],
       ['Парчиња на залиха', fmt(totalUnits), '~600', ''],
       ['Парчиња продадени / месец (дуќан)', fmt(last365.length / 12, 1), '~170', 'просек 12 мес.'],
-      ['Капитал во залиха (набавна)', inventory ? `${fmt(stockCost)} ден.` : '—', '~480.000 ден.', coverage < 1 ? `покриеност ${pct(costed365.length, last365.length)}` : ''],
+      ['Капитал во залиха (набавна)', `${fmt(stockCost)} ден.`, '~480.000 ден.', coverage < 1 ? `покриеност ${pct(costed365.length, last365.length)}` : ''],
       ['Годишен COGS', annualCogs ? `${fmt(annualCogs)} ден.` : '—', '~1.620.000 ден.', 'екстраполиран'],
       ['**Inventory turnover**', turnover ? `**${turnover.toFixed(2)}×**` : '—', '~3,4×', 'COGS ÷ залиха по набавна'],
       ['Days in inventory', turnover ? fmt(365 / turnover) : '—', '~107', ''],
