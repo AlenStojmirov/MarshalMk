@@ -18,16 +18,25 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { useProducts } from '@/hooks/useProducts';
-import { Product } from '@/types';
+import { useProducts, updateProduct } from '@/hooks/useProducts';
+import { Product, ProductFormData } from '@/types';
 import { getEffectivePrice, isOnSale } from '@/lib/pricing';
 import { grossMargin } from '@/lib/cost';
 import { getProductDisplayName } from '@/lib/product-display';
-import { AlertTriangle, ArrowLeft, Clock, HelpCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Clock, HelpCircle, Tag } from 'lucide-react';
 
 const DAY = 86_400_000;
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
 const NON_MERCHANDISE = new Set(['vaucer']);
+
+/** Never discount below cost plus this much — under it a sale destroys capital
+ *  rather than recovering it. */
+const MARKDOWN_FLOOR = 1.15;
+
+/** The markdown ladder from docs/TURNAROUND.md. Start shallow: a cut taken
+ *  early recovers more cash than a deeper one taken late, because the money
+ *  comes back while there is still a season left to spend it in. */
+const LADDER = [20, 35, 50];
 
 /** Health targets from docs/TURNAROUND.md. */
 const DEAD_TARGET = 0.08;
@@ -54,8 +63,12 @@ interface Entry {
 }
 
 function AgingView() {
-  const { products, loading } = useProducts();
+  const { products, loading, refetch } = useProducts();
   const [tab, setTab] = useState<'clearance' | 'all'>('clearance');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pct, setPct] = useState(20);
+  const [applying, setApplying] = useState(false);
+  const [result, setResult] = useState<{ done: number; clamped: number; failed: number } | null>(null);
 
   // Frozen once per mount rather than read during render: ages do not need to
   // tick, and reading the clock inside a memo makes the render impure.
@@ -129,6 +142,92 @@ function AgingView() {
   const deadPct = model.totalCost > 0 ? model.deadCost / model.totalCost : 0;
   const slowPct = model.totalCost > 0 ? model.slowCost / model.totalCost : 0;
   const list = tab === 'clearance' ? model.clearance : [...model.dated].sort((a, b) => (b.age ?? 0) - (a.age ?? 0));
+  // Only what is on screen can be selected — a "select all" that silently
+  // reached past the visible rows would price stock the eye never checked.
+  const shown = list.slice(0, 60);
+
+  // A markdown is only worth taking above the floor. Below cost + 15% the sale
+  // stops recovering capital and starts destroying it, so the requested cut is
+  // clamped there rather than refused — and the clamp is shown, since a price
+  // that quietly ignored the instruction would be worse than one that argued.
+  const priced = [...selected]
+    .map((id) => shown.find((e) => e.p.id === id))
+    .filter((e): e is Entry => Boolean(e))
+    .map((e) => {
+      const listPrice = e.p.price;
+      const wanted = Math.round(listPrice * (1 - pct / 100));
+      const floor = e.p.purchasePrice === undefined ? 0 : Math.ceil(e.p.purchasePrice * MARKDOWN_FLOOR);
+      const salePrice = Math.max(wanted, floor);
+      return {
+        e,
+        listPrice,
+        salePrice,
+        clamped: salePrice > wanted,
+        effectivePct: listPrice > 0 ? Math.round((1 - salePrice / listPrice) * 100) : 0,
+        cash: salePrice * e.units,
+      };
+    });
+
+  const expectedCash = priced.reduce((a, p) => a + p.cash, 0);
+  const clampedCount = priced.filter((p) => p.clamped).length;
+  const pricedById = new Map(priced.map((p) => [p.e.p.id, p]));
+
+  const toggle = (id: string) => {
+    setResult(null);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const allShownSelected = shown.length > 0 && shown.every((e) => selected.has(e.p.id));
+  const toggleAll = () => {
+    setResult(null);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allShownSelected) shown.forEach((e) => next.delete(e.p.id));
+      else shown.forEach((e) => next.add(e.p.id));
+      return next;
+    });
+  };
+
+  const applyMarkdown = async () => {
+    if (priced.length === 0) return;
+    const msg =
+      `Да се стави попуст на ${priced.length} производи?\n` +
+      (clampedCount > 0
+        ? `${clampedCount} ќе бидат ограничени на подот од ${Math.round((MARKDOWN_FLOOR - 1) * 100)}% над набавната.\n`
+        : '') +
+      `Очекуван поврат ако сè се продаде: ${fmt(expectedCash)} ден.`;
+    if (!confirm(msg)) return;
+
+    setApplying(true);
+    setResult(null);
+    let done = 0;
+    let failed = 0;
+    const BATCH = 10;
+
+    for (let i = 0; i < priced.length; i += BATCH) {
+      const results = await Promise.allSettled(
+        priced.slice(i, i + BATCH).map((p) =>
+          updateProduct(p.e.p.id, {
+            sale: {
+              isActive: true,
+              salePrice: p.salePrice,
+              percentageOff: p.effectivePct,
+            },
+          } as Partial<ProductFormData>)
+        )
+      );
+      results.forEach((r) => (r.status === 'fulfilled' ? done++ : failed++));
+    }
+
+    setApplying(false);
+    setResult({ done, clamped: clampedCount, failed });
+    setSelected(new Set());
+    refetch();
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -230,7 +329,7 @@ function AgingView() {
               {(['clearance', 'all'] as const).map((k) => (
                 <button
                   key={k}
-                  onClick={() => setTab(k)}
+                  onClick={() => { setTab(k); setSelected(new Set()); setResult(null); }}
                   className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
                     tab === k ? 'bg-slate-800 text-white' : 'bg-white border border-slate-200 text-slate-600'
                   }`}
@@ -248,14 +347,129 @@ function AgingView() {
             </p>
           )}
 
+            {/* markdown bar — A2 is 35 models, and opening each product one at a
+              time is the reason the list has been sitting here unused. */}
+          <div className="px-3 sm:px-4 py-3 border-b border-slate-200 bg-white">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={toggleAll}
+                disabled={list.length === 0}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+              >
+                {allShownSelected ? 'Одзначи ги сите' : `Означи ги сите (${shown.length})`}
+              </button>
+              {selected.size > 0 && (
+                <button
+                  onClick={() => { setSelected(new Set()); setResult(null); }}
+                  className="text-xs text-slate-500 hover:text-slate-800 underline"
+                >
+                  исчисти избор ({selected.size})
+                </button>
+              )}
+
+              <div className="ml-auto flex items-center gap-1.5">
+                <span className="text-xs text-slate-500 hidden sm:inline">Намалување:</span>
+                {LADDER.map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setPct(v)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                      pct === v ? 'bg-red-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    −{v}%
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  min={5}
+                  max={80}
+                  value={pct}
+                  onChange={(ev) => setPct(Math.max(5, Math.min(80, Number(ev.target.value) || 0)))}
+                  className="w-16 px-2 py-1 rounded-lg border border-slate-200 text-xs tabular-nums text-right"
+                  aria-label="Процент на намалување"
+                />
+              </div>
+            </div>
+
+            {priced.length > 0 && (
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-600">
+                  <span>
+                    <strong className="text-slate-800">{priced.length}</strong> производи ·{' '}
+                    <strong className="text-slate-800 tabular-nums">
+                      {priced.reduce((a, p) => a + p.e.units, 0)}
+                    </strong>{' '}
+                    парчиња
+                  </span>
+                  <span>
+                    Врзан капитал:{' '}
+                    <strong className="text-slate-800 tabular-nums">
+                      {fmt(priced.reduce((a, p) => a + p.e.cost, 0))}
+                    </strong>{' '}
+                    ден.
+                  </span>
+                  <span>
+                    Поврат ако сè се продаде:{' '}
+                    <strong className="text-green-700 tabular-nums">{fmt(expectedCash)}</strong> ден.
+                  </span>
+                </div>
+
+                {clampedCount > 0 && (
+                  <p className="mt-2 text-[11px] text-amber-700 flex items-start gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
+                    {clampedCount} од нив нема да добијат цели −{pct}%: цената застанува на{' '}
+                    {Math.round((MARKDOWN_FLOOR - 1) * 100)}% над набавната. Подолу продажбата веќе не
+                    враќа капитал, туку го троши.
+                  </p>
+                )}
+
+                <button
+                  onClick={applyMarkdown}
+                  disabled={applying}
+                  className="mt-2.5 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-50"
+                >
+                  <Tag className="h-3.5 w-3.5" />
+                  {applying ? 'Се применува…' : `Стави −${pct}% на ${priced.length}`}
+                </button>
+              </div>
+            )}
+
+            {result && (
+              <div
+                className={`mt-3 rounded-lg px-3 py-2 text-xs ${
+                  result.failed > 0
+                    ? 'bg-amber-50 border border-amber-200 text-amber-900'
+                    : 'bg-green-50 border border-green-200 text-green-800'
+                }`}
+              >
+                Ставен попуст на <strong>{result.done}</strong> производи
+                {result.clamped > 0 ? `, од кои ${result.clamped} ограничени на подот` : ''}
+                {result.failed > 0 ? ` · ${result.failed} не успеаја` : ''}.
+              </div>
+            )}
+          </div>
+
           {list.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-slate-400">
               {model.dated.length === 0 ? 'Нема производи со датум на прием.' : 'Нема ништо во оваа листа.'}
             </p>
           ) : (
             <div className="divide-y divide-slate-100">
-              {list.slice(0, 60).map((e) => (
-                <div key={e.p.id} className="flex items-center gap-3 px-3 sm:px-4 py-3 hover:bg-slate-50/60">
+              {shown.map((e) => (
+                <div
+                  key={e.p.id}
+                  className={`flex items-center gap-3 px-3 sm:px-4 py-3 ${
+                    selected.has(e.p.id) ? 'bg-red-50/60' : 'hover:bg-slate-50/60'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(e.p.id)}
+                    onChange={() => toggle(e.p.id)}
+                    className="h-4 w-4 shrink-0 rounded border-slate-300 accent-red-600"
+                    aria-label={`Избери ${e.p.name}`}
+                  />
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`/admin/product/${e.p.id}`}
@@ -268,6 +482,19 @@ function AgingView() {
                       {e.p.isVisible === false ? ' · скриен' : ''}
                       {isOnSale(e.p) ? ' · веќе на попуст' : ''}
                     </p>
+                    {pricedById.has(e.p.id) && (
+                      <p className="text-[11px] mt-0.5 tabular-nums">
+                        <span className="text-slate-400 line-through">{fmt(pricedById.get(e.p.id)!.listPrice)}</span>
+                        <span className="mx-1 text-slate-300">→</span>
+                        <span className="font-semibold text-red-700">
+                          {fmt(pricedById.get(e.p.id)!.salePrice)} ден.
+                        </span>
+                        <span className="ml-1 text-slate-400">(−{pricedById.get(e.p.id)!.effectivePct}%)</span>
+                        {pricedById.get(e.p.id)!.clamped && (
+                          <span className="ml-1 text-amber-600">под</span>
+                        )}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right w-20 shrink-0">
                     <p className="text-sm font-semibold text-slate-800 tabular-nums">
