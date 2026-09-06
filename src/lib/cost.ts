@@ -44,6 +44,35 @@ export function grossMargin(price: number, cost: number | undefined): number | n
 }
 
 /**
+ * Absolute gross profit on one unit, or null when the cost is unknown.
+ *
+ * The percentage answers "is this worth selling"; the denar figure answers
+ * "how much does one sale actually bring". A 40% margin on a 500-den. shirt and
+ * on a 5.000-den. coat are the same number and very different sales.
+ */
+export function unitProfit(price: number, cost: number | undefined): number | null {
+  if (cost === undefined) return null;
+  if (!Number.isFinite(price) || !Number.isFinite(cost)) return null;
+  return price - cost;
+}
+
+/**
+ * The lowest a markdown should ever go: cost plus 15%.
+ *
+ * Below this a sale stops recovering capital and starts destroying it — the
+ * pieces leave, the money does not come back, and the shelf space was paid for
+ * twice. Shared so the clearance tool and the price form cannot drift apart on
+ * where the line sits (docs/TURNAROUND.md).
+ */
+export const MARKDOWN_FLOOR = 1.15;
+
+/** The floor as an actual price, rounded up so it is never short. */
+export function markdownFloorPrice(cost: number | undefined): number | null {
+  if (cost === undefined || !Number.isFinite(cost) || cost <= 0) return null;
+  return Math.ceil(cost * MARKDOWN_FLOOR);
+}
+
+/**
  * Markup as a fraction of cost (0–1+).
  *
  * Buying at 1.000 and selling at 2.000 is 100% markup but only 50% margin.

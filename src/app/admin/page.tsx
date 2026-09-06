@@ -10,7 +10,7 @@ import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
 import DashboardSummary from '@/components/admin/DashboardSummary';
 import { getEffectivePrice, getPercentOff, isOnSale } from '@/lib/pricing';
-import { grossMargin, markup } from '@/lib/cost';
+import { grossMargin, markup, unitProfit, markdownFloorPrice, MARKDOWN_FLOOR } from '@/lib/cost';
 
 function LoginForm() {
   const { t } = useTranslation();
@@ -224,6 +224,29 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     }));
   };
 
+  // Margin as the form currently stands. Recomputed on every keystroke rather
+  // than on save, because the number is only useful while the price is still
+  // being decided — afterwards it is a report, and there are reports already.
+  //
+  // Everything reads the *effective* price. The old inline hint used the list
+  // price, so a product sitting at −40% still showed a healthy margin; that is
+  // exactly the case the number exists to catch (A1 in docs/TURNAROUND.md).
+  const priceNow = formData.sale?.isActive
+    ? (formData.sale.salePrice || 0)
+    : formData.price;
+  const costNow = formData.purchasePrice;
+  const marginNow = grossMargin(priceNow, costNow);
+  const markupNow = markup(priceNow, costNow);
+  const profitNow = unitProfit(priceNow, costNow);
+  const marginList = grossMargin(formData.price, costNow);
+  const profitList = unitProfit(formData.price, costNow);
+  const floorPrice = markdownFloorPrice(costNow);
+  const belowFloor = floorPrice !== null && priceNow > 0 && priceNow < floorPrice;
+  const discountCost =
+    formData.sale?.isActive && profitList !== null && profitNow !== null
+      ? profitList - profitNow
+      : null;
+
   const handleSalePercentageChange = (percentageOff: number) => {
     const clamped = Math.min(100, Math.max(0, percentageOff));
     setFormData(prev => ({
@@ -343,18 +366,7 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                 placeholder="—"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                {t('admin.purchasePriceHint')}
-                {formData.purchasePrice && formData.price > 0 ? (
-                  <>
-                    {' · '}
-                    <span className="font-semibold">
-                      {(((formData.price - formData.purchasePrice) / formData.price) * 100).toFixed(1)}%
-                    </span>
-                    {' '}{t('admin.margin').toLowerCase()}
-                  </>
-                ) : null}
-              </p>
+              <p className="text-xs text-gray-500 mt-1">{t('admin.purchasePriceHint')}</p>
             </div>
 
             <div>
@@ -434,6 +446,86 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                     />
                     <p className="text-xs text-gray-500 mt-1">{t('admin.salePriceAuto')}</p>
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Margin panel — the answer to "should I be selling this at this
+                price", shown at the moment the price is being typed. */}
+            <div className="md:col-span-2">
+              {marginNow === null ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                  {t('admin.noCostHint')}
+                </div>
+              ) : (
+                <div
+                  className={`rounded-xl border px-4 py-3 ${
+                    belowFloor
+                      ? 'border-red-300 bg-red-50'
+                      : marginNow < MARGIN_LOW
+                        ? 'border-amber-300 bg-amber-50'
+                        : 'border-slate-200 bg-slate-50'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+                    <div>
+                      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                        {t('admin.marginNow')}
+                      </p>
+                      <p className={`text-2xl font-bold tabular-nums ${marginToneClass(marginNow)}`}>
+                        {(marginNow * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                        {t('admin.markupLabel')}
+                      </p>
+                      <p className="text-lg font-semibold text-slate-700 tabular-nums">
+                        {((markupNow ?? 0) * 100).toFixed(0)}%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                        {t('admin.profitPerUnit')}
+                      </p>
+                      <p className="text-lg font-semibold text-slate-700 tabular-nums">
+                        {(profitNow ?? 0).toFixed(0)} ден.
+                      </p>
+                    </div>
+                    {formData.sale?.isActive && marginList !== null && (
+                      <div>
+                        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                          {t('admin.marginAtList')}
+                        </p>
+                        <p className="text-lg font-semibold text-slate-500 tabular-nums">
+                          {(marginList * 100).toFixed(1)}%
+                          <span className="text-xs font-normal text-slate-400">
+                            {' '}· {(profitList ?? 0).toFixed(0)} ден.
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {discountCost !== null && discountCost > 0 && (
+                    <p className="mt-2 text-xs text-slate-600">
+                      {t('admin.discountCost')}:{' '}
+                      <strong className="tabular-nums">{discountCost.toFixed(0)} ден.</strong>{' '}
+                      {t('admin.perUnit')}
+                    </p>
+                  )}
+
+                  {belowFloor ? (
+                    <p className="mt-2 text-xs font-medium text-red-800">
+                      {t('admin.belowFloorWarn')
+                        .replace('{floor}', String(floorPrice))
+                        .replace('{pct}', String(Math.round((MARKDOWN_FLOOR - 1) * 100)))}
+                    </p>
+                  ) : marginNow < MARGIN_LOW ? (
+                    <p className="mt-2 text-xs font-medium text-amber-800">
+                      {t('admin.marginLowWarn').replace('{pct}', String(Math.round(MARGIN_LOW * 100)))}
+                    </p>
+                  ) : null}
                 </div>
               )}
             </div>

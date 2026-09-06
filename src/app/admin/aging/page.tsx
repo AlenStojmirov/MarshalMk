@@ -21,17 +21,13 @@ import { useAuth } from '@/context/AuthContext';
 import { useProducts, updateProduct } from '@/hooks/useProducts';
 import { Product, ProductFormData } from '@/types';
 import { getEffectivePrice, isOnSale } from '@/lib/pricing';
-import { grossMargin } from '@/lib/cost';
+import { grossMargin, MARKDOWN_FLOOR } from '@/lib/cost';
 import { getProductDisplayName } from '@/lib/product-display';
 import { AlertTriangle, ArrowLeft, Clock, HelpCircle, Tag } from 'lucide-react';
 
 const DAY = 86_400_000;
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
 const NON_MERCHANDISE = new Set(['vaucer']);
-
-/** Never discount below cost plus this much — under it a sale destroys capital
- *  rather than recovering it. */
-const MARKDOWN_FLOOR = 1.15;
 
 /** The markdown ladder from docs/TURNAROUND.md. Start shallow: a cut taken
  *  early recovers more cash than a deeper one taken late, because the money
