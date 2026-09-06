@@ -134,10 +134,15 @@ npm run ledger:sync apply           # insert what is missing
 npm run ledger:sync apply --prune   # also delete rows sold[] no longer has
 ```
 
-Nothing writes to the ledger live yet, so it drifts from the moment it is
-filled — two days after the initial fill it was already 11 rows short and one
-row over. Run this before any report that depends on the ledger, and see
-`docs/DECISIONS.md` D-008 for why reports still read `sold[]`.
+Both channels now write to the ledger live — the order API (D-006) and the POS
+(Task 0.3) — so this is a repair tool rather than the main path. It still earns
+its keep: a live write is best-effort and swallowed on failure, and `sold[]` can
+be edited retroactively for a sale that happened weeks ago. Run it before any
+report that depends on the ledger, and see `docs/DECISIONS.md` D-008 for why
+reports still read `sold[]`.
+
+Rows written live carry `source` `pos` or `online` and are outside
+`OWNED_SOURCES`, so `--prune` never touches them.
 
 Matching is a multiset comparison per product on size + day + price, because
 `sold[]` entries have no id, entries get added with past dates, and two

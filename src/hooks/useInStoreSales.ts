@@ -2,6 +2,17 @@
 
 import { Product, SoldItem } from '@/types';
 import { updateProduct } from '@/hooks/useProducts';
+import { supabase } from '@/lib/supabase';
+import { buildLedgerRow } from '@/lib/sales-ledger';
+
+/**
+ * The ledger stores a timestamp, but a shop sale only ever knows a day —
+ * `sold[]` has never held anything finer. Noon UTC is the same convention
+ * `scripts/sync-sales-ledger.ts` uses, so a row written here and a row the sync
+ * would have written for the same sale land on the identical day key and the
+ * multiset diff sees one sale, not two.
+ */
+const dayToTimestamp = (day: string) => day.slice(0, 10) + 'T12:00:00.000Z';
 
 // Aggregated sold item with product info (for display in sales views)
 export interface AggregatedSoldItem {
@@ -12,7 +23,18 @@ export interface AggregatedSoldItem {
   soldDate: string;
 }
 
-// Record a sale by updating the product's sold[], sizes[], and stock directly
+/**
+ * Record one unit leaving the shop.
+ *
+ * Writes twice, in a deliberate order. `sold[]` first, because it is still the
+ * source of truth every report reads (D-008); `sales_ledger` second, because it
+ * is the record those reports are being moved onto (Task 0.3).
+ *
+ * A failed ledger write is logged and swallowed rather than thrown. The sale
+ * happened, the stock moved, and `npm run ledger:sync` closes the gap on the
+ * next run — losing a recorded sale over a secondary write would be the worse
+ * trade. That is the same call the order API makes for the same reason.
+ */
 export async function recordProductSale(
   product: Product,
   size: string,
@@ -44,6 +66,49 @@ export async function recordProductSale(
     sold: updatedSold,
     stock: newStock,
   } as Partial<Product>);
+
+  await appendLedgerRow(product, size, price, today);
+}
+
+/** Best-effort second write. Never throws — see recordProductSale. */
+async function appendLedgerRow(
+  product: Product,
+  size: string,
+  price: number,
+  day: string
+): Promise<void> {
+  try {
+    const { data } = await supabase.auth.getUser();
+
+    const row = buildLedgerRow({
+      occurredAt: dayToTimestamp(day),
+      channel: 'store',
+      // reason is derived from the price: a zero is never a sale (D-005).
+      productId: product.id,
+      productName: product.name,
+      productCategory: product.category,
+      size,
+      qty: 1,
+      unitPrice: price,
+      // What the item was listed at, so the discount is derivable later without
+      // being stored — the two can then never disagree.
+      unitListPrice: product.price,
+      // Cost is snapshotted here on purpose: a later change to purchase_price
+      // must not silently rewrite the margin on a sale already made.
+      unitCost: product.purchasePrice ?? null,
+      createdBy: data.user?.email ?? null,
+      source: 'pos',
+    });
+
+    const { error } = await supabase.from('sales_ledger').insert(row);
+    if (error) throw error;
+  } catch (err) {
+    console.warn(
+      '[LEDGER_POS_WRITE_FAILED] продажбата е запишана во sold[], ledger-от заостанува. ' +
+      'Пушти `npm run ledger:sync apply`.',
+      { productId: product.id, size, price, day, err }
+    );
+  }
 }
 
 // Aggregate all sold items from all products into a flat list
