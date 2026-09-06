@@ -249,7 +249,8 @@ export default function DashboardSummary({
         tone: 'amber',
         title: `${brokenCore} од ${liveLetterModels} живи модели без цела M/L/XL серија`,
         detail: 'M+L+XL е 71% од продажбата. Купувач што не ја наоѓа големината е продажба што никаде не се брои.',
-        // No size filter exists to send them to, so this one only informs.
+        href: '/admin/sizes',
+        action: 'Отвори триажа',
       });
     }
 
