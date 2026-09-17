@@ -4,13 +4,16 @@ import { useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts, createProduct, updateProduct, deleteProduct, uploadProductImage } from '@/hooks/useProducts';
 import { Product, ProductFormData, ProductSize } from '@/types';
-import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff, Search, Filter, Camera, Wallet, Truck, Clock, Coins, Ruler, CalendarDays, Gauge, PackagePlus } from 'lucide-react';
+import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff, Search, Filter, Camera, Wallet, Truck, Clock, Coins, Ruler, CalendarDays, Gauge, PackagePlus, Grid2x2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
 import DashboardSummary from '@/components/admin/DashboardSummary';
 import { getEffectivePrice, getPercentOff, isOnSale } from '@/lib/pricing';
-import { grossMargin, markup, unitProfit, markdownFloorPrice, MARKDOWN_FLOOR } from '@/lib/cost';
+import {
+  grossMargin, markup, unitProfit, markdownFloorPrice,
+  MARKDOWN_FLOOR, MARGIN_LOW, MARGIN_WATCH,
+} from '@/lib/cost';
 
 function LoginForm() {
   const { t } = useTranslation();
@@ -83,10 +86,7 @@ function LoginForm() {
 // worth taking, which is the whole point of showing it here.
 // ---------------------------------------------------------------------------
 
-/** Below this the discount is eating the margin. */
-const MARGIN_LOW = 0.25;
-/** Below this it needs watching. */
-const MARGIN_WATCH = 0.4;
+// The bands live in lib/cost so every screen draws the same lines.
 
 interface MarginInfo {
   cost?: number;
@@ -956,6 +956,14 @@ function AdminDashboard() {
           <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="hidden xs:inline">Стареење</span>
           <span className="xs:hidden">Возраст</span>
+        </Link>
+        <Link
+          href="/admin/matrix"
+          className="flex items-center justify-center gap-2 px-3 py-3 bg-fuchsia-50 border border-fuchsia-200 text-fuchsia-700 rounded-xl font-medium hover:bg-fuchsia-100 transition-colors text-sm shadow-sm"
+        >
+          <Grid2x2 className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="hidden xs:inline">Брзина × маржа</span>
+          <span className="xs:hidden">Матрица</span>
         </Link>
         <Link
           href="/admin/reorder"

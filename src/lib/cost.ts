@@ -15,6 +15,18 @@
 export const FIREBASE_PURCHASE_PRICE_DIVISOR = 2;
 
 /**
+ * Margin bands, shared so every screen draws the same lines.
+ *
+ * Below `MARGIN_LOW` a sale barely covers the handling; below `MARGIN_WATCH` it
+ * contributes but not enough to carry its share of the shop. Neither is the
+ * break-even margin — that depends on revenue and is computed where it is
+ * shown, because at 104.000 den. a month against 65.000 of costs it sits above
+ * 60% and quoting it as a fixed number would go stale the moment revenue moves.
+ */
+export const MARGIN_LOW = 0.25;
+export const MARGIN_WATCH = 0.4;
+
+/**
  * Real unit cost from a raw Firebase `purchasePrice`.
  * Returns `undefined` when the source has no usable value, so callers can tell
  * "cost unknown" apart from "cost is zero".
