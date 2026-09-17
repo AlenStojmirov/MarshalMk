@@ -11,7 +11,9 @@
  * what keeps the list honest: a thing worth 19.000 den. a month belongs above a
  * thing worth 900, whatever order they happened in. Each one names its figure
  * and links to the screen where it can actually be acted on — an alert with
- * nowhere to go is noise.
+ * nowhere to go is noise. The list is capped at eight (Task 4.4): past that
+ * nobody reads to the bottom, and a ranked list whose tail is ignored is worse
+ * than a short one, because it hides the cut instead of making it.
  *
  * No VAT arithmetic: the shop is not registered (D-003), so margin is margin.
  */
@@ -21,10 +23,14 @@ import Link from 'next/link';
 import { Product } from '@/types';
 import { getEffectivePrice, isOnSale } from '@/lib/pricing';
 import { Expense, expensesForPeriod, getExpenses, periodLabel } from '@/lib/expenses';
+import { monthOf, phaseForSeason, seasonOf, suggestedMarkdown } from '@/lib/seasons';
+import { planReorder } from '@/lib/reorder';
 import {
   AlertTriangle,
   ArrowRight,
+  CalendarDays,
   Camera,
+  PackagePlus,
   PackageX,
   Ruler,
   Tag,
@@ -41,6 +47,15 @@ const LETTER_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '2XL', 'XXXL', '3XL'];
 
 /** Stock ceiling as a multiple of monthly cost of goods (docs/TURNAROUND.md). */
 const MAX_MONTHS_OF_STOCK = 2.5;
+
+/**
+ * How many alerts get shown (Task 4.4).
+ *
+ * Eight, because past that nobody reads to the bottom and the ranking stops
+ * meaning anything. The cut is stated on screen rather than silent — a list
+ * that quietly drops its tail is how a real problem becomes invisible.
+ */
+const MAX_ALERTS = 8;
 
 interface Alert {
   key: string;
@@ -79,6 +94,7 @@ export default function DashboardSummary({
 
   const model = useMemo(() => {
     const merch = products.filter((p) => !NON_MERCHANDISE.has(p.category));
+    const month12 = monthOf(now);
     const unitsOf = (p: Product) =>
       (p.sizes ?? []).reduce((a, s) => a + Math.max(0, Number(s.quantity) || 0), 0);
 
@@ -254,6 +270,57 @@ export default function DashboardSummary({
       });
     }
 
+    // Season: stock whose window is closing or shut. This is the only figure
+    // here with a deadline attached — the others cost carrying, this one stops
+    // being sellable at all. Weighted on the carrying cost of that capital so
+    // it ranks against the rest on the same basis.
+    let seasonCost = 0;
+    let seasonModels = 0;
+    let deepestCut = 0;
+    for (const p of merch) {
+      const units = unitsOf(p);
+      if (units === 0) continue;
+      const prof = seasonOf(p.category);
+      if (!prof) continue;
+      const phase = phaseForSeason(prof.season, month12);
+      const cut = suggestedMarkdown(phase, month12);
+      if (cut === 0) continue;
+      seasonCost += units * (p.purchasePrice ?? 0);
+      seasonModels += 1;
+      deepestCut = Math.max(deepestCut, cut);
+    }
+
+    if (seasonModels > 0) {
+      alerts.push({
+        key: 'season',
+        weight: seasonCost / 12,
+        icon: CalendarDays,
+        tone: 'amber',
+        title: `${seasonModels} модели во сезона што се затвора`,
+        detail: `${fmt(seasonCost)} ден. набавна. Календарот вели до −${deepestCut}% сега — подоцна и подлабоко враќа помалку.`,
+        href: '/admin/season',
+        action: 'Отвори календар',
+      });
+    }
+
+    // Restock: the one alert that points at money coming in rather than money
+    // stuck. Weighted on the gross profit the plan would earn, spread over the
+    // cover it buys, so it is comparable with the monthly figures above.
+    const plan = planReorder(merch, { now, month: month12 });
+    if (plan.lines.length > 0) {
+      const gross = plan.revenue - plan.cost;
+      alerts.push({
+        key: 'restock',
+        weight: gross / 6,
+        icon: PackagePlus,
+        tone: 'blue',
+        title: `${plan.lines.length} модели со докажана побарувачка чекаат дополнување`,
+        detail: `${fmt(plan.cost)} ден. набавна → ${fmt(gross)} ден. бруто. Единствената набавка што A4 ја дозволува.`,
+        href: '/admin/reorder',
+        action: 'Отвори план',
+      });
+    }
+
     alerts.sort((a, b) => b.weight - a.weight);
 
     return {
@@ -264,7 +331,8 @@ export default function DashboardSummary({
       expenses: e.total,
       expensesKnown: e.items.length > 0,
       net: monthGross - e.total,
-      alerts,
+      alerts: alerts.slice(0, MAX_ALERTS),
+      alertsHidden: Math.max(0, alerts.length - MAX_ALERTS),
     };
   }, [products, expenses, now]);
 
@@ -345,7 +413,10 @@ export default function DashboardSummary({
         <div>
           <div className="flex items-center gap-2 mb-2">
             <h2 className="font-bold text-slate-800 text-sm">Бара внимание</h2>
-            <span className="text-[11px] text-slate-400">подредено по пари во игра</span>
+            <span className="text-[11px] text-slate-400">
+              подредено по пари во игра
+              {model.alertsHidden > 0 && ` · уште ${model.alertsHidden} под првите ${MAX_ALERTS}`}
+            </span>
           </div>
           <div className="space-y-2">
             {model.alerts.map((a) => {

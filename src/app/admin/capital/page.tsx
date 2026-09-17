@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import { Product } from '@/types';
+import { MAX_MONTHS_OF_STOCK, MIN_TURNOVER_TO_BUY } from '@/lib/open-to-buy';
 
 import { ArrowLeft, Ban, Coins, TrendingUp } from 'lucide-react';
 
@@ -43,10 +44,8 @@ const groupOf = (c: string) => CATEGORY_GROUPS[c] ?? c ?? '—';
 /** Groups that sell from autumn into winter. */
 const AUTUMN_GROUPS = new Set(['Јакни & Мантили', 'Плетиво', 'Дуксери']);
 
-/** Stock ceiling as a multiple of monthly cost of goods (docs/TURNAROUND.md). */
-const MAX_MONTHS_OF_STOCK = 2.5;
-/** No general buying below this turnover — action A4. */
-const MIN_TURNOVER_TO_BUY = 2.0;
+// The gate itself lives in lib/open-to-buy so this screen and the reorder plan
+// cannot disagree about where the line is.
 /** Guardrails so one strong category cannot take everything. */
 const MIN_SHARE = 0.05;
 const MAX_SHARE = 0.35;
