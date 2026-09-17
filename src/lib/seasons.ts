@@ -207,6 +207,26 @@ export function suggestedMarkdown(phase: SeasonPhase, month?: Month): number {
   }
 }
 
+/**
+ * Whether new stock of this kind should be bought today.
+ *
+ * Proven demand is not by itself a reason to buy: a polo shirt that sold out in
+ * August has proven its demand and is still the wrong purchase in September,
+ * because the next buyer for it arrives in April. Restocking against a closing
+ * window turns a success into eight months of dead capital — the exact mistake
+ * that filled the shelves in the first place.
+ */
+export function shouldBuyNow(phase: SeasonPhase): boolean {
+  return phase === 'preseason' || phase === 'inseason' || phase === 'always';
+}
+
+/** When the buying window for a season opens, for copy. */
+export const BUY_WINDOW_LABEL: Record<Season, string> = {
+  SS: 'февруари–март',
+  AW: 'август–септември',
+  ALL: 'во секое време',
+};
+
 /** Short Macedonian label for a phase. */
 export const PHASE_LABEL: Record<SeasonPhase, string> = {
   preseason: 'Пред сезона',
