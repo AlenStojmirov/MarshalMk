@@ -21,7 +21,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useProducts, updateProduct } from '@/hooks/useProducts';
 import { Product, ProductFormData } from '@/types';
 import { getEffectivePrice, isOnSale } from '@/lib/pricing';
-import { grossMargin, MARKDOWN_FLOOR } from '@/lib/cost';
+import { grossMargin } from '@/lib/cost';
+import { priceMarkdown, markdownTotals, FLOOR_PCT } from '@/lib/markdown';
 import { getProductDisplayName } from '@/lib/product-display';
 import { AlertTriangle, ArrowLeft, Clock, HelpCircle, Tag } from 'lucide-react';
 
@@ -142,31 +143,25 @@ function AgingView() {
   // reached past the visible rows would price stock the eye never checked.
   const shown = list.slice(0, 60);
 
-  // A markdown is only worth taking above the floor. Below cost + 15% the sale
-  // stops recovering capital and starts destroying it, so the requested cut is
-  // clamped there rather than refused — and the clamp is shown, since a price
-  // that quietly ignored the instruction would be worse than one that argued.
-  const priced = [...selected]
+  const chosenEntries = [...selected]
     .map((id) => shown.find((e) => e.p.id === id))
-    .filter((e): e is Entry => Boolean(e))
-    .map((e) => {
-      const listPrice = e.p.price;
-      const wanted = Math.round(listPrice * (1 - pct / 100));
-      const floor = e.p.purchasePrice === undefined ? 0 : Math.ceil(e.p.purchasePrice * MARKDOWN_FLOOR);
-      const salePrice = Math.max(wanted, floor);
-      return {
-        e,
-        listPrice,
-        salePrice,
-        clamped: salePrice > wanted,
-        effectivePct: listPrice > 0 ? Math.round((1 - salePrice / listPrice) * 100) : 0,
-        cash: salePrice * e.units,
-      };
-    });
+    .filter((e): e is Entry => Boolean(e));
 
-  const expectedCash = priced.reduce((a, p) => a + p.cash, 0);
-  const clampedCount = priced.filter((p) => p.clamped).length;
-  const pricedById = new Map(priced.map((p) => [p.e.p.id, p]));
+  const priced = priceMarkdown(
+    chosenEntries.map((e) => ({
+      id: e.p.id,
+      listPrice: e.p.price,
+      cost: e.p.purchasePrice,
+      units: e.units,
+    })),
+    pct
+  );
+
+  const totals = markdownTotals(priced);
+  const expectedCash = totals.cash;
+  const clampedCount = totals.clamped;
+  const pricedById = new Map(priced.map((p) => [p.id, p]));
+  const costOfSelection = chosenEntries.reduce((a, e) => a + e.cost, 0);
 
   const toggle = (id: string) => {
     setResult(null);
@@ -193,7 +188,7 @@ function AgingView() {
     const msg =
       `Да се стави попуст на ${priced.length} производи?\n` +
       (clampedCount > 0
-        ? `${clampedCount} ќе бидат ограничени на подот од ${Math.round((MARKDOWN_FLOOR - 1) * 100)}% над набавната.\n`
+        ? `${clampedCount} ќе бидат ограничени на подот од ${FLOOR_PCT}% над набавната.\n`
         : '') +
       `Очекуван поврат ако сè се продаде: ${fmt(expectedCash)} ден.`;
     if (!confirm(msg)) return;
@@ -207,7 +202,7 @@ function AgingView() {
     for (let i = 0; i < priced.length; i += BATCH) {
       const results = await Promise.allSettled(
         priced.slice(i, i + BATCH).map((p) =>
-          updateProduct(p.e.p.id, {
+          updateProduct(p.id, {
             sale: {
               isActive: true,
               salePrice: p.salePrice,
@@ -392,18 +387,12 @@ function AgingView() {
               <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-600">
                   <span>
-                    <strong className="text-slate-800">{priced.length}</strong> производи ·{' '}
-                    <strong className="text-slate-800 tabular-nums">
-                      {priced.reduce((a, p) => a + p.e.units, 0)}
-                    </strong>{' '}
-                    парчиња
+                    <strong className="text-slate-800">{totals.models}</strong> производи ·{' '}
+                    <strong className="text-slate-800 tabular-nums">{totals.units}</strong> парчиња
                   </span>
                   <span>
                     Врзан капитал:{' '}
-                    <strong className="text-slate-800 tabular-nums">
-                      {fmt(priced.reduce((a, p) => a + p.e.cost, 0))}
-                    </strong>{' '}
-                    ден.
+                    <strong className="text-slate-800 tabular-nums">{fmt(costOfSelection)}</strong> ден.
                   </span>
                   <span>
                     Поврат ако сè се продаде:{' '}
@@ -415,8 +404,7 @@ function AgingView() {
                   <p className="mt-2 text-[11px] text-amber-700 flex items-start gap-1.5">
                     <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
                     {clampedCount} од нив нема да добијат цели −{pct}%: цената застанува на{' '}
-                    {Math.round((MARKDOWN_FLOOR - 1) * 100)}% над набавната. Подолу продажбата веќе не
-                    враќа капитал, туку го троши.
+                    {FLOOR_PCT}% над набавната. Подолу продажбата веќе не враќа капитал, туку го троши.
                   </p>
                 )}
 

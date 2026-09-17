@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts, createProduct, updateProduct, deleteProduct, uploadProductImage } from '@/hooks/useProducts';
 import { Product, ProductFormData, ProductSize } from '@/types';
-import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff, Search, Filter, Camera, Wallet, Truck, Clock, Coins, Ruler } from 'lucide-react';
+import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff, Search, Filter, Camera, Wallet, Truck, Clock, Coins, Ruler, CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
@@ -956,6 +956,14 @@ function AdminDashboard() {
           <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="hidden xs:inline">Стареење</span>
           <span className="xs:hidden">Возраст</span>
+        </Link>
+        <Link
+          href="/admin/season"
+          className="flex items-center justify-center gap-2 px-3 py-3 bg-violet-50 border border-violet-200 text-violet-700 rounded-xl font-medium hover:bg-violet-100 transition-colors text-sm shadow-sm"
+        >
+          <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="hidden xs:inline">Сезонски календар</span>
+          <span className="xs:hidden">Сезона</span>
         </Link>
         <Link
           href="/admin/sizes"
