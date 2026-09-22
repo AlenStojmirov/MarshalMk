@@ -148,6 +148,12 @@ const WINDOWS: Record<'SS' | 'AW', Window> = {
   },
 };
 
+/** The month `weeks` from now, wrapping round the year. */
+export function monthAhead(weeks: number, from: Date | number = Date.now()): Month {
+  const base = from instanceof Date ? from.getTime() : from;
+  return monthOf(base + weeks * 7 * 86_400_000);
+}
+
 /** The month a date falls in, as 1–12. */
 export function monthOf(date: Date | number = Date.now()): Month {
   const d = date instanceof Date ? date : new Date(date);

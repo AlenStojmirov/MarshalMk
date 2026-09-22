@@ -25,12 +25,14 @@ import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import { getProductDisplayName } from '@/lib/product-display';
 import { MIN_TURNOVER_TO_BUY, openToBuy } from '@/lib/open-to-buy';
-import { NON_MERCHANDISE, PHASE_LABEL, monthOf, phaseOf } from '@/lib/seasons';
+import {
+  MONTH_LABEL, NON_MERCHANDISE, PHASE_LABEL, monthAhead, monthOf, phaseOf,
+} from '@/lib/seasons';
 import {
   CAP_LABEL, MAX_UNITS_PER_MODEL, TARGET_COVER_MONTHS, planReorder,
 } from '@/lib/reorder';
 import {
-  ArrowLeft, Ban, ClipboardCopy, PackagePlus, ShieldAlert, AlertTriangle,
+  ArrowLeft, Ban, CalendarClock, ClipboardCopy, PackagePlus, ShieldAlert, AlertTriangle,
 } from 'lucide-react';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
@@ -46,6 +48,18 @@ const pct = (n: number | null) => (n === null ? '—' : `${Math.round(n * 100)}%
  */
 const EXCEPTION_BUDGET = 40_000;
 
+/**
+ * How far ahead the plan can look, in weeks (Task 6.2).
+ *
+ * Six weeks is the lead time a pre-season order needs — ordered, delivered and
+ * photographed before the window opens. The longer steps exist because the
+ * calendar does not change every month: from September nothing opens until
+ * February, so a chooser offering only "+6 weeks" would hand back the same plan
+ * and look broken. The buttons are labelled by the month they land in, because
+ * that is what is being planned for.
+ */
+const HORIZONS = [0, 6, 13, 21];
+
 function ReorderView() {
   const { products, loading } = useProducts();
   const [budgetInput, setBudgetInput] = useState(String(EXCEPTION_BUDGET));
@@ -53,21 +67,25 @@ function ReorderView() {
   const [copied, setCopied] = useState(false);
 
   const [now] = useState(() => Date.now());
-  const month = useMemo(() => monthOf(now), [now]);
+  // Six weeks is the lead time a pre-season order needs: the goods have to be
+  // ordered, delivered and photographed before the window opens, and a list
+  // that only appears once the season has started has already missed it.
+  const [horizon, setHorizon] = useState(0);
+  const month = useMemo(() => monthAhead(horizon, now), [horizon, now]);
+  const today = useMemo(() => monthOf(now), [now]);
 
   const budget = Math.max(0, Number(budgetInput) || 0);
 
-  const otb = useMemo(
-    () => openToBuy(products.filter((p) => !NON_MERCHANDISE.has(p.category)), now),
-    [products, now]
+  const merch = useMemo(
+    () => products.filter((p) => !NON_MERCHANDISE.has(p.category)),
+    [products]
   );
 
+  const otb = useMemo(() => openToBuy(merch, now), [merch, now]);
+
   const plan = useMemo(
-    () => planReorder(
-      products.filter((p) => !NON_MERCHANDISE.has(p.category)),
-      { now, month, budget, coverMonths: cover }
-    ),
-    [products, now, month, budget, cover]
+    () => planReorder(merch, { now, month, budget, coverMonths: cover }),
+    [merch, now, month, budget, cover]
   );
 
   if (loading) {
@@ -79,6 +97,13 @@ function ReorderView() {
   }
 
   const inBudget = plan.lines.filter((l) => l.withinBudget);
+
+  // An unchanged plan is worth saying out loud: it means the calendar has no
+  // door opening between now and then, not that the control is broken.
+  const sameAsToday =
+    horizon > 0 &&
+    planReorder(merch, { now, month: today, budget, coverMonths: cover }).lines.length ===
+      plan.lines.length;
 
   const copyOrder = async () => {
     if (inBudget.length === 0) return;
@@ -188,11 +213,49 @@ function ReorderView() {
               ))}
             </div>
           </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+              Планирај за
+            </label>
+            <div className="flex gap-1.5">
+              {HORIZONS.map((w) => (
+                <button
+                  key={w}
+                  onClick={() => { setHorizon(w); setCopied(false); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                    horizon === w ? 'bg-slate-800 text-white' : 'bg-white border border-slate-200 text-slate-600'
+                  }`}
+                >
+                  {w === 0 ? 'сега' : MONTH_LABEL[monthAhead(w, now) - 1]}
+                </button>
+              ))}
+            </div>
+          </div>
           <p className="text-[11px] text-slate-400 flex-1 min-w-[200px]">
             Плитка покриеност е намерна: брза кошула на 2 месеци може да се докупи повторно наскоро,
             а длабоко купување е начинот како се дојде до 14 месеци залиха.
           </p>
         </div>
+
+        {horizon > 0 && (
+          <div className="mb-6 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900 flex gap-2">
+            <CalendarClock className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>
+              Планирано за <strong>{MONTH_LABEL[month - 1]}</strong>, не за{' '}
+              {MONTH_LABEL[today - 1]}.{' '}
+              {sameAsToday && (
+                <strong>
+                  Планот е ист како денешниот — ниту еден прозорец не се менува дотогаш.{' '}
+                </strong>
+              )}
+              Прозорците се поместени, но{' '}
+              <strong>побарувачката останува мерена денес</strong> — тогаш е измерена. Да се
+              помести и часовникот би ги стеснило сите прозорци за продажби и тивко би ги
+              фрлило доказите. Шест недели е рокот што му треба на пред-сезонска нарачка:
+              стоката мора да се нарача, испорача и фотографира пред прозорецот да се отвори.
+            </span>
+          </div>
+        )}
 
         {/* totals */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">

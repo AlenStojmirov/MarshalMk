@@ -148,6 +148,13 @@ export interface ReorderPlan {
  * is open. The gates live in one place on purpose — a reorder list that
  * disagreed with the velocity screen about what qualifies would make both
  * useless.
+ *
+ * Passing a `month` other than today's plans for that month instead (Task 6.2):
+ * the season gate moves, so in September you can see what February will want and
+ * order it with the six weeks of lead time it needs. The sales measurements stay
+ * anchored to today, because that is when they were taken — pretending the clock
+ * had moved would shrink every window and quietly drop the evidence. The screen
+ * says which month it is planning for, so the two dates are never confused.
  */
 export function planReorder(products: Product[], opts: ReorderOptions = {}): ReorderPlan {
   const now = opts.now ?? Date.now();
