@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { useProduct, updateProduct, deleteProduct } from '@/hooks/useProducts';
-import { Product, SoldItem } from '@/types';
+import { useProduct, deleteProduct } from '@/hooks/useProducts';
+import { NonSaleReason, Product } from '@/types';
+import { recordProductSale, refundProductSale } from '@/hooks/useInStoreSales';
+import { NON_SALE_REASONS } from '@/lib/sales-ledger';
 import {
   ArrowLeft,
   Plus,
@@ -36,12 +38,16 @@ function ProductDetailView() {
   const { product, loading, error } = useProduct(productId);
 
   const [localProduct, setLocalProduct] = useState<Product | null>(null);
-  const [sellForm, setSellForm] = useState({ size: '', price: '' });
+  const [sellForm, setSellForm] = useState<{ size: string; price: string; reason: NonSaleReason | '' }>(
+    { size: '', price: '', reason: '' }
+  );
   const [selling, setSelling] = useState(false);
 
   useEffect(() => {
     if (product) {
       setLocalProduct(product);
+      // Start from the price on the tag today; a counter discount is typed over it.
+      setSellForm((f) => (f.price ? f : { ...f, price: String(getEffectivePrice(product)) }));
     }
   }, [product]);
 
@@ -52,80 +58,46 @@ function ProductDetailView() {
     }
   };
 
+  // Both sell and refund go through the same functions as the POS. This page
+  // used to write sold[] by hand, which skipped the ledger entirely and could
+  // not record why a unit left at price 0 (D-012).
   const handleSell = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!localProduct || !sellForm.size || !sellForm.price) return;
+    if (!localProduct || !sellForm.size || sellForm.price === '') return;
+    const price = Math.max(0, Number(sellForm.price) || 0);
+    if (!(price > 0) && !sellForm.reason) return;
 
     setSelling(true);
-    const today = formatDateKey(new Date());
-
-    // Reduce quantity from selected size
-    const updatedSizes = localProduct.sizes?.map(sz =>
-      sz.size === sellForm.size
-        ? { ...sz, quantity: Math.max(0, sz.quantity - 1) }
-        : sz
-    ) || [];
-
-    // Calculate new total stock
-    const newStock = updatedSizes.reduce((sum, sz) => sum + sz.quantity, 0);
-
-    // Add to sold list
-    const newSoldItem: SoldItem = {
-      size: sellForm.size,
-      price: Number(sellForm.price),
-      soldDate: today,
-    };
-    const updatedSold = [...(localProduct.sold || []), newSoldItem];
-
-    await updateProduct(productId, {
-      sizes: updatedSizes,
-      sold: updatedSold,
-      stock: newStock,
-    } as Partial<Product>);
-
-    setLocalProduct(prev => prev ? {
-      ...prev,
-      sizes: updatedSizes,
-      sold: updatedSold,
-      stock: newStock,
-    } : null);
-
-    setSellForm({ size: '', price: '' });
-    setSelling(false);
+    try {
+      const today = formatDateKey(new Date());
+      await recordProductSale(
+        localProduct, sellForm.size, price, today,
+        price > 0 ? undefined : (sellForm.reason || undefined)
+      );
+      const sizes = (localProduct.sizes ?? []).map((sz) =>
+        sz.size === sellForm.size ? { ...sz, quantity: Math.max(0, sz.quantity - 1) } : sz
+      );
+      setLocalProduct({
+        ...localProduct,
+        sizes,
+        stock: sizes.reduce((sum, sz) => sum + sz.quantity, 0),
+        sold: [
+          ...(localProduct.sold ?? []),
+          { size: sellForm.size, price, soldDate: today, ...(price > 0 ? {} : { reason: sellForm.reason || undefined }) },
+        ],
+      });
+      setSellForm({ size: '', price: String(getEffectivePrice(localProduct)), reason: '' });
+    } finally {
+      setSelling(false);
+    }
   };
 
   const handleRefund = async (soldIdx: number) => {
     if (!localProduct || !localProduct.sold) return;
-
-    const refundItem = localProduct.sold[soldIdx];
-
-    // Update sizes - add back the refunded item
-    let updatedSizes = [...(localProduct.sizes || [])];
-    const existingSize = updatedSizes.find(sz => sz.size === refundItem.size);
-    if (existingSize) {
-      existingSize.quantity += 1;
-    } else {
-      updatedSizes.push({ size: refundItem.size, quantity: 1 });
-    }
-
-    // Calculate new total stock
-    const newStock = updatedSizes.reduce((sum, sz) => sum + sz.quantity, 0);
-
-    // Remove from sold
-    const updatedSold = localProduct.sold.filter((_, idx) => idx !== soldIdx);
-
-    await updateProduct(productId, {
-      sizes: updatedSizes,
-      sold: updatedSold,
-      stock: newStock,
-    } as Partial<Product>);
-
-    setLocalProduct(prev => prev ? {
-      ...prev,
-      sizes: updatedSizes,
-      sold: updatedSold,
-      stock: newStock,
-    } : null);
+    // Removes the matching ledger row as well — a POS-written row is never
+    // pruned by ledger:sync, so leaving it would keep a phantom sale for good.
+    const next = await refundProductSale(localProduct, soldIdx);
+    setLocalProduct(next);
   };
 
   if (loading) {
@@ -292,12 +264,43 @@ function ProductDetailView() {
                 step="0.01"
                 placeholder={t('productDetail.pricePlaceholder')}
                 value={sellForm.price}
-                onChange={e => setSellForm(f => ({ ...f, price: e.target.value }))}
+                onChange={e => setSellForm(f => ({
+                  ...f,
+                  price: e.target.value,
+                  reason: Number(e.target.value) > 0 ? '' : f.reason,
+                }))}
               />
             </div>
+            {sellForm.price !== '' && !(Number(sellForm.price) > 0) && (
+              <div className="flex-1 min-w-0 sm:min-w-[160px]">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                  {t('inStoreSales.reason')}
+                </label>
+                <select
+                  required
+                  value={sellForm.reason}
+                  onChange={e => setSellForm(f => ({ ...f, reason: e.target.value as NonSaleReason | '' }))}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm sm:text-base ${
+                    sellForm.reason ? 'border-gray-300' : 'border-red-400 bg-red-50'
+                  }`}
+                >
+                  <option value="">{t('inStoreSales.chooseReason')}</option>
+                  {NON_SALE_REASONS.map((r) => (
+                    <option key={r} value={r}>
+                      {t(r === 'giveaway' ? 'inStoreSales.reasonGiveaway'
+                        : r === 'personal' ? 'inStoreSales.reasonPersonal'
+                        : 'inStoreSales.reasonWriteoff')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button
               type="submit"
-              disabled={!sellForm.size || !sellForm.price || selling || availableSizes.length === 0}
+              disabled={
+                !sellForm.size || sellForm.price === '' || selling || availableSizes.length === 0 ||
+                (!(Number(sellForm.price) > 0) && !sellForm.reason)
+              }
               className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
             >
               <Plus className="h-4 w-4" />
@@ -325,6 +328,13 @@ function ProductDetailView() {
                   <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-sm sm:text-base">
                     <span className="font-bold text-gray-900">{item.size}</span>
                     <span className="text-gray-600">{item.price.toFixed(2)} ден.</span>
+                    {!(item.price > 0) && (
+                      <span className="px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 text-xs">
+                        {t(item.reason === 'giveaway' ? 'inStoreSales.reasonGiveaway'
+                          : item.reason === 'writeoff' ? 'inStoreSales.reasonWriteoff'
+                          : 'inStoreSales.reasonPersonal')}
+                      </span>
+                    )}
                     <span className="text-gray-400 text-xs sm:text-sm">({item.soldDate})</span>
                   </div>
                   <button

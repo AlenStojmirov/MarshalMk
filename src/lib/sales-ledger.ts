@@ -153,11 +153,16 @@ export function buildLedgerRow(input: LedgerRowInput): SalesLedgerRow {
 /**
  * A zero price is never a sale. Historical `sold[]` entries at price 0 mix
  * gifts, personal use and damaged stock and cannot be told apart, so they all
- * land on 'personal' (D-005). Going forward the POS asks which it was.
+ * land on 'personal' (D-005). Since D-012 the POS asks which it was, and the
+ * answer travels on the entry — pass it as `recorded` and it wins.
  */
-export function reasonForPrice(unitPrice: number): SalesReason {
-  return unitPrice > 0 ? 'sale' : 'personal';
+export function reasonForPrice(unitPrice: number, recorded?: SalesReason): SalesReason {
+  if (unitPrice > 0) return 'sale';
+  return recorded && recorded !== 'sale' ? recorded : 'personal';
 }
+
+/** The three answers the POS offers at price 0, in the order it offers them. */
+export const NON_SALE_REASONS = ['giveaway', 'personal', 'writeoff'] as const;
 
 /** Revenue for one entry. Non-sale reasons bring in nothing. */
 export function entryRevenue(entry: SalesLedgerEntry): number {

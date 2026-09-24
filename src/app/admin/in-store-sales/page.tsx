@@ -10,7 +10,9 @@ import {
   calculateDailyTotal,
   getProductsSoldOnDate,
 } from '@/hooks/useInStoreSales';
-import { Product } from '@/types';
+import { NonSaleReason, Product } from '@/types';
+import { getEffectivePrice } from '@/lib/pricing';
+import { NON_SALE_REASONS } from '@/lib/sales-ledger';
 import {
   ArrowLeft,
   Plus,
@@ -32,7 +34,15 @@ interface SaleCartItem {
   size: string;
   price: number;
   quantity: number;
+  /** Required when price is 0 — see recordProductSale. */
+  reason?: NonSaleReason;
 }
+
+const REASON_KEY: Record<NonSaleReason, string> = {
+  giveaway: 'inStoreSales.reasonGiveaway',
+  personal: 'inStoreSales.reasonPersonal',
+  writeoff: 'inStoreSales.reasonWriteoff',
+};
 
 function RecordSaleModal({
   products,
@@ -73,7 +83,10 @@ function RecordSaleModal({
         {
           product,
           size: size || '',
-          price: product.price,
+          // The price actually on the tag today — an active sale included.
+          // Editable per line, because a discount given at the counter is real
+          // and the record has to say what was actually taken.
+          price: getEffectivePrice(product),
           quantity: 1,
         },
       ]);
@@ -93,12 +106,34 @@ function RecordSaleModal({
     setItems(items.filter((_, i) => i !== index));
   };
 
+  const updatePrice = (index: number, raw: string) => {
+    const price = Math.max(0, Number(raw) || 0);
+    setItems(items.map((it, i) =>
+      i === index
+        // A reason only means something at zero; clear it once a price is typed.
+        ? { ...it, price, reason: price > 0 ? undefined : it.reason }
+        : it
+    ));
+  };
+
+  const updateReason = (index: number, reason: NonSaleReason | '') => {
+    setItems(items.map((it, i) => (i === index ? { ...it, reason: reason || undefined } : it)));
+  };
+
+  // A zero-price line without a reason is the one thing this form refuses to
+  // save: it is precisely the ambiguity D-005 had to paper over for the history.
+  const missingReason = items.some((it) => !(it.price > 0) && !it.reason);
+
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) {
       alert(t('inStoreSales.addAtLeastOneProduct'));
+      return;
+    }
+    if (missingReason) {
+      alert(t('inStoreSales.reasonRequired'));
       return;
     }
     setSaving(true);
@@ -230,7 +265,38 @@ function RecordSaleModal({
                           <span className="ml-2 text-sm text-gray-500">({item.size})</span>
                         )}
                       </div>
-                      <div className="text-sm text-gray-500">{item.price.toFixed(2)} ден. each</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
+                        <label className="text-gray-500">{t('inStoreSales.unitPrice')}</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="1"
+                          value={item.price}
+                          onChange={(e) => updatePrice(index, e.target.value)}
+                          className="w-24 px-2 py-1 border border-gray-300 rounded text-right tabular-nums"
+                        />
+                        <span className="text-gray-400">ден.</span>
+                        {item.price !== item.product.price && (
+                          <span className="text-xs text-gray-400 tabular-nums">
+                            {t('inStoreSales.listPrice')} {item.product.price.toFixed(0)}
+                          </span>
+                        )}
+                      </div>
+                      {!(item.price > 0) && (
+                        <select
+                          value={item.reason ?? ''}
+                          onChange={(e) => updateReason(index, e.target.value as NonSaleReason | '')}
+                          className={`mt-2 px-2 py-1 border rounded text-sm ${
+                            item.reason ? 'border-gray-300' : 'border-red-400 bg-red-50'
+                          }`}
+                          aria-label={t('inStoreSales.reason')}
+                        >
+                          <option value="">{t('inStoreSales.chooseReason')}</option>
+                          {NON_SALE_REASONS.map((r) => (
+                            <option key={r} value={r}>{t(REASON_KEY[r])}</option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -281,7 +347,7 @@ function RecordSaleModal({
             </button>
             <button
               type="submit"
-              disabled={saving || items.length === 0}
+              disabled={saving || items.length === 0 || missingReason}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               <ShoppingBag className="h-4 w-4" />
@@ -315,7 +381,7 @@ function SalesByDateView() {
     // For each item, call recordProductSale once per quantity unit
     for (const item of items) {
       for (let i = 0; i < item.quantity; i++) {
-        await recordProductSale(item.product, item.size, item.price, saleDate);
+        await recordProductSale(item.product, item.size, item.price, saleDate, item.reason);
         // Update the product reference for subsequent calls (stock/sizes changed)
         if (i < item.quantity - 1) {
           item.product = {
@@ -325,7 +391,15 @@ function SalesByDateView() {
                 ? { ...sz, quantity: Math.max(0, sz.quantity - 1) }
                 : sz
             ),
-            sold: [...(item.product.sold || []), { size: item.size, price: item.price, soldDate: saleDate }],
+            sold: [
+              ...(item.product.sold || []),
+              {
+                size: item.size,
+                price: item.price,
+                soldDate: saleDate,
+                ...(item.price > 0 ? {} : { reason: item.reason }),
+              },
+            ],
             stock: Math.max(0, item.product.stock - 1),
           };
         }

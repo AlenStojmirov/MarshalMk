@@ -389,7 +389,15 @@
     "totalSales": "Total Sales",
     "productsSold": "Products Sold",
     "sold": "sold",
-    "filterByDate": "Filter by date"
+    "filterByDate": "Filter by date",
+    "unitPrice": "Price",
+    "listPrice": "list",
+    "reason": "Reason",
+    "chooseReason": "Choose a reason…",
+    "reasonGiveaway": "Gift",
+    "reasonPersonal": "Personal use",
+    "reasonWriteoff": "Write-off (damaged)",
+    "reasonRequired": "A zero price needs a reason"
   },
   "productDetail": {
     "notFound": "Product not found",
@@ -487,6 +495,7 @@
     "confirmSync": "This will sync all products from Realtime Database to Firestore. Continue?",
     "syncFailed": "Migration failed. Check console for details.",
     "loginRequired": "Please log in to manage inventory",
-    "goToLogin": "Go to Admin Login"
+    "goToLogin": "Go to Admin Login",
+    "protectedFromSync": "{count} products were left untouched — they hold sales entered in this app that Firebase does not have, and syncing would erase them."
   }
 }

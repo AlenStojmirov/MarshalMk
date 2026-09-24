@@ -1,9 +1,9 @@
 'use client';
 
-import { Product, SoldItem } from '@/types';
+import { NonSaleReason, Product, SoldItem } from '@/types';
 import { updateProduct } from '@/hooks/useProducts';
 import { supabase } from '@/lib/supabase';
-import { buildLedgerRow } from '@/lib/sales-ledger';
+import { buildLedgerRow, reasonForPrice } from '@/lib/sales-ledger';
 
 /**
  * The ledger stores a timestamp, but a shop sale only ever knows a day —
@@ -39,8 +39,19 @@ export async function recordProductSale(
   product: Product,
   size: string,
   price: number,
-  soldDate?: string
+  soldDate?: string,
+  reason?: NonSaleReason
 ): Promise<void> {
+  // A zero price with no reason is exactly the ambiguity D-005 had to paper
+  // over for the history. Refusing it here is what stops it being created again;
+  // the forms ask before they get this far, so this only fires on a caller bug.
+  if (!(price > 0) && !reason) {
+    throw new Error('Продажба по цена 0 бара причина: подарок, лично или отпис.');
+  }
+  if (!(price >= 0) || !Number.isFinite(price)) {
+    throw new Error(`Невалидна цена: ${price}`);
+  }
+
   const today = soldDate || formatDateKey(new Date());
 
   // Reduce quantity from selected size
@@ -58,6 +69,8 @@ export async function recordProductSale(
     size,
     price,
     soldDate: today,
+    // Only a zero carries a reason; on a paid sale it would be noise.
+    ...(price > 0 ? {} : { reason }),
   };
   const updatedSold = [...(product.sold || []), newSoldItem];
 
@@ -67,7 +80,7 @@ export async function recordProductSale(
     stock: newStock,
   } as Partial<Product>);
 
-  await appendLedgerRow(product, size, price, today);
+  await appendLedgerRow(product, size, price, today, price > 0 ? undefined : reason);
 }
 
 /** Best-effort second write. Never throws — see recordProductSale. */
@@ -75,7 +88,8 @@ async function appendLedgerRow(
   product: Product,
   size: string,
   price: number,
-  day: string
+  day: string,
+  reason?: NonSaleReason
 ): Promise<void> {
   try {
     const { data } = await supabase.auth.getUser();
@@ -83,7 +97,8 @@ async function appendLedgerRow(
     const row = buildLedgerRow({
       occurredAt: dayToTimestamp(day),
       channel: 'store',
-      // reason is derived from the price: a zero is never a sale (D-005).
+      // A paid unit is a sale; a zero carries the reason the POS asked for.
+      reason: reasonForPrice(price, reason),
       productId: product.id,
       productName: product.name,
       productCategory: product.category,
@@ -109,6 +124,57 @@ async function appendLedgerRow(
       { productId: product.id, size, price, day, err }
     );
   }
+}
+
+/**
+ * Undo one recorded unit: it comes back to the shelf and leaves both records.
+ *
+ * The ledger row has to go too, and not only for tidiness. A row written by the
+ * POS carries `source: 'pos'`, which `ledger:sync --prune` deliberately never
+ * deletes — so a refund that only touched `sold[]` would leave a phantom sale in
+ * the ledger for good. One matching row is removed, found the same way the sync
+ * matches: product, size, day and price. If none is found the refund still
+ * stands; the next sync reports whatever is left.
+ */
+export async function refundProductSale(product: Product, soldIndex: number): Promise<Product> {
+  const entry = product.sold?.[soldIndex];
+  if (!entry) throw new Error('Нема таков запис за продажба.');
+
+  const sizes = [...(product.sizes ?? [])].map((sz) => ({ ...sz }));
+  const slot = sizes.find((sz) => sz.size === entry.size);
+  if (slot) slot.quantity += 1;
+  else sizes.push({ size: entry.size, quantity: 1 });
+
+  const stock = sizes.reduce((sum, sz) => sum + sz.quantity, 0);
+  const sold = (product.sold ?? []).filter((_, i) => i !== soldIndex);
+
+  await updateProduct(product.id, { sizes, sold, stock } as Partial<Product>);
+
+  try {
+    const day = String(entry.soldDate).slice(0, 10);
+    const { data, error } = await supabase
+      .from('sales_ledger')
+      .select('id')
+      .eq('product_id', product.id)
+      .eq('size', entry.size)
+      .eq('unit_price', entry.price)
+      .gte('occurred_at', `${day}T00:00:00.000Z`)
+      .lte('occurred_at', `${day}T23:59:59.999Z`)
+      .limit(1);
+    if (error) throw error;
+    if (data && data.length > 0) {
+      const { error: delErr } = await supabase.from('sales_ledger').delete().eq('id', data[0].id);
+      if (delErr) throw delErr;
+    }
+  } catch (err) {
+    console.warn(
+      '[LEDGER_REFUND_FAILED] враќањето е запишано во sold[], ledger-от има вишок ред. ' +
+      'Пушти `npm run ledger:sync` за да го видиш.',
+      { productId: product.id, entry, err }
+    );
+  }
+
+  return { ...product, sizes, sold, stock };
 }
 
 // Aggregate all sold items from all products into a flat list

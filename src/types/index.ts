@@ -3,11 +3,22 @@ export interface ProductSize {
   quantity: number;
 }
 
+/**
+ * Why a unit left without being paid for. Only ever set when the price is 0 —
+ * a unit sold for money is a sale and needs no reason (D-005, D-012).
+ */
+export type NonSaleReason = 'giveaway' | 'personal' | 'writeoff';
+
 // Sold item tracking (for in-store sales per product)
 export interface SoldItem {
   size: string;
   price: number;
   soldDate: string; // ISO date string YYYY-MM-DD
+  /**
+   * Present only on zero-price entries recorded after D-012. Older zero-price
+   * entries have none and read as 'personal', which is what D-005 decided.
+   */
+  reason?: NonSaleReason;
 }
 
 // Sale information for products on discount

@@ -147,6 +147,11 @@ export async function syncProductToSupabase(
     : undefined;
 
   const productData = inventoryToProduct(id, invProduct, existingProduct);
+  if (existingProduct && salesMissingFromFirebase(existingProduct.sold, productData.sold) > 0) {
+    throw new Error(
+      `${id}: има продажби внесени во admin што ги нема во Firebase — синхронизацијата би ги избришала.`
+    );
+  }
   const row = { id, ...productToRow(productData) };
 
   const { error } = await supabase.from('products').upsert(row);
@@ -154,13 +159,48 @@ export async function syncProductToSupabase(
 }
 
 /**
+ * Sales Supabase holds that Firebase does not.
+ *
+ * The sync replaces `sold[]`, `sizes` and `stock` wholesale with Firebase's.
+ * That was harmless while every sale was entered in the Firebase app, and it is
+ * data loss the moment sales start being entered here instead: one click on
+ * "Sync All" would erase them, and the stock they moved would come back as if
+ * never sold (D-012).
+ *
+ * Compared as a multiset on size + day + price — the same key the ledger sync
+ * uses — because `sold[]` has no ids and two identical sales on one day are
+ * legitimate. Returns how many Supabase entries have no counterpart.
+ */
+export function salesMissingFromFirebase(
+  supabaseSold: Array<{ size?: string; price?: number | string; soldDate?: string }> | undefined,
+  firebaseSold: Array<{ size?: string; price?: number | string; soldDate?: string }> | undefined
+): number {
+  const key = (s: { size?: string; price?: number | string; soldDate?: string }) =>
+    `${String(s.size ?? '')}|${String(s.soldDate ?? '').slice(0, 10)}|${Number(s.price) || 0}`;
+  const pool = new Map<string, number>();
+  for (const s of firebaseSold ?? []) pool.set(key(s), (pool.get(key(s)) ?? 0) + 1);
+  let missing = 0;
+  for (const s of supabaseSold ?? []) {
+    const k = key(s);
+    const n = pool.get(k) ?? 0;
+    if (n > 0) pool.set(k, n - 1);
+    else missing += 1;
+  }
+  return missing;
+}
+
+/**
  * Sync all products from Realtime Database to Supabase.
  *  - Existing products: only update sizes, sold, stock
  *  - New products: full insert with is_visible: false
+ *  - Existing products holding sales Firebase does not have: skipped, and
+ *    reported, rather than overwritten (D-012)
  */
 export async function migrateAllProducts(): Promise<{
   migrated: number;
   updated: number;
+  /** Products left untouched because they hold sales entered in this admin. */
+  protectedIds: string[];
   errors: string[];
 }> {
   const inventory = await fetchInventoryProducts();
@@ -169,19 +209,32 @@ export async function migrateAllProducts(): Promise<{
   let updated = 0;
 
   // Pull existing IDs once to decide insert vs update
+  // Pull existing ids and their sold[] once: the ids decide insert vs update,
+  // the sold[] decides whether an update is safe at all.
   const { data: existingRows, error: existingErr } = await supabase
     .from('products')
-    .select('id');
+    .select('id, sold');
 
   if (existingErr) {
-    return { migrated: 0, updated: 0, errors: [existingErr.message] };
+    return { migrated: 0, updated: 0, protectedIds: [], errors: [existingErr.message] };
   }
-  const existingIds = new Set((existingRows ?? []).map((r) => (r as { id: string }).id));
+  const existingSold = new Map(
+    (existingRows ?? []).map((r) => {
+      const row = r as { id: string; sold: Array<{ size?: string; price?: number; soldDate?: string }> | null };
+      return [row.id, row.sold ?? []] as const;
+    })
+  );
+  const existingIds = new Set(existingSold.keys());
+  const protectedIds: string[] = [];
 
   for (const [id, invProduct] of Object.entries(inventory)) {
     try {
       const productData = inventoryToProduct(id, invProduct);
       if (existingIds.has(id)) {
+        if (salesMissingFromFirebase(existingSold.get(id), productData.sold) > 0) {
+          protectedIds.push(id);
+          continue;
+        }
         const { error } = await supabase
           .from('products')
           .update(
@@ -209,7 +262,7 @@ export async function migrateAllProducts(): Promise<{
     }
   }
 
-  return { migrated, updated, errors };
+  return { migrated, updated, protectedIds, errors };
 }
 
 // Export all products from Realtime Database as JSON

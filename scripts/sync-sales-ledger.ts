@@ -32,7 +32,7 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { buildLedgerRow, reasonForPrice, SalesLedgerRow } from '../src/lib/sales-ledger';
+import { buildLedgerRow, reasonForPrice, SalesLedgerRow, SalesReason } from '../src/lib/sales-ledger';
 
 const APPLY = process.argv.includes('apply');
 const PRUNE = process.argv.includes('--prune');
@@ -49,7 +49,7 @@ interface ProductRow {
   name: string | null;
   category: string | null;
   purchase_price: number | string | null;
-  sold: Array<{ size?: string; price?: number | string; soldDate?: string }> | null;
+  sold: Array<{ size?: string; price?: number | string; soldDate?: string; reason?: string }> | null;
 }
 
 interface OrderRow {
@@ -107,6 +107,12 @@ interface SoldCell {
   size: string;
   day: string;
   price: number;
+  /**
+   * Reasons recorded on the entries in this cell, in order (D-012). Two
+   * zero-price units of the same size on the same day can have left for
+   * different reasons, so the cell keeps one per entry, not one per cell.
+   */
+  reasons: Array<SalesReason | undefined>;
 }
 
 async function main() {
@@ -168,7 +174,8 @@ async function main() {
       const day = dayOf(iso);
       const k = cellKey(size, day, price);
       soldCounts.set(k, (soldCounts.get(k) ?? 0) + 1);
-      if (!soldCells.has(k)) soldCells.set(k, { size, day, price });
+      if (!soldCells.has(k)) soldCells.set(k, { size, day, price, reasons: [] });
+      soldCells.get(k)!.reasons.push(s.reason as SalesReason | undefined);
     }
 
     const rows = ledgerByProduct.get(p.id) ?? [];
@@ -190,7 +197,9 @@ async function main() {
           buildLedgerRow({
             occurredAt: cell.day + 'T12:00:00.000Z',
             channel: 'store',
-            reason: reasonForPrice(cell.price),
+            // The newest entries are the ones missing, so take reasons from
+            // the end; an entry without one falls back to D-005's 'personal'.
+            reason: reasonForPrice(cell.price, cell.reasons[cell.reasons.length - 1 - n]),
             productId: p.id,
             productName: p.name,
             productCategory: p.category,

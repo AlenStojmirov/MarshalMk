@@ -33,6 +33,7 @@ function InventoryManagement() {
   const [migrationResult, setMigrationResult] = useState<{
     migrated: number;
     updated: number;
+    protectedIds: string[];
     errors: string[];
   } | null>(null);
   const [isConfigured, setIsConfigured] = useState(false);
@@ -278,6 +279,11 @@ function InventoryManagement() {
               </span>
             )}
           </p>
+          {migrationResult.protectedIds.length > 0 && (
+            <p className="mt-2 text-sm text-blue-800">
+              {t('inventory.protectedFromSync', { count: migrationResult.protectedIds.length })}
+            </p>
+          )}
           {migrationResult.errors.length > 0 && (
             <ul className="mt-2 text-sm text-amber-700">
               {migrationResult.errors.map((err, i) => (
