@@ -182,7 +182,19 @@ export async function deleteProductImage(imageUrl: string): Promise<void> {
 
 export async function createProduct(data: ProductFormData, customId?: string): Promise<string> {
   const id = customId?.trim() || `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  const row = { id, ...productToRow(data) };
+
+  // Stock normally arrives through receiving, which stamps first_received_at.
+  // A product created here already holding quantities skipped that step, so
+  // it is stamped now — the goods are on the shelf today. Without it the
+  // product has no age, and ageing and the velocity classes cannot judge it.
+  // Until the Firebase sync stopped, every product got an age from the
+  // estimate script; after the switch this is the only place one comes from.
+  const units = (data.sizes ?? []).reduce((a, s) => a + Math.max(0, Number(s.quantity) || 0), 0);
+  const received = units > 0
+    ? { first_received_at: new Date().toISOString(), first_received_estimated: false }
+    : {};
+
+  const row = { id, ...productToRow(data), ...received };
 
   const { error } = await supabase.from('products').insert(row);
   if (error) throw error;
