@@ -49,6 +49,17 @@ const DAY = 86_400_000;
 
 /** Months of cover a restock aims for. */
 export const TARGET_COVER_MONTHS = 2;
+
+/**
+ * Days from placing an order to having the goods in the shop (Q2, answered
+ * 2026-09-25): 7 to 10. The upper end is used — ordering a day early costs
+ * nothing, running empty for a day costs the sales of that day.
+ *
+ * It does not set the quantity: at one to five pieces a model, cover in months
+ * is the steadier measure (4.1). It sets the urgency — a model whose shelf will
+ * be empty before a reorder could arrive has to be ordered today, not whenever.
+ */
+export const LEAD_TIME_DAYS = 10;
 /** No single model gets more than this in one order, whatever the rate says. */
 export const MAX_UNITS_PER_MODEL = 6;
 /** Shares below this are dropped from a size curve as noise. */
@@ -109,6 +120,11 @@ export interface ReorderLine {
   units: number;
   /** Why the quantity is not simply `wanted`. */
   capped: 'original-buy' | 'max-per-model' | null;
+  /**
+   * The shelf will be empty before a reorder placed today could arrive — or is
+   * empty already. Order these first: every day of delay is a day of lost sales.
+   */
+  urgent: boolean;
   sizes: Array<{ size: string; qty: number }>;
   unitCost: number;
   cost: number;
@@ -205,8 +221,12 @@ export function planReorder(products: Product[], opts: ReorderOptions = {}): Reo
     const unitCost = p.purchasePrice ?? 0;
     const gm = markup(p.price, p.purchasePrice);
 
+    // Days until the shelf is empty at the measured pace.
+    const daysLeft = rate > 0 ? (m.onHand / rate) * 30 : Infinity;
+
     lines.push({
       p, m, sellingDays, rate, wanted, units, capped,
+      urgent: m.onHand === 0 || daysLeft < LEAD_TIME_DAYS,
       // Filled by apportionSizes once every line is known — a single piece
       // cannot carry a curve, only the whole plan can.
       sizes: [],

@@ -29,7 +29,7 @@ import {
   MONTH_LABEL, NON_MERCHANDISE, PHASE_LABEL, monthAhead, monthOf, phaseOf,
 } from '@/lib/seasons';
 import {
-  CAP_LABEL, MAX_UNITS_PER_MODEL, TARGET_COVER_MONTHS, planReorder,
+  CAP_LABEL, LEAD_TIME_DAYS, MAX_UNITS_PER_MODEL, TARGET_COVER_MONTHS, planReorder,
 } from '@/lib/reorder';
 import {
   ArrowLeft, Ban, CalendarClock, ClipboardCopy, PackagePlus, ShieldAlert, AlertTriangle,
@@ -150,7 +150,8 @@ function ReorderView() {
             `  ·  ${fmt(l.cost)} ден.` +
             `\n  досега ${l.m.soldEver}/${l.m.receivedEst} (${pct(l.m.sellThrough)})` +
             ` · ${l.rate.toFixed(1)} парч./мес` +
-            (l.capped ? ` · ${CAP_LABEL[l.capped]}` : '')
+            (l.capped ? ` · ${CAP_LABEL[l.capped]}` : '') +
+            (l.urgent ? ' · ИТНО' : '')
           ).join('\n\n')
         )
         .join('\n\n\n');
@@ -418,6 +419,13 @@ function ReorderView() {
                             )}
                             {l.capped && (
                               <p className="text-[10px] text-amber-600 mt-0.5">{CAP_LABEL[l.capped]}</p>
+                            )}
+                            {l.urgent && (
+                              <p className="text-[10px] font-semibold text-red-700 mt-0.5">
+                                {l.m.onHand === 0
+                                  ? 'празно — секој ден е изгубена продажба'
+                                  : `ќе се испразни пред нова стока (${LEAD_TIME_DAYS} дена)`}
+                              </p>
                             )}
                           </td>
                           <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-slate-800 text-xs">
