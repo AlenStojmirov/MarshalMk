@@ -60,6 +60,18 @@ const EXCEPTION_BUDGET = 40_000;
  */
 const HORIZONS = [0, 6, 13, 21];
 
+/**
+ * Who the order goes to.
+ *
+ * The suppliers table is empty and no product carries a supplier_id, but every
+ * product has a brand — it is even the prefix of its id — and in a shop this
+ * size one brand comes from one supplier. So brand is the grouping that works
+ * today without anyone entering anything. Admin-only: the customer-facing site
+ * still hides brands behind their codes.
+ */
+const brandOf = (p: { brand?: string; id: string }) =>
+  (p.brand && p.brand.trim()) || p.id.split('-')[0];
+
 function ReorderView() {
   const { products, loading } = useProducts();
   const [budgetInput, setBudgetInput] = useState(String(EXCEPTION_BUDGET));
@@ -105,14 +117,31 @@ function ReorderView() {
     planReorder(merch, { now, month: today, budget, coverMonths: cover }).lines.length ===
       plan.lines.length;
 
+  // The copied text is split one section per brand, because that is how it
+  // gets used: one message to each supplier, not one list to read through.
+  // In-budget lines grouped by brand, biggest order first. The ranked table
+  // stays the main view — the budget is cut down the ranking, and a grouped
+  // table would hide where that cut falls.
+  const byBrand = [...inBudget.reduce((m, l) => {
+    const b = brandOf(l.p);
+    const g = m.get(b) ?? { brand: b, lines: [] as typeof inBudget, units: 0, cost: 0 };
+    g.lines.push(l);
+    g.units += l.units;
+    g.cost += l.cost;
+    return m.set(b, g);
+  }, new Map<string, { brand: string; lines: typeof inBudget; units: number; cost: number }>()).values()]
+    .sort((a, b) => b.cost - a.cost);
+
   const copyOrder = async () => {
     if (inBudget.length === 0) return;
     const text =
       `НАБАВКА — ${inBudget.length} модели · ${plan.units} парчиња · ${fmt(plan.cost)} ден.\n` +
       `Цел: ${cover} месеци покриеност. Враќа ${fmt(plan.revenue)} ден. по продажна.\n` +
       `${new Date(now).toLocaleDateString('mk-MK')}\n\n` +
-      inBudget
-        .map(
+      byBrand
+        .map((g) =>
+          `━━ ${g.brand.toUpperCase()} — ${g.lines.length} модели · ${g.units} парчиња · ${fmt(g.cost)} ден.\n\n` +
+          g.lines.map(
           (l) =>
             `${getProductDisplayName(l.p.name, l.p.category, l.p.brand)} [${l.p.id}]\n` +
             `  ${l.sizes.length > 0
@@ -122,8 +151,9 @@ function ReorderView() {
             `\n  досега ${l.m.soldEver}/${l.m.receivedEst} (${pct(l.m.sellThrough)})` +
             ` · ${l.rate.toFixed(1)} парч./мес` +
             (l.capped ? ` · ${CAP_LABEL[l.capped]}` : '')
+          ).join('\n\n')
         )
-        .join('\n\n');
+        .join('\n\n\n');
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -311,6 +341,25 @@ function ReorderView() {
               </button>
             </div>
 
+            {byBrand.length > 0 && (
+              <div className="px-4 py-3 border-b border-slate-100">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  По бренд · {byBrand.length} {byBrand.length === 1 ? 'нарачка' : 'нарачки'}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {byBrand.map((g) => (
+                    <span
+                      key={g.brand}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-xs text-slate-700 tabular-nums"
+                    >
+                      <strong className="text-slate-900">{g.brand}</strong>
+                      {g.lines.length} мод. · {g.units} парч. · {fmt(g.cost)} ден.
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-sm">
                 <thead>
@@ -348,7 +397,7 @@ function ReorderView() {
                               {getProductDisplayName(l.p.name, l.p.category, l.p.brand)}
                             </Link>
                             <p className="text-[10px] text-slate-400 font-mono truncate">
-                              {l.p.category}
+                              <span className="text-slate-600">{brandOf(l.p)}</span> · {l.p.category}
                               {l.m.onHand === 0 ? ' · НУЛА на полица' : ` · ост. ${l.m.onHand}`}
                             </p>
                           </td>
