@@ -8,11 +8,8 @@ import {
   isBlocked,
   recordViolation,
 } from '@/lib/rate-limit';
-import {
-  getShippingCost,
-  shippingAbsorptionPerUnit,
-  SHIPPING_CONFIG,
-} from '@/config/shipping';
+import { SHIPPING_CONFIG } from '@/config/shipping';
+import { priceOrder } from '@/lib/order-math';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -112,7 +109,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing order data.' }, { status: 400 });
   }
 
-  const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'city'] as const;
+  // Absent means courier: every client built before pickup existed sends no
+  // field at all, and a cached checkout must keep working. Anything else that
+  // is not one of the two known values is refused rather than guessed at.
+  const rawMethod = body.deliveryMethod;
+  if (rawMethod !== undefined && rawMethod !== 'courier' && rawMethod !== 'pickup') {
+    return NextResponse.json({ error: 'Invalid delivery method.' }, { status: 400 });
+  }
+  const deliveryMethod: 'courier' | 'pickup' = rawMethod === 'pickup' ? 'pickup' : 'courier';
+
+  // An address is only needed when there is something to deliver to.
+  const requiredFields = deliveryMethod === 'pickup'
+    ? (['firstName', 'lastName', 'email', 'phone'] as const)
+    : (['firstName', 'lastName', 'email', 'phone', 'address', 'city'] as const);
   for (const field of requiredFields) {
     if (!customer[field] || typeof customer[field] !== 'string' || !customer[field].trim()) {
       return NextResponse.json(
@@ -160,11 +169,12 @@ export async function POST(request: NextRequest) {
     // ── Money, computed server-side ───────────────────────────────────────
     // Never trust the client for amounts. The gross value is what the customer
     // agreed to pay for the goods; everything else is derived from it.
-    const round2 = (n: number) => Math.round(n * 100) / 100;
-
-    const grossSubtotal = round2(
-      items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0)
-    );
+    // The arithmetic lives in lib/order-math so it can be checked without a
+    // database; this route only logs what looks wrong and stores the result.
+    const priced = priceOrder(items, deliveryMethod);
+    const { grossSubtotal, absorbed, shipping, total } = priced;
+    const orderItems = priced.items;
+    const netSubtotal = priced.subtotal;
 
     if (Math.abs(grossSubtotal - subtotal) > 1) {
       console.warn(
@@ -172,39 +182,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const customerShipping = getShippingCost(grossSubtotal);
-
-    // Below the threshold the customer pays shipping on top and product prices
-    // stand. Above it, shipping is free for the customer but the store still
-    // pays the courier, so the cost is spread across the ordered units and
-    // deducted from their prices (docs/DECISIONS.md D-006).
-    let orderItems = items;
-    let absorbed = 0;
-
-    if (customerShipping === 0) {
+    if (absorbed > SHIPPING_CONFIG.shippingCost * 1.25) {
       const totalUnits = items.reduce((sum, item) => sum + Number(item.quantity), 0);
-      const perUnit = shippingAbsorptionPerUnit(totalUnits);
-
-      orderItems = items.map((item) => {
-        // Clamp so a cheap line can never end up with a negative price; the
-        // absorbed total tracks what was actually deducted either way.
-        const reduction = Math.min(perUnit, Number(item.price));
-        absorbed += reduction * Number(item.quantity);
-        return { ...item, price: round2(Number(item.price) - reduction) };
-      });
-      absorbed = round2(absorbed);
-
-      if (absorbed > SHIPPING_CONFIG.shippingCost * 1.25) {
-        console.warn(
-          `[ORDER_SHIPPING_ABSORB_HIGH] absorbed=${absorbed} cost=${SHIPPING_CONFIG.shippingCost} units=${totalUnits} ip=${ip}`
-        );
-      }
+      console.warn(
+        `[ORDER_SHIPPING_ABSORB_HIGH] absorbed=${absorbed} cost=${SHIPPING_CONFIG.shippingCost} units=${totalUnits} ip=${ip}`
+      );
     }
-
-    // Both branches reconcile: subtotal + shipping === total === what is collected.
-    const shipping = customerShipping === 0 ? absorbed : customerShipping;
-    const netSubtotal = round2(grossSubtotal - absorbed);
-    const total = round2(netSubtotal + shipping);
 
     // ── Reserve the stock before the order exists ─────────────────────────
     // Decided in D-001: stock drops at order time, as a reservation. With one
@@ -254,9 +237,12 @@ export async function POST(request: NextRequest) {
         lastName: customer.lastName.trim(),
         email,
         phone: customer.phone.trim(),
-        address: customer.address.trim(),
-        city: customer.city.trim(),
+        // Kept as empty strings for pickup rather than dropped, so every reader
+        // that expects the fields to exist keeps working.
+        address: deliveryMethod === 'pickup' ? '' : (customer.address || '').trim(),
+        city: deliveryMethod === 'pickup' ? '' : (customer.city || '').trim(),
         notes: (customer.notes || '').trim().substring(0, 500),
+        deliveryMethod,
       },
       items: orderItems.map((item) => ({
         productId: item.productId,

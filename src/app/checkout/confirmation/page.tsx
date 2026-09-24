@@ -4,9 +4,10 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { CheckCircle, Package, Truck, Phone, Mail, MapPin, Copy, Check } from 'lucide-react';
+import { CheckCircle, Package, Truck, Phone, Mail, MapPin, Copy, Check, Store } from 'lucide-react';
 import { Order } from '@/types';
 import { useTranslation } from '@/lib/i18n';
+import { STORE_ADDRESS, STORE_MAPS_URL } from '@/config/store';
 
 
 function ConfirmationContent() {
@@ -84,6 +85,9 @@ function ConfirmationContent() {
     );
   }
 
+  // Orders placed before pickup existed carry no field, and were all couriers.
+  const isPickup = order.customer.deliveryMethod === 'pickup';
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Success Header */}
@@ -93,7 +97,9 @@ function ConfirmationContent() {
           {t('confirmation.title')}
         </h1>
         <p className="text-gray-600">
-          {t('confirmation.thankYou')}
+          {isPickup
+            ? t('confirmation.thankYouPickup')
+            : t('confirmation.thankYou')}
         </p>
       </div>
 
@@ -199,8 +205,12 @@ function ConfirmationContent() {
               ) : null;
             })()}
             <div className="flex justify-between text-gray-600">
-              <span>{t('common.shipping')}</span>
-              <span className={order.shipping > 0 ? undefined : "text-green-600"}>{order.shipping > 0 ? `${order.shipping.toFixed(2)} ден.` : t('common.free')}</span>
+              <span>{isPickup ? t('checkout.pickupLine') : t('common.shipping')}</span>
+              <span className={order.shipping > 0 ? undefined : "text-green-600"}>
+                {isPickup
+                  ? t('checkout.noShipping')
+                  : order.shipping > 0 ? `${order.shipping.toFixed(2)} ден.` : t('common.free')}
+              </span>
             </div>
             <hr className="my-2" />
             <div className="flex justify-between text-lg font-bold text-gray-900">
@@ -231,18 +241,32 @@ function ConfirmationContent() {
           </div>
         </div>
 
-        {/* Delivery Address */}
+        {/* Where the goods go — the customer's address, or the shop's */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Truck className="h-5 w-5" />
-            {t('confirmation.deliveryAddress')}
+            {isPickup ? <Store className="h-5 w-5" /> : <Truck className="h-5 w-5" />}
+            {isPickup ? t('confirmation.pickupTitle') : t('confirmation.deliveryAddress')}
           </h3>
           <div className="flex items-start gap-2 text-gray-600">
             <MapPin className="h-4 w-4 mt-1 flex-shrink-0" />
-            <div>
-              <p>{order.customer.address}</p>
-              <p>{order.customer.city}</p>
-            </div>
+            {isPickup ? (
+              <div>
+                <p>{STORE_ADDRESS}</p>
+                <a
+                  href={STORE_MAPS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:text-blue-700 underline"
+                >
+                  {t('checkout.openInMaps')}
+                </a>
+              </div>
+            ) : (
+              <div>
+                <p>{order.customer.address}</p>
+                <p>{order.customer.city}</p>
+              </div>
+            )}
           </div>
           {order.customer.notes && (
             <div className="mt-4 pt-4 border-t">
@@ -255,9 +279,13 @@ function ConfirmationContent() {
 
       {/* Payment Info */}
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-8">
-        <p className="font-medium text-amber-800">{t('confirmation.paymentMethod')}</p>
+        <p className="font-medium text-amber-800">
+          {isPickup ? t('confirmation.pickupPayment') : t('confirmation.paymentMethod')}
+        </p>
         <p className="text-sm text-amber-700 mt-1">
-          {t('confirmation.amountReady', { amount: order.total.toFixed(2) })}
+          {isPickup
+            ? t('confirmation.amountReadyPickup', { amount: order.total.toFixed(2) })
+            : t('confirmation.amountReady', { amount: order.total.toFixed(2) })}
         </p>
       </div>
 

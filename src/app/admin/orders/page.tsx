@@ -25,6 +25,7 @@ import {
   Mail,
   Phone,
   MapPin,
+  Store,
 } from 'lucide-react';
 
 const STATUS_CONFIG: Record<
@@ -140,9 +141,17 @@ function OrderCard({
           </div>
         </div>
 
-        <div className="mt-2 text-sm text-gray-600">
-          {order.customer.firstName} {order.customer.lastName} &bull;{' '}
-          {order.items.length} {order.items.length !== 1 ? t('orders.items') : t('orders.item')}
+        <div className="mt-2 text-sm text-gray-600 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>
+            {order.customer.firstName} {order.customer.lastName} &bull;{' '}
+            {order.items.length} {order.items.length !== 1 ? t('orders.items') : t('orders.item')}
+          </span>
+          {order.customer.deliveryMethod === 'pickup' && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 text-xs font-semibold">
+              <Store className="h-3 w-3" />
+              {t('orders.pickupOnly')}
+            </span>
+          )}
         </div>
       </div>
 
@@ -170,13 +179,24 @@ function OrderCard({
 
             {/* Delivery Address */}
             <div>
-              <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 text-sm sm:text-base">{t('orders.deliveryAddress')}</h4>
+              <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 text-sm sm:text-base">
+                {order.customer.deliveryMethod === 'pickup' ? t('orders.pickup') : t('orders.deliveryAddress')}
+              </h4>
               <div className="flex items-start gap-2 text-sm text-gray-600">
-                <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p>{order.customer.address}</p>
-                  <p>{order.customer.city}</p>
-                </div>
+                {order.customer.deliveryMethod === 'pickup' ? (
+                  <>
+                    <Store className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <p>{t('orders.pickup')}</p>
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p>{order.customer.address}</p>
+                      <p>{order.customer.city}</p>
+                    </div>
+                  </>
+                )}
               </div>
               {order.customer.notes && (
                 <div className="mt-2 sm:mt-3 p-2 bg-gray-50 rounded text-sm">
@@ -333,6 +353,9 @@ function OrdersManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<OrderStatus | 'all' | 'pending'>('pending');
+  // Independent of the status tabs: "pickups that are still pending" is the
+  // question the counter actually gets asked.
+  const [pickupOnly, setPickupOnly] = useState(false);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -372,10 +395,13 @@ function OrdersManagement() {
     }
   };
 
-  const filteredOrders =
+  const byStatus =
     filter === 'pending'
       ? orders
       : orders.filter((order) => order.status === filter);
+  const filteredOrders = pickupOnly
+    ? byStatus.filter((order) => order.customer.deliveryMethod === 'pickup')
+    : byStatus;
 
   const orderCounts = orders.reduce(
     (acc, order) => {
@@ -420,6 +446,17 @@ function OrdersManagement() {
             }`}
           >
             {t('common.all')} ({orders.length})
+          </button>
+          <button
+            onClick={() => setPickupOnly((v) => !v)}
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors text-sm sm:text-base whitespace-nowrap inline-flex items-center gap-1.5 ${
+              pickupOnly
+                ? 'bg-violet-600 text-white'
+                : 'bg-violet-50 text-violet-700 hover:bg-violet-100'
+            }`}
+          >
+            <Store className="h-4 w-4" />
+            {t('orders.pickupOnly')} ({orders.filter((o) => o.customer.deliveryMethod === 'pickup').length})
           </button>
           {STATUS_OPTIONS.map((status) => {
             const count = orderCounts[status] || 0;

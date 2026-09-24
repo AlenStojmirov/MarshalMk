@@ -6,9 +6,74 @@
  * own, without a client, a session or a network.
  */
 
-import { Order } from '@/types';
+import { DeliveryMethod, Order } from '@/types';
+import { customerShippingFor, shippingAbsorptionPerUnit } from '@/config/shipping';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+export interface PricedLine {
+  price: number;
+  quantity: number;
+}
+
+export interface OrderPricing<T extends PricedLine> {
+  /** What the customer agreed to pay for the goods, before any absorption. */
+  grossSubtotal: number;
+  /** The lines as they will be stored — prices reduced when shipping is absorbed. */
+  items: T[];
+  /** Courier cost taken out of the item prices (D-006). Zero for pickup. */
+  absorbed: number;
+  shipping: number;
+  /** Product revenue: what belongs to the goods, net of any absorption. */
+  subtotal: number;
+  /** What is collected. Always subtotal + shipping. */
+  total: number;
+}
+
+/**
+ * The money on an order, by how it reaches the customer.
+ *
+ * Moved out of the order route so it can be checked on its own: this decides
+ * what a customer pays and what each product is recorded as having sold for,
+ * and a route that writes to the database is the wrong place to find out it is
+ * off by 170.
+ *
+ * Three branches, and they are not two:
+ *  - courier below the threshold: customer pays shipping on top, prices stand.
+ *  - courier above it: shipping free to the customer, but the courier is still
+ *    paid, so the cost comes out of the item prices (D-006).
+ *  - pickup: no courier at all, so nothing is absorbed and the prices stand
+ *    exactly as sold. Its zero is not the same zero as free delivery (D-011).
+ */
+export function priceOrder<T extends PricedLine>(
+  lines: T[],
+  method: DeliveryMethod
+): OrderPricing<T> {
+  const grossSubtotal = round2(
+    lines.reduce((sum, l) => sum + Number(l.price) * Number(l.quantity), 0)
+  );
+  const customerShipping = customerShippingFor(method, grossSubtotal);
+
+  let items = lines;
+  let absorbed = 0;
+
+  if (customerShipping === 0 && method === 'courier') {
+    const totalUnits = lines.reduce((sum, l) => sum + Number(l.quantity), 0);
+    const perUnit = shippingAbsorptionPerUnit(totalUnits);
+    items = lines.map((l) => {
+      // Clamp so a cheap line can never go negative; `absorbed` tracks what
+      // was actually taken either way, so the order still reconciles.
+      const reduction = Math.min(perUnit, Number(l.price));
+      absorbed += reduction * Number(l.quantity);
+      return { ...l, price: round2(Number(l.price) - reduction) };
+    });
+    absorbed = round2(absorbed);
+  }
+
+  const shipping = customerShipping === 0 ? absorbed : customerShipping;
+  const subtotal = round2(grossSubtotal - absorbed);
+  return { grossSubtotal, items, absorbed, shipping, subtotal, total: round2(subtotal + shipping) };
+}
 
 export interface CorrectionLine {
   productId: string;

@@ -4,11 +4,12 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, Truck, CreditCard, Loader2 } from 'lucide-react';
+import { ArrowLeft, Truck, CreditCard, Loader2, Store, MapPin } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
-import { CustomerInfo, OrderItem } from '@/types';
+import { CustomerInfo, DeliveryMethod, OrderItem } from '@/types';
 import { useTranslation } from '@/lib/i18n';
-import { getShippingCost, getShippingLabel } from '@/config/shipping';
+import { customerShippingFor, getShippingLabel } from '@/config/shipping';
+import { STORE_ADDRESS, STORE_MAPS_URL } from '@/config/store';
 import FreeShippingProgress from '@/components/FreeShippingProgress';
 import { getEffectivePrice, isOnSale, getPercentOff } from '@/lib/pricing';
 
@@ -33,6 +34,12 @@ export default function CheckoutPage() {
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof CustomerInfo, string>>>({});
+
+  // Courier stays the default: it is what every existing customer expects, and
+  // a checkout that silently changed its default would be noticed as a bug.
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('courier');
+  const isPickup = deliveryMethod === 'pickup';
+  const shippingNow = customerShippingFor(deliveryMethod, totalPrice);
 
   // Order matters — used to determine which error field to scroll to first
   const FIELD_ORDER: (keyof CustomerInfo)[] = [
@@ -77,10 +84,11 @@ export default function CheckoutPage() {
     if (!formData.phone.trim()) {
       newErrors.phone = `${t('checkout.phone')} ${t('checkout.required')}`;
     }
-    if (!formData.address.trim()) {
+    // No address to ask for when the customer is coming to the shop.
+    if (!isPickup && !formData.address.trim()) {
       newErrors.address = `${t('checkout.streetAddress')} ${t('checkout.required')}`;
     }
-    if (!formData.city.trim()) {
+    if (!isPickup && !formData.city.trim()) {
       newErrors.city = `${t('checkout.city')} ${t('checkout.required')}`;
     }
 
@@ -133,6 +141,7 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer: formData,
+          deliveryMethod,
           items: orderItems,
           subtotal: totalPrice,
           website: honeypot,
@@ -300,12 +309,77 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Delivery Address */}
+            {/* How the order reaches the customer */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                {t('checkout.deliveryAddress')}
+                {t('checkout.deliveryMethod')}
               </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup">
+                {([
+                  { key: 'courier', icon: Truck, title: t('checkout.courier'), hint: t('checkout.courierHint') },
+                  { key: 'pickup', icon: Store, title: t('checkout.pickup'), hint: t('checkout.pickupHint') },
+                ] as const).map((opt) => {
+                  const active = deliveryMethod === opt.key;
+                  const Icon = opt.icon;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => {
+                        setDeliveryMethod(opt.key);
+                        // Address errors belong to courier only; switching away
+                        // must not leave a red field the customer can no longer see.
+                        if (opt.key === 'pickup') {
+                          setErrors((prev) => ({ ...prev, address: undefined, city: undefined }));
+                        }
+                      }}
+                      className={`flex items-start gap-3 text-left rounded-lg border-2 px-4 py-3 transition-colors ${
+                        active ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <Icon className={`h-5 w-5 shrink-0 mt-0.5 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
+                      <span>
+                        <span className="block font-medium text-gray-900">{opt.title}</span>
+                        <span className="block text-sm text-gray-500">{opt.hint}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {isPickup && (
+                <div className="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 flex items-start gap-3">
+                  <MapPin className="h-5 w-5 shrink-0 mt-0.5 text-gray-500" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{t('checkout.pickupAt')}</p>
+                    <p className="text-sm text-gray-700">{STORE_ADDRESS}</p>
+                    <a
+                      href={STORE_MAPS_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:text-blue-700 underline"
+                    >
+                      {t('checkout.openInMaps')}
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Delivery Address — only when there is somewhere to deliver */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              {/* For pickup only the notes field remains, and it carries its own
+                  label — a card heading repeating it would just say it twice. */}
+              {!isPickup && (
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                  {t('checkout.deliveryAddress')}
+                </h2>
+              )}
               <div className="space-y-4">
+                {!isPickup && (
+                <>
                 <div>
                   <label
                     htmlFor="address"
@@ -348,6 +422,8 @@ export default function CheckoutPage() {
                     <p className="mt-1 text-sm text-red-500">{errors.city}</p>
                   )}
                 </div>
+                </>
+                )}
                 <div>
                   <label
                     htmlFor="notes"
@@ -485,15 +561,17 @@ export default function CheckoutPage() {
                 })()}
                 <div className="flex justify-between text-gray-600">
                   <span className="flex items-center gap-2">
-                    <Truck className="h-4 w-4" />
-                    {t('common.shipping')}
+                    {isPickup ? <Store className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
+                    {isPickup ? t('checkout.pickupLine') : t('common.shipping')}
                   </span>
-                  <span className="text-green-600">{getShippingLabel(totalPrice, t('common.free'))}</span>
+                  <span className="text-green-600">
+                    {isPickup ? t('checkout.noShipping') : getShippingLabel(totalPrice, t('common.free'))}
+                  </span>
                 </div>
                 <hr />
                 <div className="flex justify-between text-lg font-bold text-gray-900">
                   <span>{t('common.total')}</span>
-                  <span>{(totalPrice + getShippingCost(totalPrice)).toFixed(2)} ден.</span>
+                  <span>{(totalPrice + shippingNow).toFixed(2)} ден.</span>
                 </div>
               </div>
 

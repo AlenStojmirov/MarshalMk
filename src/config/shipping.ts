@@ -16,6 +16,23 @@ export function getShippingCost(orderTotal: number): number {
 }
 
 /**
+ * What the customer pays for getting the goods, by how they get them.
+ *
+ * Pickup is not "free shipping" — there is no shipping. That distinction is
+ * why it has its own function rather than a zero passed into the courier one:
+ * above the threshold a courier order still costs the store 170 den. and has it
+ * absorbed into the item prices (D-006), while a pickup costs the store nothing
+ * and its prices must stand untouched. Treating the two as the same zero would
+ * quietly shave margin off every pickup order.
+ */
+export function customerShippingFor(
+  method: 'courier' | 'pickup',
+  orderTotal: number
+): number {
+  return method === 'pickup' ? 0 : getShippingCost(orderTotal);
+}
+
+/**
  * Returns a formatted shipping label (e.g. "170 ден." or the free translation).
  */
 export function getShippingLabel(orderTotal: number, freeText: string): string {

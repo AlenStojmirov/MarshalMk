@@ -60,14 +60,22 @@ export type ProductFormData = Omit<Product, 'id' | 'createdAt' | 'updatedAt' | '
   sizes?: ProductSize[];
 };
 
+export type DeliveryMethod = 'courier' | 'pickup';
+
 export interface CustomerInfo {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
+  /** Empty for store pickup — there is nothing to deliver to. */
   address: string;
   city: string;
   notes?: string;
+  /**
+   * Absent on every order placed before pickup existed, which were all
+   * courier deliveries — so absent reads as 'courier' (see D-011).
+   */
+  deliveryMethod?: DeliveryMethod;
 }
 
 export interface OrderItem {

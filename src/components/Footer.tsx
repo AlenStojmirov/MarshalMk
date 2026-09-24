@@ -2,9 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { MapPin } from 'lucide-react';
 
-// TODO: replace with your real store address and Google Maps share URL.
-const STORE_ADDRESS = 'ул. Маршал Тито 60, Виница';
-const STORE_MAPS_URL = 'https://maps.app.goo.gl/nUj5SHXpr9AKKpTK8';
+import { STORE_ADDRESS, STORE_MAPS_URL } from '@/config/store';
 
 export default function Footer() {
 return (
