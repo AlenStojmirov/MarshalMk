@@ -378,35 +378,29 @@ function SalesByDateView() {
   }, [groupedSales, filterDate]);
 
   const handleRecordSale = async (items: SaleCartItem[], saleDate: string) => {
-    // For each item, call recordProductSale once per quantity unit
-    for (const item of items) {
-      for (let i = 0; i < item.quantity; i++) {
-        await recordProductSale(item.product, item.size, item.price, saleDate, item.reason);
-        // Update the product reference for subsequent calls (stock/sizes changed)
-        if (i < item.quantity - 1) {
-          item.product = {
-            ...item.product,
-            sizes: item.product.sizes?.map(sz =>
-              sz.size === item.size
-                ? { ...sz, quantity: Math.max(0, sz.quantity - 1) }
-                : sz
-            ),
-            sold: [
-              ...(item.product.sold || []),
-              {
-                size: item.size,
-                price: item.price,
-                soldDate: saleDate,
-                ...(item.price > 0 ? {} : { reason: item.reason }),
-              },
-            ],
-            stock: Math.max(0, item.product.stock - 1),
-          };
+    // One call per unit. Each reads the row fresh (D-013), so there is no stale
+    // product to carry forward between them.
+    const total = items.reduce((a, it) => a + it.quantity, 0);
+    let done = 0;
+    try {
+      for (const item of items) {
+        for (let i = 0; i < item.quantity; i++) {
+          await recordProductSale(item.product, item.size, item.price, saleDate, item.reason);
+          done += 1;
         }
       }
+    } catch (err) {
+      // Close the form either way. The units before the failure are already
+      // recorded; leaving the cart open would invite saving them a second time.
+      alert(
+        `Запишани ${done} од ${total} парчиња. Запирам кај грешката:
+` +
+        (err instanceof Error ? err.message : String(err))
+      );
+    } finally {
+      setShowRecordModal(false);
+      refetch();
     }
-    setShowRecordModal(false);
-    refetch();
   };
 
   const formatDate = (dateStr: string) => {

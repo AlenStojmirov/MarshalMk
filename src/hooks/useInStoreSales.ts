@@ -1,9 +1,9 @@
 'use client';
 
 import { NonSaleReason, Product, SoldItem } from '@/types';
-import { updateProduct } from '@/hooks/useProducts';
 import { supabase } from '@/lib/supabase';
 import { buildLedgerRow, reasonForPrice } from '@/lib/sales-ledger';
+import { refundOneToStock, sellOneFromStock } from '@/lib/stock';
 
 /**
  * The ledger stores a timestamp, but a shop sale only ever knows a day —
@@ -41,7 +41,7 @@ export async function recordProductSale(
   price: number,
   soldDate?: string,
   reason?: NonSaleReason
-): Promise<void> {
+): Promise<{ sizes: Product['sizes']; stock: number; sold: SoldItem[] }> {
   // A zero price with no reason is exactly the ambiguity D-005 had to paper
   // over for the history. Refusing it here is what stops it being created again;
   // the forms ask before they get this far, so this only fires on a caller bug.
@@ -54,17 +54,6 @@ export async function recordProductSale(
 
   const today = soldDate || formatDateKey(new Date());
 
-  // Reduce quantity from selected size
-  const updatedSizes = product.sizes?.map(sz =>
-    sz.size === size
-      ? { ...sz, quantity: Math.max(0, sz.quantity - 1) }
-      : sz
-  ) || [];
-
-  // Calculate new total stock
-  const newStock = updatedSizes.reduce((sum, sz) => sum + sz.quantity, 0);
-
-  // Add to sold list
   const newSoldItem: SoldItem = {
     size,
     price,
@@ -72,15 +61,17 @@ export async function recordProductSale(
     // Only a zero carries a reason; on a paid sale it would be noise.
     ...(price > 0 ? {} : { reason }),
   };
-  const updatedSold = [...(product.sold || []), newSoldItem];
 
-  await updateProduct(product.id, {
-    sizes: updatedSizes,
-    sold: updatedSold,
-    stock: newStock,
-  } as Partial<Product>);
+  // Read fresh and compare-and-set (D-013). The `product` passed in may be
+  // minutes old; writing its sizes and sold[] back would undo anything that
+  // happened since — an online order's reservation included.
+  const result = await sellOneFromStock(supabase, product.id, size, newSoldItem);
+  if (!result.ok) throw new Error(result.error ?? 'Продажбата не е запишана.');
 
   await appendLedgerRow(product, size, price, today, price > 0 ? undefined : reason);
+  // The row as written, so a page can show the real shelf rather than its own
+  // guess at it.
+  return result.state!;
 }
 
 /** Best-effort second write. Never throws — see recordProductSale. */
@@ -140,15 +131,11 @@ export async function refundProductSale(product: Product, soldIndex: number): Pr
   const entry = product.sold?.[soldIndex];
   if (!entry) throw new Error('Нема таков запис за продажба.');
 
-  const sizes = [...(product.sizes ?? [])].map((sz) => ({ ...sz }));
-  const slot = sizes.find((sz) => sz.size === entry.size);
-  if (slot) slot.quantity += 1;
-  else sizes.push({ size: entry.size, quantity: 1 });
-
-  const stock = sizes.reduce((sum, sz) => sum + sz.quantity, 0);
-  const sold = (product.sold ?? []).filter((_, i) => i !== soldIndex);
-
-  await updateProduct(product.id, { sizes, sold, stock } as Partial<Product>);
+  // The index only identifies which sale the user clicked; the removal itself
+  // is matched on the fresh row by size, price and day (D-013).
+  const result = await refundOneToStock(supabase, product.id, entry);
+  if (!result.ok || !result.state) throw new Error(result.error ?? 'Враќањето не е запишано.');
+  const { sizes, stock, sold } = result.state;
 
   try {
     const day = String(entry.soldDate).slice(0, 10);

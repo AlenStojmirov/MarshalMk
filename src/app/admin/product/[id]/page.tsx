@@ -70,23 +70,16 @@ function ProductDetailView() {
     setSelling(true);
     try {
       const today = formatDateKey(new Date());
-      await recordProductSale(
+      const written = await recordProductSale(
         localProduct, sellForm.size, price, today,
         price > 0 ? undefined : (sellForm.reason || undefined)
       );
-      const sizes = (localProduct.sizes ?? []).map((sz) =>
-        sz.size === sellForm.size ? { ...sz, quantity: Math.max(0, sz.quantity - 1) } : sz
-      );
-      setLocalProduct({
-        ...localProduct,
-        sizes,
-        stock: sizes.reduce((sum, sz) => sum + sz.quantity, 0),
-        sold: [
-          ...(localProduct.sold ?? []),
-          { size: sellForm.size, price, soldDate: today, ...(price > 0 ? {} : { reason: sellForm.reason || undefined }) },
-        ],
-      });
+      // Show what was actually written, which includes anything that changed
+      // on the row since this page loaded.
+      setLocalProduct({ ...localProduct, ...written });
       setSellForm({ size: '', price: String(getEffectivePrice(localProduct)), reason: '' });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
     } finally {
       setSelling(false);
     }
@@ -96,8 +89,12 @@ function ProductDetailView() {
     if (!localProduct || !localProduct.sold) return;
     // Removes the matching ledger row as well — a POS-written row is never
     // pruned by ledger:sync, so leaving it would keep a phantom sale for good.
-    const next = await refundProductSale(localProduct, soldIdx);
-    setLocalProduct(next);
+    try {
+      const next = await refundProductSale(localProduct, soldIdx);
+      setLocalProduct(next);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
   };
 
   if (loading) {

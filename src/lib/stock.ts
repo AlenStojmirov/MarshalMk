@@ -395,3 +395,140 @@ export async function receiveIntoStock(
 
   return { ok: true, shortages: [] };
 }
+
+// ---------------------------------------------------------------------------
+// Admin writes: a counter sale, a refund, a stock count (D-013)
+// ---------------------------------------------------------------------------
+//
+// The three admin paths used to compute the new stock from the product object
+// the page loaded — possibly minutes old — and write it back whole. Harmless
+// while every sale was entered in Firebase; data loss once sales are entered
+// here next to online orders that reserve stock. An order arriving while a
+// POS screen is open would be undone by the next counter sale: its units back
+// on the shelf, its `sold[]` entries overwritten by the stale list.
+//
+// So they read the row fresh and write with the same compare-and-set as the
+// order API. A lost race retries against the new state; it never writes over it.
+
+export interface AdminStockResult {
+  ok: boolean;
+  error?: string;
+  /** The row as written, so the caller can show it without a refetch. */
+  state?: { sizes: ProductSize[]; stock: number; sold: SoldItem[] };
+}
+
+const totalOf = (sizes: ProductSize[]) =>
+  sizes.reduce((sum, s) => sum + Math.max(0, Number(s.quantity) || 0), 0);
+
+/**
+ * Take one unit off the shelf and record it in `sold[]`.
+ *
+ * Refuses when the size has nothing left. The old path clamped to zero and
+ * recorded the sale anyway, which was a small untruth when stock was only ever
+ * a mirror of Firebase — and an oversell now that an online order may have
+ * reserved that very unit.
+ */
+export async function sellOneFromStock(
+  sb: SupabaseClient,
+  productId: string,
+  size: string,
+  entry: SoldItem
+): Promise<AdminStockResult> {
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    const product = await readProduct(sb, productId);
+    if (!product) return { ok: false, error: 'Производот не е пронајден.' };
+
+    const sizes = (product.sizes ?? []).map((s) => ({ ...s }));
+    const slot = sizes.find((s) => norm(s.size) === norm(size));
+    const available = slot ? Number(slot.quantity) || 0 : 0;
+    if (!slot || available < 1) {
+      return { ok: false, error: `Нема залиха за големина ${size || '—'} — можеби е резервирана со online нарачка.` };
+    }
+    slot.quantity = available - 1;
+
+    const state = { sizes, stock: totalOf(sizes), sold: [...(product.sold ?? []), entry] };
+    if (await casWrite(sb, productId, product.updated_at, state)) return { ok: true, state };
+  }
+  return { ok: false, error: 'Производот се менуваше истовремено — обиди се повторно.' };
+}
+
+/**
+ * Put one recorded unit back on the shelf.
+ *
+ * The entry is found by size, price and day in the fresh `sold[]`, never by the
+ * index the page was showing: if anything was added or removed since the page
+ * loaded, that index points at a different sale.
+ */
+export async function refundOneToStock(
+  sb: SupabaseClient,
+  productId: string,
+  entry: SoldItem
+): Promise<AdminStockResult> {
+  const day = (d: string) => String(d).slice(0, 10);
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    const product = await readProduct(sb, productId);
+    if (!product) return { ok: false, error: 'Производот не е пронајден.' };
+
+    const sold = [...(product.sold ?? [])];
+    const at = sold.findIndex(
+      (s) =>
+        norm(s.size) === norm(entry.size) &&
+        Number(s.price) === Number(entry.price) &&
+        day(s.soldDate) === day(entry.soldDate)
+    );
+    if (at < 0) return { ok: false, error: 'Таа продажба веќе не постои — можеби е веќе вратена.' };
+    sold.splice(at, 1);
+
+    const sizes = (product.sizes ?? []).map((s) => ({ ...s }));
+    const slot = sizes.find((s) => norm(s.size) === norm(entry.size));
+    if (slot) slot.quantity = (Number(slot.quantity) || 0) + 1;
+    else sizes.push({ size: norm(entry.size), quantity: 1 });
+
+    const state = { sizes, stock: totalOf(sizes), sold };
+    if (await casWrite(sb, productId, product.updated_at, state)) return { ok: true, state };
+  }
+  return { ok: false, error: 'Производот се менуваше истовремено — обиди се повторно.' };
+}
+
+/**
+ * Apply a stock count — the quantities someone actually counted on the shelf.
+ *
+ * `expected` is what the form showed when it was opened. If the shelf moved
+ * since (a sale, a return, an online order), the count was taken against
+ * numbers that are no longer true, and writing it would silently undo whatever
+ * moved. So it is refused, and the form is reopened on the current figures.
+ * `sold[]` is never touched here: a count changes what is on the shelf, not
+ * what was sold.
+ */
+export async function applyStockCount(
+  sb: SupabaseClient,
+  productId: string,
+  expected: ProductSize[],
+  counted: ProductSize[]
+): Promise<AdminStockResult> {
+  const key = (sizes: ProductSize[]) =>
+    JSON.stringify(
+      [...sizes]
+        .map((s) => [norm(s.size), Number(s.quantity) || 0] as const)
+        .filter(([, q]) => q !== 0)
+        .sort(([a], [b]) => a.localeCompare(b))
+    );
+
+  const product = await readProduct(sb, productId);
+  if (!product) return { ok: false, error: 'Производот не е пронајден.' };
+  if (key(product.sizes ?? []) !== key(expected)) {
+    return {
+      ok: false,
+      error: 'Залихата се смени додека формата беше отворена (продажба или нарачка). ' +
+        'Пописот не е зачуван — отвори го производот повторно и внеси ги количините пак.',
+    };
+  }
+
+  const sizes = counted.map((s) => ({ size: norm(s.size), quantity: Math.max(0, Number(s.quantity) || 0) }));
+  const state = { sizes, stock: totalOf(sizes), sold: product.sold ?? [] };
+  if (await casWrite(sb, productId, product.updated_at, state)) return { ok: true, state };
+  return {
+    ok: false,
+    error: 'Залихата се смени токму при зачувувањето. Отвори го производот повторно.',
+  };
+}

@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts, createProduct, updateProduct, deleteProduct, uploadProductImage } from '@/hooks/useProducts';
+import { supabase } from '@/lib/supabase';
+import { applyStockCount } from '@/lib/stock';
 import { Product, ProductFormData, ProductSize } from '@/types';
 import { Plus, Edit2, Trash2, LogOut, X, Save, ImagePlus, Package, Database, PlusCircle, Trash, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff, Search, Filter, Camera, Wallet, Truck, Clock, Coins, Ruler, CalendarDays, Gauge, PackagePlus, Grid2x2 } from 'lucide-react';
 import Link from 'next/link';
@@ -769,12 +771,34 @@ function AdminDashboard() {
     refetch();
   };
 
+  // A price change must never rewrite the shelf (D-013). The form holds the
+  // quantities from the moment it opened; writing them back on every save would
+  // resurrect anything sold or reserved in the meantime. So quantities are only
+  // written when they were actually changed — a stock count — and then only if
+  // the shelf still matches what the form started from.
   const handleUpdate = async (data: ProductFormData) => {
-    if (editingProduct) {
-      await updateProduct(editingProduct.id, data);
-      setEditingProduct(undefined);
-      refetch();
+    if (!editingProduct) return;
+    const { sizes, stock: _stock, ...rest } = data;
+    void _stock;
+
+    const before = JSON.stringify(
+      (editingProduct.sizes ?? []).map((s) => [String(s.size).trim(), Number(s.quantity) || 0])
+    );
+    const after = JSON.stringify(
+      (sizes ?? []).map((s) => [String(s.size).trim(), Number(s.quantity) || 0])
+    );
+
+    if (before !== after) {
+      const res = await applyStockCount(supabase, editingProduct.id, editingProduct.sizes ?? [], sizes ?? []);
+      if (!res.ok) {
+        alert(res.error);
+        return; // keep the form open; nothing else was written either
+      }
     }
+
+    await updateProduct(editingProduct.id, rest);
+    setEditingProduct(undefined);
+    refetch();
   };
 
   const selectedProducts = products.filter(p => selectedIds.has(p.id));
