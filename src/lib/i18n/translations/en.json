@@ -249,7 +249,7 @@
     "productIdHint": "Leave empty to auto-generate. Use this to set a custom ID/key for the product.",
     "inStoreSales": "In-Store Sales",
     "soldOut": "Sold Out",
-    "expenses": "Expenses",
+    "expenses": "Unpaid",
     "saleSection": "Sale Settings",
     "onSale": "On Sale",
     "salePercentage": "Discount (%)",
@@ -439,13 +439,16 @@
     "viewDetails": "View Details"
   },
   "expenses": {
-    "title": "Expenses",
-    "subtitle": "{count} items marked as expense",
-    "noExpenses": "No Expenses",
-    "noExpensesDescription": "No items have been marked as expense (sold at price 0).",
+    "title": "Left without payment",
+    "subtitle": "{count} units that left at price 0 — gifts, personal use, write-offs",
+    "noExpenses": "Nothing left without payment",
+    "noExpensesDescription": "No units have left at price 0.",
     "items": "items",
     "size": "Size",
-    "expense": "Expense"
+    "expense": "Expense",
+    "notCosts": "These are not operating costs. Rent, wages and utilities are entered under “Costs & result”.",
+    "legacyReason": "Personal · old record",
+    "legacyHint": "Recorded before 24.09.2026, when no reason was asked — all zero prices from then count as personal use (D-005)."
   },
   "sale": {
     "title": "Sale",

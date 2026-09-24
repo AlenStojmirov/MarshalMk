@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
-import { Product, SoldItem } from '@/types';
+import { NonSaleReason, Product, SoldItem } from '@/types';
 import {
   ArrowLeft,
   Package,
@@ -19,6 +19,23 @@ interface ExpenseItem {
   soldItem: SoldItem;
   soldIndex: number;
 }
+
+/**
+ * The reason a unit left unpaid, as recorded since D-012. Entries from before
+ * carry none and are shown as what D-005 decided they count as — personal use —
+ * but marked as old, so a guess is never presented as an answer.
+ */
+const REASON_LABEL: Record<NonSaleReason, string> = {
+  giveaway: 'inStoreSales.reasonGiveaway',
+  personal: 'inStoreSales.reasonPersonal',
+  writeoff: 'inStoreSales.reasonWriteoff',
+};
+const REASON_TONE: Record<NonSaleReason | 'legacy', string> = {
+  giveaway: 'bg-violet-100 text-violet-700',
+  personal: 'bg-sky-100 text-sky-700',
+  writeoff: 'bg-red-100 text-red-700',
+  legacy: 'bg-gray-100 text-gray-600',
+};
 
 function ExpensesView() {
   const { t } = useTranslation();
@@ -47,6 +64,14 @@ function ExpensesView() {
 
     return items;
   }, [products]);
+
+  // How many of each: a count that mixes gifts with damaged stock tells the
+  // owner nothing about which of the two to do less of.
+  const byReason = useMemo(() => {
+    const c: Record<NonSaleReason | 'legacy', number> = { giveaway: 0, personal: 0, writeoff: 0, legacy: 0 };
+    for (const it of expenseItems) c[it.soldItem.reason ?? 'legacy'] += 1;
+    return c;
+  }, [expenseItems]);
 
   // Group by date
   const groupedByDate = useMemo(() => {
@@ -85,7 +110,7 @@ function ExpensesView() {
           <div>
             <h1 className="text-xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
               <Receipt className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
-              {t('expenses.title')} <span className="text-sm font-normal text-slate-400">· подароци и лична потрошувачка</span>
+              {t('expenses.title')}
             </h1>
             <p className="text-sm sm:text-base text-gray-500">
               {t('expenses.subtitle', { count: expenseItems.length })}
@@ -93,6 +118,29 @@ function ExpensesView() {
           </div>
         </div>
       </div>
+
+      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        {t('expenses.notCosts')}{' '}
+        <Link href="/admin/finance" className="underline font-medium">/admin/finance</Link>
+      </div>
+
+      {expenseItems.length > 0 && (
+        <div className="mb-6 flex flex-wrap gap-2 text-sm">
+          {(['giveaway', 'personal', 'writeoff'] as const).map((r) => (
+            <span key={r} className={`px-2.5 py-1 rounded-full font-medium ${REASON_TONE[r]}`}>
+              {t(REASON_LABEL[r])}: {byReason[r]}
+            </span>
+          ))}
+          {byReason.legacy > 0 && (
+            <span
+              className={`px-2.5 py-1 rounded-full font-medium ${REASON_TONE.legacy}`}
+              title={t('expenses.legacyHint')}
+            >
+              {t('expenses.legacyReason')}: {byReason.legacy}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Expense Items */}
       {loading ? (
@@ -157,8 +205,15 @@ function ExpensesView() {
                     </div>
 
                     <div className="text-right shrink-0">
-                      <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-                        {t('expenses.expense')}
+                      <span
+                        className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium ${
+                          REASON_TONE[item.soldItem.reason ?? 'legacy']
+                        }`}
+                        title={item.soldItem.reason ? undefined : t('expenses.legacyHint')}
+                      >
+                        {item.soldItem.reason
+                          ? t(REASON_LABEL[item.soldItem.reason])
+                          : t('expenses.legacyReason')}
                       </span>
                     </div>
                   </Link>
