@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useProducts } from '@/hooks/useProducts';
+import { usePublicProducts } from '@/hooks/useProducts';
 import { useMemo } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 
 export default function CategoriesPage() {
-  const { products, loading } = useProducts();
+  const { products, loading } = usePublicProducts();
   const { t } = useTranslation();
 
   const categoryCounts = useMemo(() => {

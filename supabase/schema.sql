@@ -91,9 +91,8 @@ drop policy if exists "products: public read"         on public.products;
 drop policy if exists "products: authenticated write" on public.products;
 drop policy if exists "orders: authenticated all"     on public.orders;
 
-create policy "products: public read"
-  on public.products for select
-  using (true);
+-- No "public read" on products any more (migration 007, Task 8.1): the anon key
+-- reads the view products_public, never the table with its purchase prices.
 
 create policy "products: authenticated write"
   on public.products for all

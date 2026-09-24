@@ -28,6 +28,7 @@ const CHECKS: Array<{ migration: string; label: string; table: string; column: s
   { migration: '006', label: 'исход на нарачка (outcome)',        table: 'orders',              column: 'outcome' },
   { migration: '006', label: 'marketing_optout',                  table: 'marketing_optout',    column: 'phone_norm' },
   { migration: '006', label: 'no_reorder на products',            table: 'products',            column: 'no_reorder' },
+  { migration: '007', label: 'products_public (јавен поглед)',    table: 'products_public',     column: 'sizes' },
 ];
 
 async function probe(sb: SupabaseClient, table: string, column: string) {
@@ -56,6 +57,21 @@ async function main() {
     );
   }
 
+  // 007 is about what anon can NOT do, which the service role cannot see.
+  // Probe with the key that ships in the storefront: it must not reach the
+  // purchase price.
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (anonKey) {
+    const anon = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data, error } = await anon.from('products').select('purchase_price').limit(1);
+    const leaks = !error && (data?.length ?? 0) > 0;
+    if (leaks) {
+      missing += 1;
+      missingMigrations.add('007');
+    }
+    console.log('  ' + (leaks ? 'НЕМА' : 'ИМА ') + '  007  ' + 'anon не ја чита набавната цена'.padEnd(34) +
+      (leaks ? '· јавниот клуч сè уште чита products' : ''));
+  }
   console.log('');
   if (missing === 0) {
     console.log('Сите миграции се пуштени.');

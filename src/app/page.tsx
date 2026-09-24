@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useProducts } from '@/hooks/useProducts';
+import { usePublicProducts } from '@/hooks/useProducts';
 import HomeCategoriesSection from '@/components/HomeCategoriesSection';
 import HomeBenefitsSection from '@/components/HomeBenefitsSection';
 import NewProductsSection from '@/components/NewProductsSection';
@@ -9,7 +9,7 @@ import { useTranslation } from '@/lib/i18n';
 
 export default function Home() {
   const { t } = useTranslation();
-  const { products, loading, error } = useProducts();
+  const { products, loading, error } = usePublicProducts();
 
   // Get 12 newest available products (already sorted by createdAt desc from hook)
   const newProducts = useMemo(() => {

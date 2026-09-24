@@ -27,6 +27,76 @@ function enrichWithLocalImages(product: Product, imageMap: Record<string, string
   return product;
 }
 
+/**
+ * The storefront's only way to read products (Task 8.1, migration 007).
+ *
+ * `products_public` carries the customer-facing columns of the products a
+ * customer may see; the table itself, with purchase prices and every sale, is
+ * closed to the anon key. Admin screens keep reading the table.
+ *
+ * Until migration 007 has run the view does not exist, and the storefront falls
+ * back to the table rather than going blank — it is read the old way, leak and
+ * all, for exactly as long as the migration waits.
+ */
+export const PUBLIC_PRODUCTS = 'products_public';
+
+function isMissingRelation(err: { code?: string; message?: string } | null): boolean {
+  if (!err) return false;
+  return err.code === '42P01' || err.code === 'PGRST205' || /does not exist|schema cache/i.test(err.message ?? '');
+}
+
+async function readPublicProducts(category?: string) {
+  const run = (table: string) => {
+    let q = supabase.from(table).select('*').order('created_at', { ascending: false });
+    if (category) q = q.eq('category', category);
+    return q;
+  };
+  const res = await run(PUBLIC_PRODUCTS);
+  return isMissingRelation(res.error) ? run('products') : res;
+}
+
+/**
+ * Everything the storefront lists. Same rule as the server pages: visible and
+ * with at least one unit on a size — the view already applies it, this also
+ * covers the fallback.
+ */
+function isShoppable(p: Product): boolean {
+  return p.isVisible !== false && (p.sizes ?? []).some((s) => s.quantity >= 1);
+}
+
+export function usePublicProducts(category?: string) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const [{ data, error: dbError }, imageMap] = await Promise.all([
+          readPublicProducts(category),
+          fetchImageMap(),
+        ]);
+        if (dbError) throw dbError;
+        const fetched = ((data as ProductRow[] | null) ?? [])
+          .map(rowToProduct)
+          .filter(isShoppable)
+          .map((p) => enrichWithLocalImages(p, imageMap));
+        if (!cancelled) { setProducts(fetched); setError(null); }
+      } catch (err) {
+        if (!cancelled) setError('Failed to fetch products');
+        console.error(err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [category]);
+
+  return { products, loading, error };
+}
+
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,49 +173,9 @@ export function useProduct(id: string) {
   return { product, loading, error };
 }
 
+/** Products in one category, for the storefront (related products). */
 export function useProductsByCategory(category: string) {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        let query = supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (category) {
-          query = query.eq('category', category);
-        }
-
-        const [{ data, error: dbError }, imageMap] = await Promise.all([
-          query,
-          fetchImageMap(),
-        ]);
-
-        if (dbError) throw dbError;
-
-        const fetched = ((data as ProductRow[] | null) ?? [])
-          .map(rowToProduct)
-          .map((p) => enrichWithLocalImages(p, imageMap));
-
-        setProducts(fetched);
-        setError(null);
-      } catch (err) {
-        setError('Failed to fetch products');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, [category]);
-
-  return { products, loading, error };
+  return usePublicProducts(category);
 }
 
 // ---------------------------------------------------------------------------
@@ -220,9 +250,9 @@ export function useCategories() {
     const fetchCategories = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('products')
-          .select('category, is_visible, stock');
+        const read = (table: string) => supabase.from(table).select('category, is_visible, stock');
+        let { data, error } = await read(PUBLIC_PRODUCTS);
+        if (isMissingRelation(error)) ({ data, error } = await read('products'));
 
         if (error) throw error;
 
