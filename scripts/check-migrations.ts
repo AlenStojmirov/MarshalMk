@@ -13,6 +13,8 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 /** A table probe: select a column that only exists once the migration ran. */
 const CHECKS: Array<{ migration: string; label: string; table: string; column: string }> = [
@@ -23,6 +25,9 @@ const CHECKS: Array<{ migration: string; label: string; table: string; column: s
   { migration: '004', label: 'first_received_at на products',     table: 'products',            column: 'first_received_at' },
   { migration: '005', label: 'first_received_estimated',          table: 'products',            column: 'first_received_estimated' },
   { migration: '005', label: 'inventory_snapshots',               table: 'inventory_snapshots', column: 'cost_value' },
+  { migration: '006', label: 'исход на нарачка (outcome)',        table: 'orders',              column: 'outcome' },
+  { migration: '006', label: 'marketing_optout',                  table: 'marketing_optout',    column: 'phone_norm' },
+  { migration: '006', label: 'no_reorder на products',            table: 'products',            column: 'no_reorder' },
 ];
 
 async function probe(sb: SupabaseClient, table: string, column: string) {
@@ -37,10 +42,14 @@ async function main() {
   const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 
   let missing = 0;
+  const missingMigrations = new Set<string>();
   console.log('МИГРАЦИИ');
   for (const c of CHECKS) {
     const err = await probe(sb, c.table, c.column);
-    if (err) missing += 1;
+    if (err) {
+      missing += 1;
+      missingMigrations.add(c.migration);
+    }
     console.log(
       '  ' + (err ? 'НЕМА' : 'ИМА ') + '  ' + c.migration + '  ' + c.label.padEnd(34) +
       (err ? '· ' + err.split('.')[0] : '')
@@ -52,7 +61,13 @@ async function main() {
     console.log('Сите миграции се пуштени.');
   } else {
     console.log(missing + ' проверки не поминаа.');
-    console.log('Пушти supabase/migrations/RUN_ALL_PENDING.sql во Supabase SQL Editor.');
+    // Name the actual files: the message used to point at a RUN_ALL_PENDING.sql
+    // that never existed.
+    const files = readdirSync(join(process.cwd(), 'supabase', 'migrations'))
+      .filter((f) => [...missingMigrations].some((m) => f.startsWith(m + '_')))
+      .sort();
+    console.log('Пушти ги во Supabase SQL Editor, по ред:');
+    for (const f of files) console.log('  supabase/migrations/' + f);
   }
 }
 

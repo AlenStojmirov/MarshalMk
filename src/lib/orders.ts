@@ -7,7 +7,7 @@ import { previewCorrection } from './order-math';
 
 export { previewCorrection } from './order-math';
 export type { CorrectionPreview, CorrectionLine } from './order-math';
-import { Order, OrderStatus, CustomerInfo, OrderItem } from '@/types';
+import { Order, OrderOutcome, OrderStatus, CustomerInfo, OrderItem } from '@/types';
 
 const ORDERS_TABLE = 'orders';
 
@@ -142,6 +142,40 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
 
   const { error } = await supabase.from(ORDERS_TABLE).update({ status }).eq('id', id);
   if (error) throw error;
+}
+
+/**
+ * Record how an order ended (Task 0.5).
+ *
+ * `delivered` closes it as paid. The three negative outcomes — refused at the
+ * door, returned after delivery, never collected from the shop — all mean the
+ * goods came back and no money did, so they go through the cancellation path:
+ * stock back on the shelf, the sale out of sold[] and the ledger. Revenue then
+ * only ever counts orders that were actually paid for, and nothing needs to
+ * special-case the outcome to get that right.
+ *
+ * Needs migration 006. Without it the write fails and says so, rather than
+ * cancelling the order and losing the reason.
+ */
+export async function recordOrderOutcome(id: string, outcome: OrderOutcome): Promise<void> {
+  const order = await getOrderById(id);
+  if (!order) throw new Error('Order not found');
+
+  // Write the outcome first. If the column is missing, nothing else happens —
+  // cancelling without recording why would make the refusal rate lie.
+  const { error: outcomeErr } = await supabase
+    .from(ORDERS_TABLE)
+    .update({ outcome, outcome_at: new Date().toISOString() })
+    .eq('id', id);
+  if (outcomeErr) {
+    throw new Error(
+      /outcome/.test(outcomeErr.message)
+        ? 'Недостасува миграцијата 006 (исход на нарачка). Пушти ја во Supabase SQL Editor.'
+        : outcomeErr.message
+    );
+  }
+
+  await updateOrderStatus(id, outcome === 'delivered' ? 'delivered' : 'cancelled');
 }
 
 /**

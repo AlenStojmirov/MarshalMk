@@ -1,4 +1,4 @@
-import { Order, OrderItem, OrderStatus, Product, ProductFormData, ProductSize, SaleInfo, SoldItem, CustomerInfo } from '@/types';
+import { Order, OrderItem, OrderOutcome, OrderStatus, Product, ProductFormData, ProductSize, SaleInfo, SoldItem, CustomerInfo } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Product row (DB) <-> Product (app)
@@ -23,6 +23,8 @@ export interface ProductRow {
   first_received_at: string | null;
   first_received_estimated: boolean | null;
   supplier_id: string | null;
+  /** Absent until migration 006 has run. */
+  no_reorder?: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -51,6 +53,7 @@ export function rowToProduct(row: ProductRow): Product {
     firstReceivedAt: row.first_received_at ? new Date(row.first_received_at) : undefined,
     firstReceivedEstimated: row.first_received_estimated ?? undefined,
     supplierId: row.supplier_id ?? undefined,
+    noReorder: row.no_reorder === true,
     createdAt: row.created_at ? new Date(row.created_at) : new Date(),
     updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
   };
@@ -80,6 +83,7 @@ export function productToRow(
   if (data.featured !== undefined) out.featured = data.featured;
   if (data.isVisible !== undefined) out.is_visible = data.isVisible;
   if (data.sale !== undefined) out.sale = data.sale ?? null;
+  if (data.noReorder !== undefined) out.no_reorder = data.noReorder;
   // firstReceivedAt is written at receiving, never through the product form.
   return out;
 }
@@ -99,6 +103,9 @@ export interface OrderRow {
   payment_method: 'cash_on_delivery';
   created_at: string;
   updated_at: string;
+  /** Absent until migration 006 has run — read as "still open". */
+  outcome?: OrderOutcome | null;
+  outcome_at?: string | null;
 }
 
 export function rowToOrder(row: OrderRow): Order {
@@ -114,5 +121,7 @@ export function rowToOrder(row: OrderRow): Order {
     paymentMethod: row.payment_method,
     createdAt: row.created_at ? new Date(row.created_at) : new Date(),
     updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
+    outcome: row.outcome ?? undefined,
+    outcomeAt: row.outcome_at ? new Date(row.outcome_at) : undefined,
   };
 }

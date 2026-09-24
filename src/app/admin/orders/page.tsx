@@ -7,10 +7,11 @@ import { useAuth } from '@/context/AuthContext';
 import {
   getOrders,
   updateOrderStatus,
+  recordOrderOutcome,
   previewCorrection,
   correctOrderCollected,
 } from '@/lib/orders';
-import { Order, OrderStatus } from '@/types';
+import { Order, OrderOutcome, OrderStatus } from '@/types';
 import { useTranslation } from '@/lib/i18n';
 import {
   ArrowLeft,
@@ -95,6 +96,38 @@ function OrderCard({
     setUpdating(true);
     try {
       await onStatusChange(order.id, newStatus);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // The outcome is how the order ended, not where it is — see recordOrderOutcome.
+  const isPickupOrder = order.customer.deliveryMethod === 'pickup';
+  const outcomeChoices: Array<{ value: OrderOutcome; key: string; good: boolean }> = isPickupOrder
+    ? [
+        { value: 'delivered', key: 'orders.outcomeCollected', good: true },
+        { value: 'not_collected', key: 'orders.outcomeNotCollected', good: false },
+      ]
+    : [
+        { value: 'delivered', key: 'orders.outcomeDelivered', good: true },
+        { value: 'refused', key: 'orders.outcomeRefused', good: false },
+        { value: 'returned', key: 'orders.outcomeReturned', good: false },
+      ];
+  const outcomeLabel = (o: OrderOutcome) =>
+    o === 'delivered'
+      ? t(isPickupOrder ? 'orders.outcomeCollected' : 'orders.outcomeDelivered')
+      : o === 'refused' ? t('orders.outcomeRefused')
+      : o === 'returned' ? t('orders.outcomeReturned')
+      : t('orders.outcomeNotCollected');
+
+  const handleOutcome = async (outcome: OrderOutcome, good: boolean) => {
+    if (!good && !confirm(t('orders.outcomeConfirmNegative'))) return;
+    setUpdating(true);
+    try {
+      await recordOrderOutcome(order.id, outcome);
+      onCorrected();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
     } finally {
       setUpdating(false);
     }
@@ -226,6 +259,39 @@ function OrderCard({
               {updating && (
                 <p className="mt-2 text-xs sm:text-sm text-gray-500">{t('orders.updating')}</p>
               )}
+
+              <h4 className="font-medium text-gray-900 mt-4 mb-2 text-sm sm:text-base">{t('orders.outcome')}</h4>
+              {order.outcome ? (
+                <p className={`text-sm font-medium ${order.outcome === 'delivered' ? 'text-green-700' : 'text-red-700'}`}>
+                  {outcomeLabel(order.outcome)}
+                  {order.outcomeAt && (
+                    <span className="ml-1 text-xs font-normal text-gray-400">
+                      {order.outcomeAt.toLocaleDateString('mk-MK')}
+                    </span>
+                  )}
+                </p>
+              ) : order.status === 'cancelled' ? (
+                <p className="text-sm text-gray-400">—</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {outcomeChoices.map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      disabled={updating}
+                      onClick={() => handleOutcome(c.value, c.good)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border disabled:opacity-50 ${
+                        c.good
+                          ? 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100'
+                          : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
+                      }`}
+                    >
+                      {t(c.key)}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <p className="mt-1 text-[11px] text-gray-400">{t('orders.outcomeHint')}</p>
             </div>
           </div>
 

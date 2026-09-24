@@ -20,7 +20,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Product } from '@/types';
+import { Order, Product } from '@/types';
+import { getOrders } from '@/lib/orders';
 import { getEffectivePrice, isOnSale } from '@/lib/pricing';
 import { Expense, expensesForPeriod, getExpenses, periodLabel } from '@/lib/expenses';
 import { monthOf, phaseForSeason, seasonOf, suggestedMarkdown } from '@/lib/seasons';
@@ -84,12 +85,15 @@ export default function DashboardSummary({
   onShowLeak?: () => void;
 }) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [now] = useState(() => Date.now());
 
   useEffect(() => {
     // Expenses are optional: the table may not exist yet, and the month simply
     // shows gross until costs are entered.
     getExpenses().then(setExpenses).catch(() => setExpenses([]));
+    // Orders only split the month by channel; without them it is all one figure.
+    getOrders().then(setOrders).catch(() => setOrders([]));
   }, []);
 
   const model = useMemo(() => {
@@ -105,6 +109,8 @@ export default function DashboardSummary({
 
     let todayUnits = 0;
     let todayRevenue = 0;
+    // Revenue per day for the last week, for the sparkline.
+    const daily = new Map<string, number>();
     const month = { units: 0, revenue: 0, cogs: 0, costed: 0 };
     const prev = { units: 0, revenue: 0, cogs: 0, costed: 0 };
 
@@ -161,6 +167,7 @@ export default function DashboardSummary({
         const key = raw.slice(0, 7);
 
         if (day === todayKey) { todayUnits += 1; todayRevenue += price; }
+        if (t >= now - 7 * DAY) daily.set(day, (daily.get(day) ?? 0) + price);
 
         const bucket = key === thisPeriod ? month : key === lastPeriod ? prev : null;
         if (bucket) {
@@ -323,8 +330,25 @@ export default function DashboardSummary({
 
     alerts.sort((a, b) => b.weight - a.weight);
 
+    // The last seven days, oldest first, zero for a day with no sales.
+    const week = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now - (6 - i) * DAY);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return { key, revenue: daily.get(key) ?? 0 };
+    });
+
+    // Online revenue this month. Online orders write sold[] too (D-009), so the
+    // month total already contains them — the shop's share is what is left.
+    // Only orders that were paid or are still under way count; a refused,
+    // returned or uncollected one has already been taken out of sold[].
+    const online = orders
+      .filter((o) => periodOf(o.createdAt) === thisPeriod && o.status !== 'cancelled')
+      .reduce((a, o) => a + o.subtotal, 0);
+
     return {
       todayUnits, todayRevenue,
+      week,
+      online,
       thisPeriod, lastPeriod,
       month: { ...month, cogs: monthCogs, gross: monthGross },
       prev: { ...prev, cogs: prevCogs, gross: prevGross },
@@ -334,7 +358,7 @@ export default function DashboardSummary({
       alerts: alerts.slice(0, MAX_ALERTS),
       alertsHidden: Math.max(0, alerts.length - MAX_ALERTS),
     };
-  }, [products, expenses, now]);
+  }, [products, expenses, orders, now]);
 
   const delta = (cur: number, before: number) =>
     before > 0 ? ((cur - before) / before) * 100 : null;
@@ -353,10 +377,18 @@ export default function DashboardSummary({
       <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm">
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="font-bold text-slate-800">{periodLabel(model.thisPeriod)}</h2>
-          <span className="text-xs text-slate-400 tabular-nums">
+          <span className="text-xs text-slate-400 tabular-nums flex items-center gap-2">
+            <Sparkline days={model.week} />
             денес: {model.todayUnits} парч. · {fmt(model.todayRevenue)} ден.
           </span>
         </div>
+        {model.month.revenue > 0 && (
+          <p className="text-[11px] text-slate-500 mb-3 tabular-nums">
+            Дуќан <strong className="text-slate-700">{fmt(Math.max(0, model.month.revenue - model.online))}</strong>
+            {' · '}Online <strong className="text-slate-700">{fmt(model.online)}</strong>
+            {' '}({((model.online / model.month.revenue) * 100).toFixed(0)}%)
+          </p>
+        )}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Tile
@@ -460,6 +492,27 @@ export default function DashboardSummary({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Seven days of revenue as seven bars. Small on purpose: it answers "is this
+ * week normal" at a glance and nothing more — the numbers are in /admin/finance.
+ */
+function Sparkline({ days }: { days: Array<{ key: string; revenue: number }> }) {
+  const max = Math.max(1, ...days.map((d) => d.revenue));
+  return (
+    <svg width={7 * 6} height={16} aria-label="Приход последни 7 дена" className="shrink-0">
+      {days.map((d, i) => {
+        const h = Math.max(1, Math.round((d.revenue / max) * 16));
+        return (
+          <rect key={d.key} x={i * 6} y={16 - h} width={4} height={h} rx={1}
+            className={i === days.length - 1 ? 'fill-blue-500' : 'fill-slate-300'}>
+            <title>{`${d.key}: ${Math.round(d.revenue).toLocaleString('mk-MK')} ден.`}</title>
+          </rect>
+        );
+      })}
+    </svg>
   );
 }
 

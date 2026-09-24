@@ -33,7 +33,7 @@ import {
   periodLabel,
   periodsSince,
 } from '@/lib/expenses';
-import { ArrowLeft, Plus, Trash2, TrendingDown, TrendingUp, AlertTriangle, Wallet } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, TrendingDown, TrendingUp, AlertTriangle, Wallet, Download } from 'lucide-react';
 
 const START_PERIOD = '2025-01';
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
@@ -50,6 +50,8 @@ interface MonthRow {
   fromMonthlyTotal: boolean;
   conflict: boolean;
   net: number;
+  /** Revenue in the same month a year earlier, or null when that month is before the data. */
+  lastYearRevenue: number | null;
 }
 
 function FinanceView() {
@@ -126,9 +128,39 @@ function FinanceView() {
         fromMonthlyTotal: e.fromMonthlyTotal,
         conflict: e.conflict,
         net: gross - e.total,
+        lastYearRevenue: (() => {
+          // Same month last year — the only comparison that is not distorted by
+          // the season. January against December says nothing; January against
+          // January says whether the business moved.
+          const [y, mo] = period.split('-').map(Number);
+          const prev = `${y - 1}-${String(mo).padStart(2, '0')}`;
+          // Sales history runs back further than the expenses table does, so a
+          // month with no costs entered can still be compared on revenue.
+          return byPeriod.has(prev) ? byPeriod.get(prev)!.revenue : null;
+        })(),
       };
     });
   }, [products, expenses]);
+
+  // For the accountant, or a spreadsheet: every month as the table shows it.
+  const downloadCsv = () => {
+    const header = ['месец', 'парчиња', 'приход', 'приход_лани', 'набавна', 'бруто', 'маржа_%',
+      'трошоци', 'трошоци_внесени', 'резултат'];
+    const rows = months.map((m) => [
+      m.period, m.units, Math.round(m.revenue), m.lastYearRevenue === null ? '' : Math.round(m.lastYearRevenue),
+      Math.round(m.cogs), Math.round(m.gross),
+      m.revenue > 0 ? ((m.gross / m.revenue) * 100).toFixed(1) : '',
+      Math.round(m.expenses), m.expensesKnown ? 'да' : 'не', Math.round(m.net),
+    ].join(','));
+    // BOM so Excel reads the Cyrillic header correctly.
+    const blob = new Blob(['\uFEFF' + [header.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `finansii-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const withExpenses = months.filter((m) => m.expensesKnown);
   const ytd = months.filter((m) => m.period.startsWith(String(new Date().getFullYear())));
@@ -287,11 +319,23 @@ function FinanceView() {
 
         {/* months */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-2 border-b border-slate-200 flex items-center">
+            <p className="text-[11px] text-slate-500">
+              „Лани“ е истиот месец минатата година — единствената споредба што сезоната не ја искривува.
+            </p>
+            <button
+              onClick={downloadCsv}
+              className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Download className="h-3.5 w-3.5" />
+              CSV
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {['Месец', 'Парчиња', 'Приход', 'Набавна', 'Бруто', 'Маржа', 'Трошоци', 'Резултат'].map((h, i) => (
+                  {['Месец', 'Парчиња', 'Приход', 'Лани', 'Набавна', 'Бруто', 'Маржа', 'Трошоци', 'Резултат'].map((h, i) => (
                     <th
                       key={h}
                       className={`px-3 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'}`}
@@ -320,6 +364,16 @@ function FinanceView() {
                         </td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-slate-500">{m.units || '—'}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-slate-700">{m.revenue ? fmt(m.revenue) : '—'}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-xs">
+                          {m.lastYearRevenue === null || m.lastYearRevenue === 0 ? (
+                            <span className="text-slate-300">—</span>
+                          ) : (
+                            <span className={m.revenue >= m.lastYearRevenue ? 'text-green-700' : 'text-red-700'}>
+                              {m.revenue >= m.lastYearRevenue ? '+' : '−'}
+                              {Math.abs(Math.round(((m.revenue - m.lastYearRevenue) / m.lastYearRevenue) * 100))}%
+                            </span>
+                          )}
+                        </td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-slate-500">{m.cogs ? fmt(m.cogs) : '—'}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-slate-700">{m.gross ? fmt(m.gross) : '—'}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-slate-500">
@@ -344,7 +398,7 @@ function FinanceView() {
                       </tr>
                       {expanded && (
                         <tr className="bg-slate-50/60">
-                          <td colSpan={8} className="px-3 py-3">
+                          <td colSpan={9} className="px-3 py-3">
                             {m.conflict && (
                               <p className="text-xs text-amber-800 mb-2">
                                 Овој месец има и вкупна сума и поединечни ставки. Се брои вкупната —

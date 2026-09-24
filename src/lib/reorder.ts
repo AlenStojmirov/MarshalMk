@@ -165,6 +165,9 @@ export function planReorder(products: Product[], opts: ReorderOptions = {}): Reo
   const lines: ReorderLine[] = [];
 
   for (const p of products) {
+    // The owner's word overrides the sales history: a line the supplier dropped
+    // or a style that has passed can still look like a winner on paper.
+    if (p.noReorder) continue;
     const m = velocityOf(p, now, month);
     if (!isDecidable(m)) continue;
     if (m.klass !== 'soldout' && m.klass !== 'winner') continue;

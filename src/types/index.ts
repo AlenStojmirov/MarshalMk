@@ -51,6 +51,8 @@ export interface Product {
   /** True when firstReceivedAt was inferred, not recorded — such ages are lower bounds. */
   firstReceivedEstimated?: boolean;
   supplierId?: string;
+  /** Owner's call: never suggest this in the reorder plan (migration 006). */
+  noReorder?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -101,6 +103,12 @@ export interface OrderItem {
 
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
+/**
+ * How an order ended (Task 0.5, migration 006). Separate from status: status is
+ * where the order is in the workflow, outcome is whether it was paid for.
+ */
+export type OrderOutcome = 'delivered' | 'refused' | 'returned' | 'not_collected';
+
 export interface Order {
   id: string;
   orderNumber: string;
@@ -113,6 +121,9 @@ export interface Order {
   paymentMethod: 'cash_on_delivery';
   createdAt: Date;
   updatedAt: Date;
+  /** Null while the order is still open, and on every order before migration 006. */
+  outcome?: OrderOutcome;
+  outcomeAt?: Date;
 }
 
 export interface PaginatedResult {

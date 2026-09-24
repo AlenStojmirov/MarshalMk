@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { useProduct, deleteProduct } from '@/hooks/useProducts';
+import { useProduct, deleteProduct, updateProduct } from '@/hooks/useProducts';
 import { NonSaleReason, Product } from '@/types';
 import { recordProductSale, refundProductSale } from '@/hooks/useInStoreSales';
 import { NON_SALE_REASONS } from '@/lib/sales-ledger';
@@ -50,6 +50,21 @@ function ProductDetailView() {
       setSellForm((f) => (f.price ? f : { ...f, price: String(getEffectivePrice(product)) }));
     }
   }, [product]);
+
+  const toggleNoReorder = async () => {
+    if (!localProduct) return;
+    const next = !localProduct.noReorder;
+    try {
+      // Only this one field is written: nothing here may touch stock (D-013).
+      await updateProduct(localProduct.id, { noReorder: next });
+      setLocalProduct({ ...localProduct, noReorder: next });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(/no_reorder/.test(msg)
+        ? 'Недостасува миграцијата 006. Пушти ја во Supabase SQL Editor.'
+        : msg);
+    }
+  };
 
   const handleDelete = async () => {
     if (window.confirm(t('productDetail.confirmDelete'))) {
@@ -308,6 +323,20 @@ function ProductDetailView() {
             <p className="text-red-500 text-xs sm:text-sm mt-2">{t('productDetail.noStockToSell')}</p>
           )}
         </div>
+
+        {/* Owner override for the reorder plan */}
+        <label className="mb-4 sm:mb-6 flex items-start gap-2 p-3 rounded-lg border border-slate-200 bg-white cursor-pointer">
+          <input
+            type="checkbox"
+            checked={localProduct.noReorder === true}
+            onChange={toggleNoReorder}
+            className="h-4 w-4 mt-0.5 rounded border-gray-300"
+          />
+          <span>
+            <span className="block text-sm font-medium text-gray-800">{t('productDetail.noReorder')}</span>
+            <span className="block text-xs text-gray-500">{t('productDetail.noReorderHint')}</span>
+          </span>
+        </label>
 
         {/* Sold items */}
         <div className="mb-4 sm:mb-6">
