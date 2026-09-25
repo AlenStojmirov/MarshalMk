@@ -1,44 +1,59 @@
 import type { User } from '@supabase/supabase-js';
 
 /**
- * Who may see what in the admin (Task 8.2).
+ * Who may see what (Task 8.2, D-017).
  *
- * `admin` is the owner: every screen, every number. `staff` works the shop
- * floor: stock, products, the sales of their shift, online orders — and no
- * statistics, costs or totals.
+ * The admin area has two roles today: `admin` (the owner — every screen, every
+ * number) and `staff` (the shop floor — stock, products, the sales of their
+ * shift, online orders; no statistics, costs or totals). More are coming —
+ * customers who sign in to see their own orders, and others — so a role is a
+ * key into ROLE_PATHS, not a yes/no "is admin".
  *
  * The role lives in `app_metadata.role`, which only the service-role key can
- * write (`npm run user:role`), so a user cannot give themselves a role by
- * editing their own profile. It rides inside the JWT, which is what lets the
- * database enforce it too (Task 8.4). This file is the screen side only: it
- * decides what is shown, not what the database will allow.
+ * write (`npm run user:role`), so nobody grants themselves one. It rides inside
+ * the JWT, which lets the database enforce it too (Task 8.4). This file is the
+ * screen side: it decides what is shown, not what the database allows.
  */
-export type Role = 'admin' | 'staff';
-
-/**
- * A user without a role is staff. The safe default: forgetting to set a role
- * gives someone too little, never too much.
- */
-export function roleOf(user: User | null | undefined): Role | null {
-  if (!user) return null;
-  return user.app_metadata?.role === 'admin' ? 'admin' : 'staff';
-}
-
-/**
- * The screens staff may open — everything else is admin-only. An allowlist on
- * purpose: a new admin page is closed to staff until someone adds it here.
- * `/admin/product` covers `/admin/product/{id}`.
- */
-export const STAFF_PATHS = ['/admin', '/admin/orders', '/admin/in-store-sales', '/admin/product'] as const;
-
-export function canAccess(role: Role | null, pathname: string): boolean {
-  if (role === 'admin') return true;
-  if (role !== 'staff') return false;
-  const path = pathname.replace(/\/+$/, '') || '/';
-  return STAFF_PATHS.some((p) => (p === '/admin' ? path === p : path === p || path.startsWith(p + '/')));
-}
+export const ROLES = ['admin', 'staff', 'customer'] as const;
+export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABEL: Record<Role, string> = {
   admin: 'Админ',
   staff: 'Магацин',
+  customer: 'Купувач',
 };
+
+/**
+ * The admin screens each role may open. `'*'` is all of them. An allowlist on
+ * purpose: a new admin page is closed to everyone but the admin until someone
+ * adds it here. `/admin/product` covers `/admin/product/{id}`.
+ */
+const ROLE_PATHS: Record<Role, '*' | readonly string[]> = {
+  admin: '*',
+  staff: ['/admin', '/admin/orders', '/admin/in-store-sales', '/admin/product'],
+  // Customer accounts will live outside /admin entirely.
+  customer: [],
+};
+
+/**
+ * The role a user holds, or null. A signed-in user without a known role gets
+ * nothing: sign-up is open in Supabase, and anyone who creates an account must
+ * land with no access at all — never as staff.
+ */
+export function roleOf(user: User | null | undefined): Role | null {
+  const r = user?.app_metadata?.role;
+  return typeof r === 'string' && (ROLES as readonly string[]).includes(r) ? (r as Role) : null;
+}
+
+export function canAccess(role: Role | null, pathname: string): boolean {
+  if (!role) return false;
+  const allowed = ROLE_PATHS[role];
+  if (allowed === '*') return true;
+  const path = pathname.replace(/\/+$/, '') || '/';
+  return allowed.some((p) => (p === '/admin' ? path === p : path === p || path.startsWith(p + '/')));
+}
+
+/** May this role enter the admin area at all? */
+export function isBackOffice(role: Role | null): boolean {
+  return canAccess(role, '/admin');
+}

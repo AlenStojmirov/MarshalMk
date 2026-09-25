@@ -7,6 +7,9 @@
  *   npm run user:role                     list users and their roles
  *   npm run user:role <email> admin       make someone the owner
  *   npm run user:role <email> staff       warehouse: no statistics, no costs
+ *   npm run user:role <email> none        take the role away: no access
+ *
+ * A user without a role has no access to the admin at all (D-017).
  *
  * The change reaches the app at the user's next sign-in.
  */
@@ -15,7 +18,7 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 import { createClient } from '@supabase/supabase-js';
-import { roleOf, ROLE_LABEL, Role } from '../src/lib/roles';
+import { roleOf, ROLE_LABEL, ROLES, Role } from '../src/lib/roles';
 
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -31,19 +34,20 @@ async function main() {
   if (!email) {
     console.log('КОРИСНИЦИ');
     for (const u of users) {
-      const r = roleOf(u)!;
-      const explicit = u.app_metadata?.role ? '' : '  (без улога → ' + ROLE_LABEL[r] + ')';
-      console.log('  ' + (u.email ?? u.id).padEnd(36) + ROLE_LABEL[r] + explicit);
+      const r = roleOf(u);
+      console.log('  ' + (u.email ?? u.id).padEnd(36) + (r ? ROLE_LABEL[r] : '— без улога, нема пристап'));
     }
     return;
   }
 
-  if (wanted !== 'admin' && wanted !== 'staff') throw new Error('Улогата е admin или staff.');
-  const role: Role = wanted;
+  if (wanted !== 'none' && !(ROLES as readonly string[]).includes(wanted)) {
+    throw new Error('Улогата е една од: ' + ROLES.join(', ') + ', none.');
+  }
+  const role: Role | null = wanted === 'none' ? null : (wanted as Role);
   const user = users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
   if (!user) throw new Error('Нема корисник со е-пошта ' + email);
 
-  if (role === 'staff' && roleOf(user) === 'admin') {
+  if (role !== 'admin' && roleOf(user) === 'admin') {
     const admins = users.filter((u) => roleOf(u) === 'admin');
     if (admins.length === 1) throw new Error('Ова е единствениот админ — прво направи друг админ.');
   }
@@ -52,7 +56,7 @@ async function main() {
     app_metadata: { ...user.app_metadata, role },
   });
   if (upErr) throw upErr;
-  console.log(email + ' → ' + ROLE_LABEL[role] + '. Важи од следната најава.');
+  console.log(email + ' → ' + (role ? ROLE_LABEL[role] : 'без улога') + '. Важи од следното отворање на админот.');
 }
 
 main()

@@ -23,13 +23,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Initial session lookup
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      // The stored session carries the role it was issued with. Refresh once
+      // on load, so a role set with `npm run user:role` applies on the next
+      // visit instead of after the token expires — or after a sign-out that
+      // nobody thinks to do. A refresh that fails leaves the stored session.
+      const { data: fresh } = await supabase.auth.refreshSession();
+      setUser(fresh.session?.user ?? data.session.user);
       setLoading(false);
     });
 
     // Subscribe to auth state changes (login, logout, token refresh)
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
+      // The first session is handled above, after the refresh — taking it here
+      // would show the stale role for a moment.
+      if (event === 'INITIAL_SESSION') return;
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -39,8 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Read from the session's JWT, so a role changed with `npm run user:role`
-  // shows after the next sign-in (or token refresh, within the hour).
+  // Read from the session's JWT — refreshed on load, see above.
   const role = roleOf(user);
 
   const signIn = async (email: string, password: string) => {

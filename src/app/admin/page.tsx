@@ -1447,7 +1447,7 @@ function AdminDashboard() {
 }
 
 export default function AdminPage() {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, role, loading } = useAuth();
 
   if (loading) {
     return (
@@ -1462,5 +1462,8 @@ export default function AdminPage() {
   }
 
   // Staff get their own home: this dashboard is margins and totals (8.2).
-  return isAdmin ? <AdminDashboard /> : <StaffHome />;
+  // Any other role never reaches here — AdminGate stops it at the layout.
+  if (role === 'admin') return <AdminDashboard />;
+  if (role === 'staff') return <StaffHome />;
+  return null;
 }
