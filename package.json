@@ -18,7 +18,8 @@
     "snapshot": "tsx scripts/snapshot-inventory.ts",
     "migrations:check": "tsx scripts/check-migrations.ts",
     "orders:shipping": "tsx scripts/backfill-order-shipping.ts",
-    "refresh": "tsx scripts/refresh.ts"
+    "refresh": "tsx scripts/refresh.ts",
+    "user:role": "tsx scripts/set-user-role.ts"
   },
   "dependencies": {
     "@radix-ui/react-slider": "^1.3.6",

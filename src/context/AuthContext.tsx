@@ -3,9 +3,13 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { Role, roleOf } from '@/lib/roles';
 
 interface AuthContextType {
   user: User | null;
+  /** null while signed out. See src/lib/roles.ts. */
+  role: Role | null;
+  isAdmin: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -35,6 +39,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Read from the session's JWT, so a role changed with `npm run user:role`
+  // shows after the next sign-in (or token refresh, within the hour).
+  const role = roleOf(user);
+
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
@@ -46,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, role, isAdmin: role === 'admin', loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

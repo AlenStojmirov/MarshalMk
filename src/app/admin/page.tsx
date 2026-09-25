@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import StaffHome from '@/components/admin/StaffHome';
 import { useProducts, createProduct, updateProduct, deleteProduct, uploadProductImage } from '@/hooks/useProducts';
 import { supabase } from '@/lib/supabase';
 import { applyStockCount } from '@/lib/stock';
@@ -1446,7 +1447,7 @@ function AdminDashboard() {
 }
 
 export default function AdminPage() {
-  const { user, loading } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
 
   if (loading) {
     return (
@@ -1460,5 +1461,6 @@ export default function AdminPage() {
     return <LoginForm />;
   }
 
-  return <AdminDashboard />;
+  // Staff get their own home: this dashboard is margins and totals (8.2).
+  return isAdmin ? <AdminDashboard /> : <StaffHome />;
 }
