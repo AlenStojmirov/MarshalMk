@@ -38,7 +38,7 @@ async function main() {
   const rows: Array<{ id: string; purchase_price: number | string | null }> = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
-      .from('products')
+      .from('products_costed') // cost joined in since migration 008
       .select('id, purchase_price')
       .range(from, from + 999);
     if (error) throw new Error(`Supabase: ${error.message}`);

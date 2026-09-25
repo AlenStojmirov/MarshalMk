@@ -40,6 +40,14 @@ function enrichWithLocalImages(product: Product, imageMap: Record<string, string
  */
 export const PUBLIC_PRODUCTS = 'products_public';
 
+/**
+ * The back office reads products through `products_costed` (migration 008):
+ * the row with the purchase price joined in from `product_costs`. It runs with
+ * the reader's rights, so the admin gets the cost and staff get the same rows
+ * with the cost empty. Before 008 has run it falls back to the table.
+ */
+export const COSTED_PRODUCTS = 'products_costed';
+
 function isMissingRelation(err: { code?: string; message?: string } | null): boolean {
   if (!err) return false;
   return err.code === '42P01' || err.code === 'PGRST205' || /does not exist|schema cache/i.test(err.message ?? '');
@@ -105,13 +113,10 @@ export function useProducts() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const [{ data, error: dbError }, imageMap] = await Promise.all([
-        supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: false }),
-        fetchImageMap(),
-      ]);
+      const read = (table: string) =>
+        supabase.from(table).select('*').order('created_at', { ascending: false });
+      const [first, imageMap] = await Promise.all([read(COSTED_PRODUCTS), fetchImageMap()]);
+      const { data, error: dbError } = isMissingRelation(first.error) ? await read('products') : first;
 
       if (dbError) throw dbError;
 
@@ -145,10 +150,9 @@ export function useProduct(id: string) {
     const fetchProduct = async () => {
       try {
         setLoading(true);
-        const [{ data, error: dbError }, imageMap] = await Promise.all([
-          supabase.from('products').select('*').eq('id', id).maybeSingle(),
-          fetchImageMap(),
-        ]);
+        const read = (table: string) => supabase.from(table).select('*').eq('id', id).maybeSingle();
+        const [first, imageMap] = await Promise.all([read(COSTED_PRODUCTS), fetchImageMap()]);
+        const { data, error: dbError } = isMissingRelation(first.error) ? await read('products') : first;
 
         if (dbError) throw dbError;
 

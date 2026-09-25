@@ -281,10 +281,13 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     const productIds = [...new Set(orderItems.map((i) => i.productId))];
-    const { data: productMeta } = await supabase
-      .from('products')
-      .select('id, name, category, purchase_price')
-      .in('id', productIds);
+    // Read from products_costed: since migration 008 the cost lives in
+    // product_costs and products.purchase_price is always empty. Should the
+    // cost still come back null, the ledger trigger fills it on insert.
+    const readMeta = (table: string) =>
+      supabase.from(table).select('id, name, category, purchase_price').in('id', productIds);
+    let { data: productMeta, error: metaErr } = await readMeta('products_costed');
+    if (metaErr) ({ data: productMeta, error: metaErr } = await readMeta('products'));
     const metaById = new Map(
       ((productMeta ?? []) as Array<{
         id: string;

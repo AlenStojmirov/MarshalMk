@@ -29,6 +29,8 @@ const CHECKS: Array<{ migration: string; label: string; table: string; column: s
   { migration: '006', label: 'marketing_optout',                  table: 'marketing_optout',    column: 'phone_norm' },
   { migration: '006', label: 'no_reorder на products',            table: 'products',            column: 'no_reorder' },
   { migration: '007', label: 'products_public (јавен поглед)',    table: 'products_public',     column: 'sizes' },
+  { migration: '008', label: 'product_costs (набавна, само админ)', table: 'product_costs',      column: 'purchase_price' },
+  { migration: '008', label: 'products_costed (поглед за админ)', table: 'products_costed',     column: 'purchase_price' },
 ];
 
 async function probe(sb: SupabaseClient, table: string, column: string) {

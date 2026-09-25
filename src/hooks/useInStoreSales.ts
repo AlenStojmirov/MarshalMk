@@ -101,6 +101,8 @@ async function appendLedgerRow(
       unitListPrice: product.price,
       // Cost is snapshotted here on purpose: a later change to purchase_price
       // must not silently rewrite the margin on a sale already made.
+      // Staff never have the cost (8.3): null here, and the ledger trigger
+      // (migration 008) fills it from product_costs on insert.
       unitCost: product.purchasePrice ?? null,
       createdBy: data.user?.email ?? null,
       source: 'pos',

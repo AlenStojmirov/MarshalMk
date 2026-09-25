@@ -36,6 +36,8 @@ function ProductDetailView() {
   const router = useRouter();
   const productId = params.id as string;
   const { product, loading, error } = useProduct(productId);
+  // Staff never see what a piece cost, nor decide what gets reordered (8.3).
+  const { isAdmin } = useAuth();
 
   const [localProduct, setLocalProduct] = useState<Product | null>(null);
   const [sellForm, setSellForm] = useState<{ size: string; price: string; reason: NonSaleReason | '' }>(
@@ -183,6 +185,7 @@ function ProductDetailView() {
                 </span>
               ) : null}
             </p>
+            {isAdmin && (
             <p className="text-xs sm:text-sm mt-0.5">
               {marginNow === null ? (
                 <span className="text-slate-400">{t('admin.noCostHint')}</span>
@@ -198,6 +201,7 @@ function ProductDetailView() {
                 </>
               )}
             </p>
+            )}
             {localProduct.color && (
               <p className="text-xs sm:text-sm text-gray-500">{t('productDetail.color')}: {localProduct.color}</p>
             )}
@@ -325,6 +329,7 @@ function ProductDetailView() {
         </div>
 
         {/* Owner override for the reorder plan */}
+        {isAdmin && (
         <label className="mb-4 sm:mb-6 flex items-start gap-2 p-3 rounded-lg border border-slate-200 bg-white cursor-pointer">
           <input
             type="checkbox"
@@ -337,6 +342,7 @@ function ProductDetailView() {
             <span className="block text-xs text-gray-500">{t('productDetail.noReorderHint')}</span>
           </span>
         </label>
+        )}
 
         {/* Sold items */}
         <div className="mb-4 sm:mb-6">

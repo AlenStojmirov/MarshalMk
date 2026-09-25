@@ -131,7 +131,8 @@ async function main() {
   }
 
   const products = await pageAll<ProductRow>(
-    sb, 'products', 'id, name, category, purchase_price, sold'
+    // The cost lives in product_costs since migration 008; the view joins it in.
+    sb, 'products_costed', 'id, name, category, purchase_price, sold'
   );
   const orders = await pageAll<OrderRow>(
     sb, 'orders', 'id, order_number, status, created_at, items'

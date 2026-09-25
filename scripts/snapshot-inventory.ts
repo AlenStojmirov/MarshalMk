@@ -67,7 +67,7 @@ export async function buildSnapshot(sb: SupabaseClient, takenOn: string): Promis
   const rows: Row[] = [];
   for (let f = 0; ; f += 1000) {
     const { data, error } = await sb
-      .from('products')
+      .from('products_costed') // cost joined in since migration 008
       .select('id, category, price, purchase_price, sizes, sale')
       .range(f, f + 999);
     if (error) throw new Error(error.message);

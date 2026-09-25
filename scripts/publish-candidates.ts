@@ -95,7 +95,7 @@ async function main() {
   const rows: Row[] = [];
   for (let f = 0; ; f += 1000) {
     const { data, error } = await sb
-      .from('products')
+      .from('products_costed') // cost joined in since migration 008
       .select('id, name, category, price, purchase_price, image_url, images, is_visible, sizes, sold, sale')
       .range(f, f + 999);
     if (error) throw new Error(error.message);

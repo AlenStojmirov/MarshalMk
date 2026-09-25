@@ -162,7 +162,8 @@ async function loadSupabase() {
   };
 
   const products = await pageAll<ProductRow>(
-    'products',
+    // The cost lives in product_costs since migration 008; the view joins it in.
+    'products_costed',
     'id, name, category, price, stock, sizes, sold, brand, purchase_price, is_visible, created_at'
   );
   const orders = await pageAll<OrderRow>(
