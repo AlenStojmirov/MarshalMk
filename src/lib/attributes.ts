@@ -284,6 +284,7 @@ export const DETAIL_FIELDS: Record<string, DetailField> = {
   lining:     { label: 'Подлога' },
   hood:       { label: 'Качулка' },
   waterproof: { label: 'Водоотпорна' },
+  reversible: { label: 'Двостран (со две лица)' },
   origin:     { label: 'Земја на производство', options: { TR: 'Турција', MK: 'Македонија', IT: 'Италија', PT: 'Португалија', CN: 'Кина', BD: 'Бангладеш', PK: 'Пакистан', IN: 'Индија' } },
 };
 
@@ -347,9 +348,9 @@ export const CATEGORY_TEMPLATES: Record<string, CategoryTemplate> = {
   hoodies:           { noun: 'Дуксер',            gender: 'm',  fits: TOP_FITS, details: ['hood', 'closure', 'weight', 'origin'], measures: TOP },
   cardigans:         { noun: 'Кардиган',          gender: 'm',  fits: TOP_FITS, details: ['closure', 'weight', 'origin'], measures: TOP },
   dzemper:           { noun: 'Џемпер',            gender: 'm',  fits: TOP_FITS, details: ['neckline', 'weight', 'origin'], measures: TOP },
-  jackets:           { noun: 'Јакна',             gender: 'f',  fits: TOP_FITS, details: ['closure', 'hood', 'lining', 'waterproof', 'weight', 'origin'], measures: TOP },
+  jackets:           { noun: 'Јакна',             gender: 'f',  fits: TOP_FITS, details: ['closure', 'hood', 'lining', 'waterproof', 'reversible', 'weight', 'origin'], measures: TOP },
   coats:             { noun: 'Капут',             gender: 'm',  fits: TOP_FITS, details: ['closure', 'lining', 'weight', 'origin'], measures: TOP },
-  vests:             { noun: 'Елек',              gender: 'm',  fits: TOP_FITS, details: ['closure', 'hood', 'lining', 'origin'], measures: ['chest', 'length', 'shoulders'] },
+  vests:             { noun: 'Елек',              gender: 'm',  fits: TOP_FITS, details: ['closure', 'hood', 'lining', 'reversible', 'origin'], measures: ['chest', 'length', 'shoulders'] },
   blazers:           { noun: 'Блејзер',           gender: 'm',  fits: ['slim', 'regular'], details: ['lining', 'origin'], measures: TOP },
   suitJackets:       { noun: 'Сако',              gender: 'n',  fits: ['slim', 'regular'], details: ['lining', 'origin'], measures: TOP },
   suits:             { noun: 'Одело',             gender: 'n',  fits: ['slim', 'regular'], details: ['lining', 'origin'], measures: [...TOP, 'waist', 'inseam'] },
