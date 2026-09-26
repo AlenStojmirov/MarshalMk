@@ -154,32 +154,77 @@ export interface Color extends Labeled {
   forms: Forms;
   /** For the storefront filter swatch. */
   hex: string;
+  /**
+   * The filter group (a key of COLOR_FAMILIES). Staff pick the exact shade —
+   * it goes into the title — while the customer filters by ~14 families and
+   * never has to choose between тегет, темно сина and петрол.
+   */
+  family: string;
 }
 
 const adj = (stem: string, m = stem): Forms => ({ m, f: `${stem}а`, n: `${stem}о`, pl: `${stem}и` });
 const same = (w: string): Forms => ({ m: w, f: w, n: w, pl: w });
+/** "светло" + сина → светло син / светло сина / светло сино / светло сини */
+const shade = (prefix: string, stem: string, m = stem): Forms => {
+  const base = adj(stem, m);
+  return { m: `${prefix} ${base.m}`, f: `${prefix} ${base.f}`, n: `${prefix} ${base.n}`, pl: `${prefix} ${base.pl}` };
+};
 
-/** One colour per product (owner, 2026-09-26). The main colour, not every thread. */
+/**
+ * The storefront colour filter. Modelled on a large menswear retailer's
+ * (Zalando: 18 values, checked 2026-09), without gold, silver and lilac, which
+ * a men's clothing shop this size does not need as groups.
+ */
+export const COLOR_FAMILIES: Record<string, Labeled & { hex: string }> = {
+  black:     { mk: 'Црна',        en: 'Black',       hex: '#111111' },
+  white:     { mk: 'Бела',        en: 'White',       hex: '#ffffff' },
+  grey:      { mk: 'Сива',        en: 'Grey',        hex: '#8a8a8a' },
+  blue:      { mk: 'Сина',        en: 'Blue',        hex: '#2f5fb3' },
+  turquoise: { mk: 'Тиркизна',    en: 'Turquoise',   hex: '#1f8a8a' },
+  green:     { mk: 'Зелена',      en: 'Green',       hex: '#2e7d4f' },
+  beige:     { mk: 'Беж',         en: 'Beige',       hex: '#d9c7a7' },
+  brown:     { mk: 'Кафеава',     en: 'Brown',       hex: '#6d4c35' },
+  red:       { mk: 'Црвена',      en: 'Red',         hex: '#c0392b' },
+  pink:      { mk: 'Розова',      en: 'Pink',        hex: '#e8a0b4' },
+  yellow:    { mk: 'Жолта',       en: 'Yellow',      hex: '#e8c547' },
+  orange:    { mk: 'Портокалова', en: 'Orange',      hex: '#e67e22' },
+  purple:    { mk: 'Виолетова',   en: 'Purple',      hex: '#7d3c98' },
+  multi:     { mk: 'Повеќебојна', en: 'Multicolour', hex: '#cccccc' },
+};
+
+/**
+ * One colour per product (owner, 2026-09-26): the main colour, not every thread.
+ * The neutrals menswear is built on — navy, charcoal, camel, olive, stone —
+ * each have their own entry: they are most of what a men's shop sells, and
+ * "dark blue jeans" is not the same thing as a navy jumper.
+ */
 export const COLORS: Record<string, Color> = {
-  black:     { mk: 'црна',          en: 'black',      hex: '#111111', forms: adj('црн') },
-  white:     { mk: 'бела',          en: 'white',      hex: '#ffffff', forms: adj('бел') },
-  grey:      { mk: 'сива',          en: 'grey',       hex: '#8a8a8a', forms: adj('сив') },
-  navy:      { mk: 'тегет',         en: 'navy',       hex: '#1f2a44', forms: same('тегет') },
-  blue:      { mk: 'сина',          en: 'blue',       hex: '#2f5fb3', forms: adj('син') },
-  lightBlue: { mk: 'светло сина',   en: 'light blue', hex: '#9cc3e6', forms: { m: 'светло син', f: 'светло сина', n: 'светло сино', pl: 'светло сини' } },
-  green:     { mk: 'зелена',        en: 'green',      hex: '#2e7d4f', forms: adj('зелен') },
-  olive:     { mk: 'маслинеста',    en: 'olive',      hex: '#6b6b3a', forms: adj('маслинест') },
-  khaki:     { mk: 'каки',          en: 'khaki',      hex: '#b5a37a', forms: same('каки') },
-  beige:     { mk: 'беж',           en: 'beige',      hex: '#d9c7a7', forms: same('беж') },
-  brown:     { mk: 'кафеава',       en: 'brown',      hex: '#6d4c35', forms: adj('кафеав') },
-  burgundy:  { mk: 'бордо',         en: 'burgundy',   hex: '#6d1f2f', forms: same('бордо') },
-  red:       { mk: 'црвена',        en: 'red',        hex: '#c0392b', forms: adj('црвен') },
-  pink:      { mk: 'розова',        en: 'pink',       hex: '#e8a0b4', forms: adj('розов') },
-  yellow:    { mk: 'жолта',         en: 'yellow',     hex: '#e8c547', forms: adj('жолт') },
-  orange:    { mk: 'портокалова',   en: 'orange',     hex: '#e67e22', forms: adj('портокалов') },
-  purple:    { mk: 'виолетова',     en: 'purple',     hex: '#7d3c98', forms: adj('виолетов') },
-  cream:     { mk: 'крем',          en: 'cream',      hex: '#f3ead3', forms: same('крем') },
-  multi:     { mk: 'повеќебојна',   en: 'multicolour', hex: '#cccccc', forms: { m: 'повеќебоен', f: 'повеќебојна', n: 'повеќебојно', pl: 'повеќебојни' } },
+  black:     { mk: 'црна',         en: 'black',       hex: '#111111', family: 'black',     forms: adj('црн') },
+  white:     { mk: 'бела',         en: 'white',       hex: '#ffffff', family: 'white',     forms: adj('бел') },
+  cream:     { mk: 'крем',         en: 'cream',       hex: '#f3ead3', family: 'white',     forms: same('крем') },
+  grey:      { mk: 'сива',         en: 'grey',        hex: '#8a8a8a', family: 'grey',      forms: adj('сив') },
+  lightGrey: { mk: 'светло сива',  en: 'light grey',  hex: '#c7c7c7', family: 'grey',      forms: shade('светло', 'сив') },
+  charcoal:  { mk: 'антрацит',     en: 'charcoal',    hex: '#3a3d40', family: 'grey',      forms: same('антрацит') },
+  navy:      { mk: 'тегет',        en: 'navy',        hex: '#1f2a44', family: 'blue',      forms: same('тегет') },
+  darkBlue:  { mk: 'темно сина',   en: 'dark blue',   hex: '#243b6b', family: 'blue',      forms: shade('темно', 'син') },
+  blue:      { mk: 'сина',         en: 'blue',        hex: '#2f5fb3', family: 'blue',      forms: adj('син') },
+  lightBlue: { mk: 'светло сина',  en: 'light blue',  hex: '#9cc3e6', family: 'blue',      forms: shade('светло', 'син') },
+  petrol:    { mk: 'петрол',       en: 'petrol',      hex: '#1d5c63', family: 'turquoise', forms: same('петрол') },
+  turquoise: { mk: 'тиркизна',     en: 'turquoise',   hex: '#1f8a8a', family: 'turquoise', forms: adj('тиркизн', 'тиркизен') },
+  green:     { mk: 'зелена',       en: 'green',       hex: '#2e7d4f', family: 'green',     forms: adj('зелен') },
+  darkGreen: { mk: 'темно зелена', en: 'dark green',  hex: '#1f4d36', family: 'green',     forms: shade('темно', 'зелен') },
+  olive:     { mk: 'маслинеста',   en: 'olive',       hex: '#6b6b3a', family: 'green',     forms: adj('маслинест') },
+  khaki:     { mk: 'каки',         en: 'khaki',       hex: '#b5a37a', family: 'beige',     forms: same('каки') },
+  beige:     { mk: 'беж',          en: 'beige',       hex: '#d9c7a7', family: 'beige',     forms: same('беж') },
+  camel:     { mk: 'камел',        en: 'camel',       hex: '#b38b59', family: 'beige',     forms: same('камел') },
+  brown:     { mk: 'кафеава',      en: 'brown',       hex: '#6d4c35', family: 'brown',     forms: adj('кафеав') },
+  burgundy:  { mk: 'бордо',        en: 'burgundy',    hex: '#6d1f2f', family: 'red',       forms: same('бордо') },
+  red:       { mk: 'црвена',       en: 'red',         hex: '#c0392b', family: 'red',       forms: adj('црвен') },
+  pink:      { mk: 'розова',       en: 'pink',        hex: '#e8a0b4', family: 'pink',      forms: adj('розов') },
+  yellow:    { mk: 'жолта',        en: 'yellow',      hex: '#e8c547', family: 'yellow',    forms: adj('жолт') },
+  orange:    { mk: 'портокалова',  en: 'orange',      hex: '#e67e22', family: 'orange',    forms: adj('портокалов') },
+  purple:    { mk: 'виолетова',    en: 'purple',      hex: '#7d3c98', family: 'purple',    forms: adj('виолетов') },
+  multi:     { mk: 'повеќебојна',  en: 'multicolour', hex: '#cccccc', family: 'multi',     forms: { m: 'повеќебоен', f: 'повеќебојна', n: 'повеќебојно', pl: 'повеќебојни' } },
 };
 
 export interface Pattern extends Labeled {
@@ -239,7 +284,7 @@ export const DETAIL_FIELDS: Record<string, DetailField> = {
   lining:     { label: 'Подлога' },
   hood:       { label: 'Качулка' },
   waterproof: { label: 'Водоотпорна' },
-  origin:     { label: 'Земја на производство', options: { TR: 'Турција', MK: 'Македонија', IT: 'Италија', CN: 'Кина', BD: 'Бангладеш', PT: 'Португалија' } },
+  origin:     { label: 'Земја на производство', options: { TR: 'Турција', MK: 'Македонија', IT: 'Италија', PT: 'Португалија', CN: 'Кина', BD: 'Бангладеш', PK: 'Пакистан', IN: 'Индија' } },
 };
 
 // ---------------------------------------------------------------------------
@@ -294,7 +339,6 @@ export const CATEGORY_TEMPLATES: Record<string, CategoryTemplate> = {
   oversizeTshirts:   { noun: 'Оверсајз маица',    gender: 'f',  fits: ['oversize'], details: ['neckline', 'sleeve', 'weight', 'origin'], measures: TEE },
   polos:             { noun: 'Поло маица',        gender: 'f',  fits: TOP_FITS, details: ['sleeve', 'weight', 'origin'], measures: TEE },
   shirts:            { noun: 'Кошула',            gender: 'f',  fits: TOP_FITS, details: ['sleeve', 'collar', 'origin'], measures: TOP },
-  kosula:            { noun: 'Кошула',            gender: 'f',  fits: TOP_FITS, details: ['sleeve', 'collar', 'origin'], measures: TOP },
   shortSleevedShirt: { noun: 'Кошула',            gender: 'f',  fits: TOP_FITS, details: ['sleeve', 'collar', 'origin'], measures: TEE },
   blouses:           { noun: 'Блуза',             gender: 'f',  fits: TOP_FITS, details: ['neckline', 'weight', 'origin'], measures: TOP },
   turtleNecks:       { noun: 'Ролка',             gender: 'f',  fits: TOP_FITS, details: ['weight', 'origin'], measures: TOP },
