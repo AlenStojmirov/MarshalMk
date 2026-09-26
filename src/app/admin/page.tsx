@@ -5,11 +5,12 @@ import { useAuth } from '@/context/AuthContext';
 import StaffHome from '@/components/admin/StaffHome';
 import { useProducts, createProduct, updateProduct, deleteProduct } from '@/hooks/useProducts';
 import { Product, ProductFormData } from '@/types';
-import { Plus, Edit2, Trash2, LogOut, Package, Database, ShoppingBag, AlertTriangle, Receipt, Tag, Eye, EyeOff, Search, Filter, Camera, Wallet, Truck, Clock, Coins, Ruler, CalendarDays, Gauge, PackagePlus, Grid2x2, Users } from 'lucide-react';
+import { Plus, Edit2, Trash2, LogOut, Tag, Eye, EyeOff, Search, Filter } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
 import DashboardSummary from '@/components/admin/DashboardSummary';
+import AdminNav from '@/components/admin/AdminNav';
 import ProductForm, { marginToneClass, saveProductEdit } from '@/components/admin/ProductForm';
 import { getEffectivePrice, getPercentOff, isOnSale } from '@/lib/pricing';
 import { grossMargin, markup, MARGIN_LOW, MARGIN_WATCH } from '@/lib/cost';
@@ -367,137 +368,8 @@ function AdminDashboard() {
         }}
       />
 
-      {/* Navigation Links */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-        <Link
-          href="/admin/inventory"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors text-sm shadow-sm"
-        >
-          <Database className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">{t('admin.inventorySync')}</span>
-          <span className="xs:hidden">Inventory</span>
-        </Link>
-        <Link
-          href="/admin/orders"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors text-sm shadow-sm"
-        >
-          <Package className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">{t('admin.viewOrders')}</span>
-          <span className="xs:hidden">Orders</span>
-        </Link>
-        <Link
-          href="/admin/in-store-sales"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors text-sm shadow-sm"
-        >
-          <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">{t('admin.inStoreSales')}</span>
-          <span className="xs:hidden">Sales</span>
-        </Link>
-        <Link
-          href="/admin/sold-out"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-red-50 border border-red-200 text-red-700 rounded-xl font-medium hover:bg-red-100 transition-colors text-sm shadow-sm"
-        >
-          <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">{t('admin.soldOut')}</span>
-          <span className="xs:hidden">Sold Out</span>
-        </Link>
-        <Link
-          href="/admin/publishing"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl font-medium hover:bg-emerald-100 transition-colors text-sm shadow-sm"
-        >
-          <Camera className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">Објавување</span>
-          <span className="xs:hidden">Фото</span>
-        </Link>
-        <Link
-          href="/admin/receiving"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl font-medium hover:bg-amber-100 transition-colors text-sm shadow-sm"
-        >
-          <Truck className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">Прием на стока</span>
-          <span className="xs:hidden">Прием</span>
-        </Link>
-        <Link
-          href="/admin/aging"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl font-medium hover:bg-rose-100 transition-colors text-sm shadow-sm"
-        >
-          <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">Стареење</span>
-          <span className="xs:hidden">Возраст</span>
-        </Link>
-        <Link
-          href="/admin/customers"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-pink-50 border border-pink-200 text-pink-700 rounded-xl font-medium hover:bg-pink-100 transition-colors text-sm shadow-sm"
-        >
-          <Users className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">Online купувачи</span>
-          <span className="xs:hidden">Купувачи</span>
-        </Link>
-        <Link
-          href="/admin/matrix"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-fuchsia-50 border border-fuchsia-200 text-fuchsia-700 rounded-xl font-medium hover:bg-fuchsia-100 transition-colors text-sm shadow-sm"
-        >
-          <Grid2x2 className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">Брзина × маржа</span>
-          <span className="xs:hidden">Матрица</span>
-        </Link>
-        <Link
-          href="/admin/reorder"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-cyan-50 border border-cyan-200 text-cyan-700 rounded-xl font-medium hover:bg-cyan-100 transition-colors text-sm shadow-sm"
-        >
-          <PackagePlus className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">План за набавка</span>
-          <span className="xs:hidden">Набавка</span>
-        </Link>
-        <Link
-          href="/admin/velocity"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-lime-50 border border-lime-200 text-lime-700 rounded-xl font-medium hover:bg-lime-100 transition-colors text-sm shadow-sm"
-        >
-          <Gauge className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">Sell-through и темпо</span>
-          <span className="xs:hidden">Темпо</span>
-        </Link>
-        <Link
-          href="/admin/season"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-violet-50 border border-violet-200 text-violet-700 rounded-xl font-medium hover:bg-violet-100 transition-colors text-sm shadow-sm"
-        >
-          <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">Сезонски календар</span>
-          <span className="xs:hidden">Сезона</span>
-        </Link>
-        <Link
-          href="/admin/sizes"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-sky-50 border border-sky-200 text-sky-700 rounded-xl font-medium hover:bg-sky-100 transition-colors text-sm shadow-sm"
-        >
-          <Ruler className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">Скршени серии</span>
-          <span className="xs:hidden">Серии</span>
-        </Link>
-        <Link
-          href="/admin/capital"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-teal-50 border border-teal-200 text-teal-700 rounded-xl font-medium hover:bg-teal-100 transition-colors text-sm shadow-sm"
-        >
-          <Coins className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">Каде да инвестирам</span>
-          <span className="xs:hidden">Капитал</span>
-        </Link>
-        <Link
-          href="/admin/finance"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl font-medium hover:bg-indigo-100 transition-colors text-sm shadow-sm"
-        >
-          <Wallet className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">Трошоци и резултат</span>
-          <span className="xs:hidden">Финансии</span>
-        </Link>
-        <Link
-          href="/admin/expenses"
-          className="flex items-center justify-center gap-2 px-3 py-3 bg-orange-50 border border-orange-200 text-orange-700 rounded-xl font-medium hover:bg-orange-100 transition-colors text-sm shadow-sm col-span-2 sm:col-span-1"
-        >
-          <Receipt className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden xs:inline">{t('admin.expenses')}</span>
-          <span className="xs:hidden">Expenses</span>
-        </Link>
-      </div>
+      {/* The owner's screens, grouped by topic (8.6) */}
+      <AdminNav />
 
       {/* Margin summary — the numbers behind the discount freeze */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
