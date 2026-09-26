@@ -4,6 +4,7 @@ import { NonSaleReason, Product, SoldItem } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { buildLedgerRow, reasonForPrice } from '@/lib/sales-ledger';
 import { refundOneToStock, sellOneFromStock } from '@/lib/stock';
+import { ledgerRefundOne } from '@/lib/ledger-ops';
 
 /**
  * The ledger stores a timestamp, but a shop sale only ever knows a day —
@@ -141,20 +142,8 @@ export async function refundProductSale(product: Product, soldIndex: number): Pr
 
   try {
     const day = String(entry.soldDate).slice(0, 10);
-    const { data, error } = await supabase
-      .from('sales_ledger')
-      .select('id')
-      .eq('product_id', product.id)
-      .eq('size', entry.size)
-      .eq('unit_price', entry.price)
-      .gte('occurred_at', `${day}T00:00:00.000Z`)
-      .lte('occurred_at', `${day}T23:59:59.999Z`)
-      .limit(1);
-    if (error) throw error;
-    if (data && data.length > 0) {
-      const { error: delErr } = await supabase.from('sales_ledger').delete().eq('id', data[0].id);
-      if (delErr) throw delErr;
-    }
+    // Through a database function: staff may not read ledger rows (8.4).
+    await ledgerRefundOne(product.id, entry.size, entry.price, day);
   } catch (err) {
     console.warn(
       '[LEDGER_REFUND_FAILED] враќањето е запишано во sold[], ledger-от има вишок ред. ' +

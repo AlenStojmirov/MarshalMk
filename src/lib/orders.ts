@@ -4,6 +4,7 @@ import { supabase } from './supabase';
 import { rowToOrder, OrderRow } from './db-mappers';
 import { applyOrderToStock, revertOrderFromStock, repriceSoldEntries, StockLine } from './stock';
 import { previewCorrection } from './order-math';
+import { ledgerRemoveOrder, ledgerRepriceOrderLine } from './ledger-ops';
 
 export { previewCorrection } from './order-math';
 export type { CorrectionPreview, CorrectionLine } from './order-math';
@@ -121,12 +122,11 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
 
   if (willBeCancelled && !wasCancelled) {
     await revertOrderFromStock(supabase, stockLinesFor(order));
-    const { error: ledgerErr } = await supabase
-      .from('sales_ledger')
-      .delete()
-      .eq('order_id', id);
-    if (ledgerErr) {
-      console.error('Failed to remove ledger rows for cancelled order:', ledgerErr.message);
+    // Through a database function: staff may not read ledger rows (8.4).
+    try {
+      await ledgerRemoveOrder(id);
+    } catch (err) {
+      console.error('Failed to remove ledger rows for cancelled order:', (err as Error).message);
     }
   } else if (!willBeCancelled && wasCancelled) {
     const result = await applyOrderToStock(supabase, stockLinesFor(order));
@@ -214,16 +214,10 @@ export async function correctOrderCollected(order: Order, collectedTotal: number
     if (!result.ok) throw new Error(result.error ?? 'Не може да се ажурира sold[].');
 
     for (const l of changed) {
-      let q = supabase
-        .from('sales_ledger')
-        .update({ unit_price: l.newPrice, unit_list_price: l.oldPrice })
-        .eq('order_id', order.id)
-        .eq('product_id', l.productId)
-        .eq('unit_price', l.oldPrice);
-      q = l.size ? q.eq('size', l.size) : q.is('size', null);
-      const { error } = await q;
-      if (error) {
-        console.error('Ledger reprice failed for', l.productId, error.message);
+      try {
+        await ledgerRepriceOrderLine(order.id, l.productId, l.size ?? null, l.oldPrice, l.newPrice);
+      } catch (err) {
+        console.error('Ledger reprice failed for', l.productId, (err as Error).message);
       }
     }
   }

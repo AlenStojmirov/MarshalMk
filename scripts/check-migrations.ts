@@ -59,6 +59,21 @@ async function main() {
     );
   }
 
+  // 009 is policies and functions, which a column probe cannot see. The refund
+  // function is called for a product that does not exist: it matches nothing
+  // and removes nothing, but only answers once the migration has run.
+  {
+    const { error } = await sb.rpc('ledger_refund_one', {
+      p_product_id: '__migration_probe__', p_size: null, p_unit_price: 0, p_day: '2000-01-01',
+    });
+    if (error) {
+      missing += 1;
+      missingMigrations.add('009');
+    }
+    console.log('  ' + (error ? 'НЕМА' : 'ИМА ') + '  009  ' + 'права по улога (функции за ledger)'.padEnd(34) +
+      (error ? '· ' + error.message.split('.')[0] : ''));
+  }
+
   // 007 is about what anon can NOT do, which the service role cannot see.
   // Probe with the key that ships in the storefront: it must not reach the
   // purchase price.
