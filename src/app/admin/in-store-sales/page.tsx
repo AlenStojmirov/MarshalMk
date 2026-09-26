@@ -361,6 +361,8 @@ function RecordSaleModal({
 }
 
 function SalesByDateView() {
+  // Staff see every sale but no totals — those are the owner's (8.5).
+  const { isAdmin } = useAuth();
   const { t } = useTranslation();
   const { products, loading, refetch } = useProducts();
   const [showRecordModal, setShowRecordModal] = useState(false);
@@ -501,10 +503,12 @@ function SalesByDateView() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 ml-13 sm:ml-0">
+                    {isAdmin && (
                     <div className="text-left sm:text-right">
                       <p className="text-base sm:text-lg font-bold text-gray-900">{dailyTotal.toFixed(2)} ден.</p>
                       <p className="text-xs sm:text-sm text-gray-500">{t('inStoreSales.totalSales')}</p>
                     </div>
+                    )}
                     {isExpanded ? (
                       <ChevronUp className="h-5 w-5 text-gray-400 shrink-0" />
                     ) : (
@@ -528,7 +532,7 @@ function SalesByDateView() {
                             <p className="font-medium text-gray-900 text-sm truncate">{data.name}</p>
                             <div className="flex justify-between text-xs sm:text-sm text-gray-500 mt-1">
                               <span>{data.quantity} {t('inStoreSales.sold')}</span>
-                              <span>{data.revenue.toFixed(2)} ден.</span>
+                              {isAdmin && <span>{data.revenue.toFixed(2)} ден.</span>}
                             </div>
                           </div>
                         ))}
