@@ -37,16 +37,13 @@ config({ path: '.env.local' });
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, extname } from 'node:path';
-import { NON_MERCHANDISE, phaseOf, type SeasonPhase } from '../src/lib/seasons';
+import { NON_MERCHANDISE } from '../src/lib/seasons';
 import { getCategoryLabel } from '../src/lib/product-display';
-import { PRODUCT_ATTRIBUTES, type ProductAttributesRow } from '../src/lib/db-mappers';
-
-/** Front, back, fabric detail, composition label. */
-const FULL_PHOTO_SET = 4;
-/** Hidden and never sold after this long → clearance, not content work. */
-const CLEARANCE_AGE_DAYS = 90;
-/** Nothing to measure: one size, or not a garment. */
-const NO_MEASUREMENTS = new Set(['accessories', 'belts', 'vaucer']);
+import { PRODUCT_ATTRIBUTES, rowToAttributes, type ProductAttributesRow } from '../src/lib/db-mappers';
+import {
+  catalogGaps, photoCount, sizesOnShelf, workTier,
+  FULL_PHOTO_SET, CLEARANCE_AGE_DAYS, TIER_LABEL, type WorkTier,
+} from '../src/lib/catalog-gaps';
 
 const fmt = (n: number) => n.toLocaleString('mk-MK', { maximumFractionDigits: 0 });
 
@@ -67,18 +64,6 @@ interface Row {
   created_at: string | null;
 }
 
-type Tier = 1 | 2 | 3 | 4 | 5;
-const TIER_LABEL: Record<Tier, string> = {
-  1: 'На сајтот',
-  2: 'Скриен · сезоната се отвора',
-  3: 'Скриен · целогодишно',
-  4: 'Скриен · чека сезона',
-  5: 'Расчистување',
-};
-const IN_SEASON: SeasonPhase[] = ['preseason', 'inseason'];
-
-type CompositionState = 'structured' | 'in-description' | 'missing';
-
 /** Local files override the stored url (product-images.ts), so count those first. */
 function localImageCounts(): Map<string, number> {
   const counts = new Map<string, number>();
@@ -94,9 +79,6 @@ function localImageCounts(): Map<string, number> {
   }
   return counts;
 }
-
-const isUsableUrl = (u: string | null | undefined) =>
-  !!u && /^(https?:\/\/|\/)/.test(u.trim());
 
 async function loadAttributes(sb: SupabaseClient): Promise<Map<string, ProductAttributesRow> | null> {
   const { data, error } = await sb.from(PRODUCT_ATTRIBUTES).select('*');
@@ -124,57 +106,25 @@ async function main() {
   const localImages = localImageCounts();
   const now = Date.now();
 
-  const inStock = (r: Row) => (r.sizes ?? []).filter((s) => Number(s.quantity) >= 1);
-  const products = rows.filter((r) => !NON_MERCHANDISE.has(r.category ?? '') && inStock(r).length > 0);
+  const products = rows.filter((r) => !NON_MERCHANDISE.has(r.category ?? '') && sizesOnShelf(r.sizes).length > 0);
 
+  // The same definition /admin/catalog uses (src/lib/catalog-gaps.ts).
   const audited = products.map((r) => {
-    const a = attrs?.get(r.id);
+    const row = attrs?.get(r.id);
     const category = r.category ?? '';
-    const sizes = inStock(r);
-    const units = sizes.reduce((n, s) => n + Number(s.quantity), 0);
+    const units = sizesOnShelf(r.sizes).reduce((n, s) => n + Number(s.quantity), 0);
     const cost = r.purchase_price === null ? 0 : Number(r.purchase_price);
-
-    const stored = [r.image_url, ...(r.images ?? [])].filter(isUsableUrl);
-    const photos = localImages.get(r.id) ?? new Set(stored).size;
-
-    const composition: CompositionState = a?.composition?.length
-      ? 'structured'
-      : /\d+\s*%/.test(r.description ?? '') ? 'in-description' : 'missing';
-    const color = !!(a?.color || r.color?.trim());
-    const fit = !!a?.fit;
-    const sizeAdvice = !!a?.size_advice;
-    const needsMeasurements = !NO_MEASUREMENTS.has(category);
-    // Only the sizes on the shelf need measuring (Task 9.5).
-    const measured = !needsMeasurements || sizes.every((s) => {
-      const m = a?.measurements?.[s.size];
-      return !!m && Object.keys(m).length > 0;
-    });
-
-    const ever = (r.sold ?? []).filter((s) => Number(s.price) > 0).length;
-    const since = Date.parse(r.first_received_at ?? r.created_at ?? '') || now;
-    const ageDays = (now - since) / 86_400_000;
-    const phase = phaseOf(category);
-
-    let tier: Tier;
-    if (r.is_visible) tier = 1;
-    else if (ever === 0 && ageDays > CLEARANCE_AGE_DAYS) tier = 5;
-    else if (phase === 'always') tier = 3;
-    else if (IN_SEASON.includes(phase)) tier = 2;
-    else tier = 4;
-
-    const missing: string[] = [];
-    if (photos === 0) missing.push('слика');
-    else if (photos < FULL_PHOTO_SET) missing.push(`слики ${photos}/${FULL_PHOTO_SET}`);
-    if (composition !== 'structured') missing.push(composition === 'in-description' ? 'состав (во опис)' : 'состав');
-    if (!color) missing.push('боја');
-    if (!fit) missing.push('крој');
-    if (!sizeAdvice) missing.push('совет за големина');
-    if (!measured) missing.push('мерки');
-
-    return {
-      r, category, units, costValue: units * cost, photos, composition, color, fit,
-      sizeAdvice, needsMeasurements, measured, tier, missing, ready: missing.length === 0,
-    };
+    const photos = localImages.get(r.id) ?? photoCount(r.image_url, r.images);
+    const gaps = catalogGaps(
+      { category, description: r.description, color: r.color, sizes: r.sizes },
+      row ? rowToAttributes(row) : null,
+      photos,
+    );
+    const tier = workTier({
+      category, isVisible: r.is_visible, sold: r.sold,
+      firstReceivedAt: r.first_received_at, createdAt: r.created_at,
+    }, now);
+    return { r, category, units, costValue: units * cost, tier, ...gaps };
   });
 
   audited.sort((x, y) => x.tier - y.tier || y.costValue - x.costValue);
@@ -202,7 +152,8 @@ async function main() {
   say(`| Состав, структуриран | ${count(audited, (x) => x.composition === 'structured')} | ${pct(count(audited, (x) => x.composition !== 'structured'), n)} |`);
   say(`| └ состав само во опис (за парсерот, 9.3) | ${count(audited, (x) => x.composition === 'in-description')} | |`);
   say(`| Боја | ${count(audited, (x) => x.color)} | ${pct(count(audited, (x) => !x.color), n)} |`);
-  say(`| Крој | ${count(audited, (x) => x.fit)} | ${pct(count(audited, (x) => !x.fit), n)} |`);
+  const withFit = audited.filter((x) => x.needsFit);
+  say(`| Крој (${withFit.length} што имаат крој) | ${count(withFit, (x) => x.fit)} | ${pct(count(withFit, (x) => !x.fit), withFit.length)} |`);
   say(`| Совет за големина | ${count(audited, (x) => x.sizeAdvice)} | ${pct(count(audited, (x) => !x.sizeAdvice), n)} |`);
   say(`| Мерки (${withMeas.length} што се мерат) | ${count(withMeas, (x) => x.measured)} | ${pct(count(withMeas, (x) => !x.measured), withMeas.length)} |`);
   say(`| **Спремен** (сè од горе) | **${count(audited, (x) => x.ready)}** | |`);
@@ -214,7 +165,7 @@ async function main() {
   say();
   say('| # | Ниво | Модели | Парчиња | Набавна вредност | Спремни |');
   say('|---|---|---|---|---|---|');
-  for (const t of [1, 2, 3, 4, 5] as Tier[]) {
+  for (const t of [1, 2, 3, 4, 5] as WorkTier[]) {
     const list = audited.filter((x) => x.tier === t);
     const value = list.reduce((s, x) => s + x.costValue, 0);
     const units = list.reduce((s, x) => s + x.units, 0);
@@ -238,7 +189,7 @@ async function main() {
 
   // Sizes named two ways split the size curve (Task 9.8). Listed so it is seen.
   const labels = new Map<string, number>();
-  products.forEach((r) => inStock(r).forEach((s) => labels.set(s.size, (labels.get(s.size) ?? 0) + 1)));
+  products.forEach((r) => sizesOnShelf(r.sizes).forEach((s) => labels.set(s.size, (labels.get(s.size) ?? 0) + 1)));
   const odd = ['2XL', '3XL', '4XL', '5XL', '6XL', 'kolicina', 'количина'].filter((l) => labels.has(l));
   if (odd.length) {
     say('## Големини под второ име (9.8)');

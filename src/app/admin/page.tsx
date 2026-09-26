@@ -230,9 +230,10 @@ function AdminDashboard() {
   };
 
   const handleCreate = async (data: ProductFormData, customId?: string) => {
-    await createProduct(data, customId);
+    const id = await createProduct(data, customId);
     setShowForm(false);
     refetch();
+    return id;
   };
 
   const handleUpdate = async (data: ProductFormData) => {
@@ -244,6 +245,7 @@ function AdminDashboard() {
     }
     setEditingProduct(undefined);
     refetch();
+    return editingProduct.id;
   };
 
   const selectedProducts = products.filter(p => selectedIds.has(p.id));

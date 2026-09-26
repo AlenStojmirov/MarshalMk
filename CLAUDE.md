@@ -59,7 +59,7 @@ The role is `app_metadata.role` on the Supabase user, writable only with the ser
 | Role | Screen | Database |
 |---|---|---|
 | `admin` | `/admin` — the owner's dashboard, all screens | everything |
-| `staff` | `/admin` — `StaffHome` (stock, new/edit product without cost, sales without totals, orders) | products read/insert/update; orders read/update; ledger insert + three functions (`ledger_refund_one`, `ledger_remove_order`, `ledger_reprice_order_line`) — **never reads the ledger** (rows carry cost) |
+| `staff` | `/admin` — `StaffHome` (stock, new/edit product without cost, sales without totals, orders, `/admin/catalog`) | products and `product_attributes` read/insert/update; orders read/update; ledger insert + three functions (`ledger_refund_one`, `ledger_remove_order`, `ledger_reprice_order_line`) — **never reads the ledger** (rows carry cost) |
 | none / unknown / `customer` | blank page | nothing |
 
 - Screen rules: `ROLE_PATHS` in `src/lib/roles.ts` (an allowlist — a new admin page is admin-only until added), enforced by `AdminGate` in `admin/layout.tsx`. **A user without a role gets no access, never staff** — Supabase sign-up is open, and customers with their own accounts (and their own screen, outside `/admin`) are planned.

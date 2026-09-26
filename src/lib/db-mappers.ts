@@ -125,9 +125,12 @@ export function rowToAttributes(row: ProductAttributesRow): ProductAttributes {
  * of a form never blanks what another part wrote. An empty string clears a text field.
  * updated_at / updated_by are the trigger's.
  */
-export function attributesToRow(
-  data: Partial<Omit<ProductAttributes, 'updatedAt'>>
-): Partial<ProductAttributesRow> {
+/** What a caller may send: an empty string clears a text field, sizeAdvice included. */
+export type AttributesPatch = Partial<Omit<ProductAttributes, 'updatedAt' | 'sizeAdvice'>> & {
+  sizeAdvice?: SizeAdvice | '';
+};
+
+export function attributesToRow(data: AttributesPatch): Partial<ProductAttributesRow> {
   const out: Partial<ProductAttributesRow> = {};
   if (data.productId !== undefined) out.product_id = data.productId;
   if (data.composition !== undefined) out.composition = data.composition;

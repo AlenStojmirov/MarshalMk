@@ -30,7 +30,8 @@ export const ROLE_LABEL: Record<Role, string> = {
  */
 const ROLE_PATHS: Record<Role, '*' | readonly string[]> = {
   admin: '*',
-  staff: ['/admin', '/admin/orders', '/admin/in-store-sales', '/admin/product'],
+  // Catalogue (9.4): staff have the garment in hand, so they fill in what it is.
+  staff: ['/admin', '/admin/orders', '/admin/in-store-sales', '/admin/product', '/admin/catalog'],
   // Customer accounts will live outside /admin entirely.
   customer: [],
 };

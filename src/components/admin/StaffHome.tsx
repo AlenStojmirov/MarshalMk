@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { EyeOff, LogOut, Package, Pencil, Plus, Search, ShoppingBag } from 'lucide-react';
+import { EyeOff, LogOut, Package, Pencil, Plus, Search, Shirt, ShoppingBag } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts, createProduct } from '@/hooks/useProducts';
 import { getOrders } from '@/lib/orders';
@@ -73,9 +73,10 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
   }, [products, query, category, stock]);
 
   const handleCreate = async (data: ProductFormData, customId?: string) => {
-    await createProduct(data, customId);
+    const id = await createProduct(data, customId);
     setCreating(false);
     refetch();
+    return id;
   };
 
   const handleUpdate = async (data: ProductFormData) => {
@@ -87,6 +88,7 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
     }
     setEditing(undefined);
     refetch();
+    return editing.id;
   };
 
   return (
@@ -107,8 +109,8 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
         </button>
       </div>
 
-      {/* The three things a shift does */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+      {/* The things a shift does */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <Link
           href="/admin/in-store-sales"
           className="flex items-center gap-3 p-4 bg-blue-600 text-white rounded-xl shadow-sm hover:bg-blue-700"
@@ -133,6 +135,16 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
               {openOrders} чекаат
             </span>
           )}
+        </Link>
+        <Link
+          href="/admin/catalog"
+          className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-300 hover:bg-blue-50"
+        >
+          <Shirt className="h-6 w-6 text-blue-600 shrink-0" />
+          <div>
+            <p className="font-semibold text-slate-900">Каталог</p>
+            <p className="text-xs text-slate-500">Состав, боја, крој</p>
+          </div>
         </Link>
         <button
           onClick={() => setCreating(true)}

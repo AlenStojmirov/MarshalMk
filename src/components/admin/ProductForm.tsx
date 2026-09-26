@@ -1,12 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Save, X, ImagePlus, PlusCircle, Trash, Tag } from 'lucide-react';
+import { Save, X, ImagePlus, PlusCircle, Trash, Tag, Shirt } from 'lucide-react';
 import { uploadProductImage, updateProduct } from '@/hooks/useProducts';
 import { supabase } from '@/lib/supabase';
 import { applyStockCount } from '@/lib/stock';
-import { Product, ProductFormData, ProductSize } from '@/types';
+import { Product, ProductAttributes, ProductFormData, ProductSize } from '@/types';
+import { emptyAttributes, fetchAttributes, saveAttributes } from '@/lib/product-attributes';
+import { careFromComposition, isStretch, validateComposition } from '@/lib/attributes';
+import {
+  ColorSwatches, CompositionEditor, DetailsEditor, FitSelect, PatternSelect, SizeAdviceButtons,
+} from '@/components/admin/AttributeFields';
 import { useTranslation } from '@/lib/i18n';
 import {
   grossMargin, markup, unitProfit, markdownFloorPrice,
@@ -22,7 +27,13 @@ export function marginToneClass(margin: number | null): string {
 
 interface ProductFormProps {
   product?: Product;
-  onSave: (data: ProductFormData, customId?: string) => Promise<void>;
+  /**
+   * Saves the product. Resolves to the product's id when it was saved, or to
+   * nothing when it was not (a lost stock count keeps the form open). The
+   * composition and details are written after, to product_attributes, and only
+   * for a product that exists.
+   */
+  onSave: (data: ProductFormData, customId?: string) => Promise<string | void>;
   onCancel: () => void;
   /**
    * The purchase price field and the margin panel. Off for staff (8.3/8.5):
@@ -52,6 +63,27 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
   const [newSize, setNewSize] = useState('');
   const [customId, setCustomId] = useState('');
   const isEditing = !!product;
+
+  // What it is made of, its colour and fit (EPIC 9) — kept in product_attributes,
+  // loaded apart from the product and written only if something here changed.
+  const [attrs, setAttrs] = useState<ProductAttributes>(emptyAttributes(product?.id ?? ''));
+  const [attrsDirty, setAttrsDirty] = useState(false);
+  const [attrsNote, setAttrsNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!product?.id) return;
+    let live = true;
+    fetchAttributes(supabase, product.id).then((r) => {
+      if (!live) return;
+      if (r.data) setAttrs(r.data);
+      if (r.missingTable) setAttrsNote('Табелата за атрибути уште не постои (миграција 010) — овој дел нема да се зачува.');
+    });
+    return () => { live = false; };
+  }, [product?.id]);
+  const editAttrs = (patch: Partial<ProductAttributes>) => {
+    setAttrs((prev) => ({ ...prev, ...patch }));
+    setAttrsDirty(true);
+  };
+  const compositionErrors = validateComposition(attrs.composition);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -153,11 +185,27 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (compositionErrors.length) {
+      alert(`Составот не е точен: ${compositionErrors.join(' · ')}`);
+      return;
+    }
     setSaving(true);
     try {
       // If sizes exist, calculate total stock from sizes
       const totalStock = calculateTotalStock(formData.sizes);
-      await onSave({ ...formData, stock: totalStock }, isEditing ? undefined : customId);
+      const savedId = await onSave({ ...formData, stock: totalStock }, isEditing ? undefined : customId);
+      if (savedId && attrsDirty) {
+        // The whole section, as it stands: a field left empty here is cleared.
+        const res = await saveAttributes(supabase, savedId, {
+          composition: attrs.composition,
+          color: attrs.color ?? '',
+          pattern: attrs.pattern ?? '',
+          fit: attrs.fit ?? '',
+          sizeAdvice: attrs.sizeAdvice ?? '',
+          details: attrs.details,
+        });
+        if (res.error) alert(`Производот е зачуван, но составот и деталите не се: ${res.error}`);
+      }
     } finally {
       setSaving(false);
     }
@@ -290,6 +338,49 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
                 />
                 <span className="text-sm font-medium text-gray-700">{t('admin.visibleOnWebsite')}</span>
               </label>
+            </div>
+
+            {/* Composition and details (EPIC 9) */}
+            <div className="md:col-span-2 border border-gray-200 rounded-lg p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <Shirt className="h-5 w-5 text-blue-700" />
+                <span className="text-sm font-medium text-gray-700">Состав и детали</span>
+              </div>
+              {attrsNote && <p className="text-xs text-amber-700">{attrsNote}</p>}
+
+              <div>
+                <span className="block text-xs font-medium text-gray-600 mb-1">Состав (од етикетата)</span>
+                <CompositionEditor value={attrs.composition} onChange={(composition) => editAttrs({ composition })} />
+                {attrs.composition.length > 0 && compositionErrors.length === 0 && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    {isStretch(attrs.composition) && <span className="font-medium text-gray-700">Растеглив · </span>}
+                    {careFromComposition(attrs.composition).join(' · ')}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <span className="block text-xs font-medium text-gray-600 mb-1">Боја</span>
+                <ColorSwatches value={attrs.color} onChange={(color) => editAttrs({ color })} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="block text-xs font-medium text-gray-600 mb-1">Крој</span>
+                  <FitSelect category={formData.category} value={attrs.fit} onChange={(fit) => editAttrs({ fit })} className="w-full" />
+                </label>
+                <label className="block">
+                  <span className="block text-xs font-medium text-gray-600 mb-1">Шара</span>
+                  <PatternSelect value={attrs.pattern} onChange={(pattern) => editAttrs({ pattern })} className="w-full" />
+                </label>
+              </div>
+
+              <div>
+                <span className="block text-xs font-medium text-gray-600 mb-1">Совет за големина</span>
+                <SizeAdviceButtons value={attrs.sizeAdvice} onChange={(v) => editAttrs({ sizeAdvice: v || undefined })} />
+              </div>
+
+              <DetailsEditor category={formData.category} value={attrs.details} onChange={(details) => editAttrs({ details })} />
             </div>
 
             {/* Sale Section */}
