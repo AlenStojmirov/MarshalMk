@@ -147,8 +147,8 @@ function OrderCard({
                 {order.orderNumber}
               </span>
               <span className="text-sm text-gray-500">
-                {order.createdAt.toLocaleDateString()} at{' '}
-                {order.createdAt.toLocaleTimeString([], {
+                {order.createdAt.toLocaleDateString('mk-MK')} ·{' '}
+                {order.createdAt.toLocaleTimeString('mk-MK', {
                   hour: '2-digit',
                   minute: '2-digit',
                 })}
@@ -301,13 +301,18 @@ function OrderCard({
             <div className="space-y-2 sm:space-y-3">
               {order.items.map((item, index) => (
                 <div key={index} className="flex items-center gap-2 sm:gap-4">
-                  <div className="relative h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
-                    <Image
-                      src={item.productImage || '/placeholder.png'}
-                      alt={item.productName}
-                      fill
-                      className="object-cover rounded"
-                    />
+                  <div className="relative h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 rounded bg-gray-100 flex items-center justify-center">
+                    {item.productImage ? (
+                      <Image
+                        src={item.productImage}
+                        alt={item.productName}
+                        fill
+                        sizes="48px"
+                        className="object-cover rounded"
+                      />
+                    ) : (
+                      <Package className="h-5 w-5 text-gray-300" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 truncate text-sm sm:text-base">
@@ -418,13 +423,17 @@ function OrdersManagement() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<OrderStatus | 'all' | 'pending'>('pending');
+  // 'all' is its own value. It used to start at 'pending' and treat that as
+  // "everything", so the pending tab showed every order and "all" showed none.
+  const [filter, setFilter] = useState<OrderStatus | 'all'>('all');
   // Independent of the status tabs: "pickups that are still pending" is the
   // question the counter actually gets asked.
   const [pickupOnly, setPickupOnly] = useState(false);
 
-  const fetchOrders = async () => {
-    setLoading(true);
+  // `quiet` keeps the list on screen while it reloads: after an outcome or a
+  // correction the open card stays open instead of collapsing under a spinner.
+  const fetchOrders = async (quiet = false) => {
+    if (!quiet) setLoading(true);
     setError(null);
     try {
       const fetchedOrders = await getOrders();
@@ -462,7 +471,7 @@ function OrdersManagement() {
   };
 
   const byStatus =
-    filter === 'pending'
+    filter === 'all'
       ? orders
       : orders.filter((order) => order.status === filter);
   const filteredOrders = pickupOnly
@@ -491,7 +500,7 @@ function OrdersManagement() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('orders.title')}</h1>
         </div>
         <button
-          onClick={fetchOrders}
+          onClick={() => fetchOrders()}
           disabled={loading}
           className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors text-sm sm:text-base self-start"
         >
@@ -553,7 +562,7 @@ function OrdersManagement() {
         <div className="text-center py-12">
           <p className="text-red-500">{error}</p>
           <button
-            onClick={fetchOrders}
+            onClick={() => fetchOrders()}
             className="mt-4 text-blue-600 hover:text-blue-800"
           >
             {t('orders.tryAgain')}
@@ -563,7 +572,7 @@ function OrdersManagement() {
         <div className="text-center py-12 bg-white rounded-lg shadow-md">
           <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <p className="text-xl text-gray-500">
-            {filter === 'pending' || filter === 'all'
+            {filter === 'all'
               ? t('orders.noOrders')
               : t('orders.noOrdersWithStatus', { status: t(STATUS_CONFIG[filter].labelKey).toLowerCase() })}
           </p>
@@ -575,7 +584,7 @@ function OrdersManagement() {
               key={order.id}
               order={order}
               onStatusChange={handleStatusChange}
-              onCorrected={fetchOrders}
+              onCorrected={() => fetchOrders(true)}
               t={t}
             />
           ))}
