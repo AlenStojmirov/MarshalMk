@@ -29,6 +29,13 @@ const OPEN_STATUSES = new Set(['pending', 'confirmed', 'processing']);
 
 export default function StaffHome() {
   const { user, role, signOut } = useAuth();
+  // Rendered for staff only — checked here as well as by the caller, so no
+  // path through the admin can ever show it to an account without the role.
+  if (role !== 'staff') return null;
+  return <StaffHomeView email={user?.email ?? ''} onSignOut={signOut} />;
+}
+
+function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => void }) {
   const { products, loading, refetch } = useProducts();
   const [openOrders, setOpenOrders] = useState<number | null>(null);
   const [query, setQuery] = useState('');
@@ -88,11 +95,11 @@ export default function StaffHome() {
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900">Магацин</h1>
           <p className="text-xs text-slate-500 truncate">
-            {user?.email} · {role ? ROLE_LABEL[role] : ''}
+            {email} · {ROLE_LABEL.staff}
           </p>
         </div>
         <button
-          onClick={signOut}
+          onClick={onSignOut}
           className="ml-auto flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
         >
           <LogOut className="h-4 w-4" />
