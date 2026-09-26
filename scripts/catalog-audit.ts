@@ -39,6 +39,7 @@ import { readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { NON_MERCHANDISE, phaseOf, type SeasonPhase } from '../src/lib/seasons';
 import { getCategoryLabel } from '../src/lib/product-display';
+import { PRODUCT_ATTRIBUTES, type ProductAttributesRow } from '../src/lib/db-mappers';
 
 /** Front, back, fabric detail, composition label. */
 const FULL_PHOTO_SET = 4;
@@ -64,16 +65,6 @@ interface Row {
   sold: Array<{ price?: number | string }> | null;
   first_received_at: string | null;
   created_at: string | null;
-}
-
-/** Loose on purpose: the columns are fixed by Task 9.1, this only reads them. */
-interface Attributes {
-  product_id: string;
-  composition?: Array<{ fiber: string; pct: number }> | null;
-  color?: string | null;
-  fit?: string | null;
-  size_advice?: string | null;
-  measurements?: Record<string, Record<string, number>> | null;
 }
 
 type Tier = 1 | 2 | 3 | 4 | 5;
@@ -107,10 +98,10 @@ function localImageCounts(): Map<string, number> {
 const isUsableUrl = (u: string | null | undefined) =>
   !!u && /^(https?:\/\/|\/)/.test(u.trim());
 
-async function loadAttributes(sb: SupabaseClient): Promise<Map<string, Attributes> | null> {
-  const { data, error } = await sb.from('product_attributes').select('*');
+async function loadAttributes(sb: SupabaseClient): Promise<Map<string, ProductAttributesRow> | null> {
+  const { data, error } = await sb.from(PRODUCT_ATTRIBUTES).select('*');
   if (error) return null; // migration 010 not run yet
-  return new Map((data as Attributes[]).map((a) => [a.product_id, a]));
+  return new Map((data as ProductAttributesRow[]).map((a) => [a.product_id, a]));
 }
 
 async function main() {

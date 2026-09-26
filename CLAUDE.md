@@ -39,6 +39,7 @@ Data scripts (`tsx`, service-role key, see `scripts/SCRIPTS.md`): `baseline`, `l
 | `products_costed` | view for the back office: product + cost, reader's rights, so staff get the cost empty (008) |
 | `sales_ledger` | one row per unit sold, with price and cost snapshot; kept in step with `sold[]` by `npm run ledger:sync`. A trigger fills `unit_cost` from `product_costs` |
 | `orders` | online orders; `status` is the workflow, `outcome` how it ended (D-014) |
+| `product_attributes` | EPIC 9, one row per product: `composition` (fibres adding up to 100 — the DB checks), `color`, `fit`, `size_advice`, `details`, `measurements` (cm per size). Back office read/write, no public read yet; kept out of `products` until Task 9.10 (010) |
 | `operating_expenses`, `inventory_snapshots`, `marketing_optout`, `suppliers`, `purchases`, `purchase_lines` | admin only |
 
 **A column added to `products` must also be added to `products_costed`, and to `products_public` if customers may see it** — views fix their columns when created.

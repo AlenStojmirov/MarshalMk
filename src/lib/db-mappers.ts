@@ -1,4 +1,4 @@
-import { Order, OrderItem, OrderOutcome, OrderStatus, Product, ProductFormData, ProductSize, SaleInfo, SoldItem, CustomerInfo } from '@/types';
+import { Order, OrderItem, OrderOutcome, OrderStatus, Product, ProductFormData, ProductSize, SaleInfo, SoldItem, CustomerInfo, FiberShare, SizeAdvice, Measurements, ProductAttributes } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Product row (DB) <-> Product (app)
@@ -85,6 +85,58 @@ export function productToRow(
   if (data.sale !== undefined) out.sale = data.sale ?? null;
   if (data.noReorder !== undefined) out.no_reorder = data.noReorder;
   // firstReceivedAt is written at receiving, never through the product form.
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Product attributes row (DB) <-> ProductAttributes (app) — migration 010
+// ---------------------------------------------------------------------------
+export const PRODUCT_ATTRIBUTES = 'product_attributes';
+
+export interface ProductAttributesRow {
+  product_id: string;
+  composition: FiberShare[] | null;
+  color: string | null;
+  pattern: string | null;
+  fit: string | null;
+  size_advice: SizeAdvice | null;
+  details: Record<string, string | number | boolean> | null;
+  measurements: Measurements | null;
+  updated_at: string | null;
+  updated_by: string | null;
+}
+
+export function rowToAttributes(row: ProductAttributesRow): ProductAttributes {
+  return {
+    productId: row.product_id,
+    composition: row.composition ?? [],
+    color: row.color ?? undefined,
+    pattern: row.pattern ?? undefined,
+    fit: row.fit ?? undefined,
+    sizeAdvice: row.size_advice ?? undefined,
+    details: row.details ?? {},
+    measurements: row.measurements ?? {},
+    updatedAt: row.updated_at ? new Date(row.updated_at) : undefined,
+  };
+}
+
+/**
+ * Only the fields that are set, like productToRow, so an upsert from one part
+ * of a form never blanks what another part wrote. An empty string clears a text field.
+ * updated_at / updated_by are the trigger's.
+ */
+export function attributesToRow(
+  data: Partial<Omit<ProductAttributes, 'updatedAt'>>
+): Partial<ProductAttributesRow> {
+  const out: Partial<ProductAttributesRow> = {};
+  if (data.productId !== undefined) out.product_id = data.productId;
+  if (data.composition !== undefined) out.composition = data.composition;
+  if (data.color !== undefined) out.color = data.color || null;
+  if (data.pattern !== undefined) out.pattern = data.pattern || null;
+  if (data.fit !== undefined) out.fit = data.fit || null;
+  if (data.sizeAdvice !== undefined) out.size_advice = data.sizeAdvice || null;
+  if (data.details !== undefined) out.details = data.details;
+  if (data.measurements !== undefined) out.measurements = data.measurements;
   return out;
 }
 

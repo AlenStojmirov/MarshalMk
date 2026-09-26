@@ -57,6 +57,37 @@ export interface Product {
   updatedAt: Date;
 }
 
+/** One fibre of a garment's composition. Keys and labels: src/lib/attributes.ts. */
+export interface FiberShare {
+  fiber: string;
+  pct: number;
+}
+
+/** Does it run true to size? Stored as 'true' | 'larger' | 'smaller'. */
+export type SizeAdvice = 'true' | 'larger' | 'smaller';
+
+/** Centimetres, per size label: { M: { chest: 54, length: 72 } }. */
+export type Measurements = Record<string, Record<string, number>>;
+
+/**
+ * What a product is made of, its colour and how it fits (EPIC 9, migration 010).
+ * Kept in `product_attributes`, one row per product, apart from `products` until
+ * Task 9.10 joins them.
+ */
+export interface ProductAttributes {
+  productId: string;
+  /** Empty until known; otherwise the shares add up to 100 (the database checks). */
+  composition: FiberShare[];
+  color?: string;
+  pattern?: string;
+  fit?: string;
+  sizeAdvice?: SizeAdvice;
+  /** Per-category fields: sleeve, collar, closure, leg length (32L), lining… */
+  details: Record<string, string | number | boolean>;
+  measurements: Measurements;
+  updatedAt?: Date;
+}
+
 export interface CartItem {
   product: Product;
   quantity: number;
