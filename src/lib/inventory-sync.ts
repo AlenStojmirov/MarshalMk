@@ -6,6 +6,7 @@ import { supabase } from './supabase';
 import { productToRow, ProductRow, rowToProduct } from './db-mappers';
 import { Product, ProductSize } from '@/types';
 import { realPurchasePrice } from './cost';
+import { canonicalSize } from './sizes';
 
 // Re-export the check function
 export const isRealtimeDatabaseConfigured = checkRtdbConfigured;
@@ -170,13 +171,17 @@ export async function syncProductToSupabase(
  * Compared as a multiset on size + day + price — the same key the ledger sync
  * uses — because `sold[]` has no ids and two identical sales on one day are
  * legitimate. Returns how many Supabase entries have no counterpart.
+ *
+ * The size is compared canonically (9.8): a sale renamed 2XL → XXL on one
+ * side is the same sale, not a missing one. Compared raw, renaming sizes in
+ * Firebase would have silently frozen every product it touched.
  */
 export function salesMissingFromFirebase(
   supabaseSold: Array<{ size?: string; price?: number | string; soldDate?: string }> | undefined,
   firebaseSold: Array<{ size?: string; price?: number | string; soldDate?: string }> | undefined
 ): number {
   const key = (s: { size?: string; price?: number | string; soldDate?: string }) =>
-    `${String(s.size ?? '')}|${String(s.soldDate ?? '').slice(0, 10)}|${Number(s.price) || 0}`;
+    `${canonicalSize(s.size)}|${String(s.soldDate ?? '').slice(0, 10)}|${Number(s.price) || 0}`;
   const pool = new Map<string, number>();
   for (const s of firebaseSold ?? []) pool.set(key(s), (pool.get(key(s)) ?? 0) + 1);
   let missing = 0;

@@ -11,6 +11,7 @@ import { emptyAttributes, fetchAttributes, fetchMeasuredInCategory, saveAttribut
 import MeasurementsEditor, { measurementErrors, rankMeasurementSources, type MeasurementSource } from '@/components/admin/MeasurementsEditor';
 import { careFromComposition, isStretch, validateComposition } from '@/lib/attributes';
 import { generateTitle } from '@/lib/product-title';
+import { SIZE_PRESETS, canonicalSize, sizeLabel, storedCanonicalLabel } from '@/lib/sizes';
 import {
   ColorSwatches, CompositionEditor, DetailsEditor, FitSelect, PatternSelect, SizeAdviceButtons,
 } from '@/components/admin/AttributeFields';
@@ -112,16 +113,20 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
     }
   };
 
-  const handleAddSize = () => {
-    if (!newSize.trim()) return;
-    const sizeExists = formData.sizes?.some(s => s.size.toLowerCase() === newSize.trim().toLowerCase());
-    if (sizeExists) {
-      alert(t('admin.sizeExists'));
+  // Only canonical names go in (9.8): "2xl" becomes XXL, "kolicina" becomes
+  // "Една големина", and a size already there under another name is refused.
+  const handleAddSize = (raw: string = newSize) => {
+    const typed = storedCanonicalLabel(raw);
+    if (!typed) return;
+    const label = /^[a-z]+$/i.test(typed) ? typed.toUpperCase() : typed;
+    const existing = formData.sizes?.find(s => canonicalSize(s.size) === canonicalSize(label));
+    if (existing) {
+      alert(existing.size === label ? t('admin.sizeExists') : `${t('admin.sizeExists')} (${existing.size} = ${label})`);
       return;
     }
     setFormData(prev => ({
       ...prev,
-      sizes: [...(prev.sizes || []), { size: newSize.trim(), quantity: 0 }],
+      sizes: [...(prev.sizes || []), { size: label, quantity: 0 }],
     }));
     setNewSize('');
   };
@@ -595,19 +600,42 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('admin.sizes')}</label>
 
-              {/* Add Size Input */}
+              {/* One click per canonical size (9.8) */}
+              <div className="space-y-1.5 mb-3">
+                {SIZE_PRESETS.map((group) => (
+                  <div key={group.label} className="flex flex-wrap items-center gap-1.5">
+                    <span className="w-24 shrink-0 text-xs text-gray-500">{group.label}</span>
+                    {group.sizes.map((size) => {
+                      const has = formData.sizes?.some((s) => canonicalSize(s.size) === canonicalSize(size));
+                      return (
+                        <button
+                          key={size}
+                          type="button"
+                          disabled={has}
+                          onClick={() => handleAddSize(size)}
+                          className={`px-2.5 py-1 text-xs rounded border ${has ? 'border-blue-200 bg-blue-50 text-blue-400 cursor-default' : 'border-gray-300 text-gray-700 hover:border-blue-500 hover:bg-blue-50'}`}
+                        >
+                          {size}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+
+              {/* Anything else, normalised on the way in */}
               <div className="flex gap-2 mb-3">
                 <input
                   type="text"
                   value={newSize}
                   onChange={(e) => setNewSize(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSize())}
-                  placeholder={t('admin.sizePlaceholder')}
+                  placeholder="Друга големина…"
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <button
                   type="button"
-                  onClick={handleAddSize}
+                  onClick={() => handleAddSize()}
                   className="flex items-center gap-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   <PlusCircle className="h-4 w-4" />
@@ -620,7 +648,12 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
                 <div className="space-y-2">
                   {formData.sizes.map((sizeItem) => (
                     <div key={sizeItem.size} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <span className="font-medium text-gray-900 min-w-[60px]">{sizeItem.size}</span>
+                      <span className="font-medium text-gray-900 min-w-[60px]">
+                        {sizeItem.size}
+                        {sizeLabel(sizeItem.size) !== sizeItem.size && (
+                          <span className="ml-1 text-xs font-normal text-gray-400" title="Истата големина под канонско име">= {sizeLabel(sizeItem.size)}</span>
+                        )}
+                      </span>
                       <div className="flex-1 flex items-center gap-2">
                         <label className="text-sm text-gray-500">{t('admin.quantity')}:</label>
                         <input

@@ -33,6 +33,7 @@ config({ path: '.env.local' });
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { buildLedgerRow, reasonForPrice, SalesLedgerRow, SalesReason } from '../src/lib/sales-ledger';
+import { canonicalSize } from '../src/lib/sizes';
 
 const APPLY = process.argv.includes('apply');
 const PRUNE = process.argv.includes('--prune');
@@ -93,9 +94,13 @@ async function pageAll<T>(sb: SupabaseClient, table: string, columns: string): P
 const dayOf = (iso: string) => (iso ?? '').slice(0, 10);
 const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
 
-/** Multiset key: two identical sales on one day are two legitimate entries. */
+/**
+ * Multiset key: two identical sales on one day are two legitimate entries.
+ * The size is canonical (9.8), so a row still labelled 2XL matches a sale now
+ * labelled XXL instead of reading as one missing and one extra.
+ */
 const cellKey = (size: string, day: string, price: number) =>
-  String(size ?? '') + '|' + day + '|' + money(price);
+  canonicalSize(size) + '|' + day + '|' + money(price);
 
 /** YYYY-MM-DD (or a full ISO string) to midday UTC on that calendar day. */
 function dayIso(dateStr: string): string | null {
@@ -353,7 +358,7 @@ async function main() {
       (r) =>
         !claimed.has(r.id) &&
         r.product_id === ref.productId &&
-        String(r.size ?? '') === ref.size &&
+        canonicalSize(r.size) === canonicalSize(ref.size) &&
         dayOf(r.occurred_at) === ref.day
     );
     let loose: number | null = null;

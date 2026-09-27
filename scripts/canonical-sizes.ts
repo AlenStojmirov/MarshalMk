@@ -1,17 +1,20 @@
 /**
  * Stored size labels → one name per size (Task 9.8).
  *
- *   npm run sizes:canonical                          # preview, writes nothing
- *   npm run sizes:canonical apply-after-switchover   # writes
+ *   npm run sizes:canonical          # preview, writes nothing
+ *   npm run sizes:canonical apply    # writes
  *
  * 2XL → XXL, 3XL → XXXL, kolicina / количина → "Една големина".
  *
- * ONLY AFTER THE FIREBASE SWITCHOVER. Until then "Sync All" rewrites `sizes`
- * from Firebase (the old names come back), and it matches sales by size + day
- * + price (D-012): a product whose `sold[]` says XXL where Firebase says 2XL
- * looks like it holds sales Firebase lacks, and is skipped from every later
- * sync — silently. The storefront and the reports already read through
- * canonicalSize(), so nothing waits on this except tidiness.
+ * Safe before the Firebase switchover, since both matchers compare sizes
+ * canonically: the sync's protection (salesMissingFromFirebase, D-012) and
+ * the ledger sync. A later "Sync All" may bring back whatever labels Firebase
+ * still holds — harmless now, because everything reads through
+ * canonicalSize(); run this again afterwards to tidy.
+ *
+ * Order when renaming in Firebase too: rename there → Sync All → this, with
+ * `apply` → npm run ledger:sync (0 new drift). This renames the ledger rows,
+ * which the database refund function matches by exact size.
  *
  * Renamed together, so every matcher keeps finding its partner:
  *   products.sizes and products.sold  — renameSizeLabels() in stock.ts, CAS
@@ -31,7 +34,7 @@ import { renameSizeLabels } from '../src/lib/stock';
 type Json = Record<string, unknown>;
 
 async function main() {
-  const apply = process.argv.includes('apply-after-switchover');
+  const apply = process.argv.includes('apply') || process.argv.includes('apply-after-switchover');
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error('Missing Supabase env vars in .env.local');
@@ -83,8 +86,7 @@ async function main() {
   console.log('');
 
   if (!apply) {
-    console.log('Преглед — ништо не е запишано.');
-    console.log('Само ПО денот на преминот од Firebase: npm run sizes:canonical apply-after-switchover');
+    console.log('Преглед — ништо не е запишано. `npm run sizes:canonical apply` запишува.');
     return;
   }
 

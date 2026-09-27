@@ -6,12 +6,12 @@
  * Counted raw, that split the size curve, the reorder plan and the storefront
  * filter in two.
  *
- * The stored value is not changed here: the Firebase sync rewrites `sizes`
- * and matches sales by size until the switchover (D-012), so a rename in the
- * database now would be undone, or worse, stop those products syncing. Stored
- * labels are renamed once, after the switchover (`npm run sizes:canonical`).
- * Until then everything that groups or shows a size goes through here, and
- * the raw label stays the value that is ordered and reserved.
+ * Everything that groups, matches or shows a size goes through here — the
+ * storefront filter, the reports, and the two matchers that pair sales across
+ * copies (the Firebase sync's protection, D-012, and the ledger sync) — so a
+ * label renamed on one side only is still the same size. Stored labels are
+ * tidied by `npm run sizes:canonical`; the product form offers only canonical
+ * ones. The raw label stays the value that is ordered and reserved.
  */
 const SIZE_ALIASES: Record<string, string> = {
   '2XL': 'XXL',
@@ -42,6 +42,17 @@ export function canonicalSize(size: unknown): string {
   const key = String(size ?? '').trim().toUpperCase();
   return SIZE_ALIASES[key] ?? key;
 }
+
+/**
+ * The sizes the product form offers (9.8). Letters for tops, waist for
+ * trousers, jacket sizes for suits — each list in the order a person reads it.
+ */
+export const SIZE_PRESETS: Array<{ label: string; sizes: string[] }> = [
+  { label: 'Букви', sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '4XL'] },
+  { label: 'Половина', sizes: ['28', '29', '30', '31', '32', '33', '34', '36', '38', '40'] },
+  { label: 'Сако / одело', sizes: ['44', '46', '48', '50', '52', '54', '56', '58'] },
+  { label: 'Друго', sizes: [ONE_SIZE_LABEL.mk] },
+];
 
 /** What a customer reads: "2XL" → "XXL", "kolicina" → "Една големина", "32" → "32". */
 export function sizeLabel(size: unknown, lang: 'mk' | 'en' = 'mk'): string {
