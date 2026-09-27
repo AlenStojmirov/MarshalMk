@@ -33,6 +33,7 @@ import {
   ColorSelect, CompositionEditor, FitSelect, SizeAdviceButtons,
 } from '@/components/admin/AttributeFields';
 import MeasurementsEditor, { measurementErrors, rankMeasurementSources } from '@/components/admin/MeasurementsEditor';
+import TitlePreview from '@/components/admin/TitlePreview';
 
 type Gap = 'composition' | 'color' | 'fit' | 'sizeAdvice' | 'measured' | 'photos';
 
@@ -72,6 +73,7 @@ export default function CatalogPage() {
   const [rowState, setRowState] = useState<Record<string, RowState>>({});
   const [editingComposition, setEditingComposition] = useState<string | null>(null);
   const [measuring, setMeasuring] = useState<string | null>(null);
+  const [view, setView] = useState<'data' | 'titles'>('data');
 
   const [tier, setTier] = useState<'all' | WorkTier>('all');
   const [category, setCategory] = useState('all');
@@ -172,6 +174,17 @@ export default function CatalogPage() {
           </div>
         )}
 
+        <div className="inline-flex rounded-lg border border-slate-300 bg-white overflow-hidden mb-4">
+          {([['data', 'Податоци'], ['titles', 'Наслови (преглед)']] as const).map(([k, label]) => (
+            <button key={k} type="button" onClick={() => setView(k)} className={`px-4 py-2 text-sm ${view === k ? 'bg-slate-800 text-white' : 'text-slate-700 hover:bg-slate-50'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {view === 'titles' ? (
+          <TitlePreview items={entries.map((e) => ({ p: e.p, a: e.a }))} />
+        ) : (<>
         {/* What is missing — each tile filters the list */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-4">
           <button
@@ -342,6 +355,7 @@ export default function CatalogPage() {
         <p className="mt-4 text-xs text-slate-500">
           Шарата и деталите по категорија се внесуваат во формата за производ. Истите бројки: <code>npm run catalog:audit</code>.
         </p>
+        </>)}
       </div>
     </div>
   );

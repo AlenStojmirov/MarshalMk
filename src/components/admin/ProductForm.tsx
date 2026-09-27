@@ -10,6 +10,7 @@ import { Product, ProductAttributes, ProductFormData, ProductSize } from '@/type
 import { emptyAttributes, fetchAttributes, fetchMeasuredInCategory, saveAttributes } from '@/lib/product-attributes';
 import MeasurementsEditor, { measurementErrors, rankMeasurementSources, type MeasurementSource } from '@/components/admin/MeasurementsEditor';
 import { careFromComposition, isStretch, validateComposition } from '@/lib/attributes';
+import { generateTitle } from '@/lib/product-title';
 import {
   ColorSwatches, CompositionEditor, DetailsEditor, FitSelect, PatternSelect, SizeAdviceButtons,
 } from '@/components/admin/AttributeFields';
@@ -363,6 +364,16 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
                 <span className="text-sm font-medium text-gray-700">Состав и детали</span>
               </div>
               {attrsNote && <p className="text-xs text-amber-700">{attrsNote}</p>}
+              {formData.category && (() => {
+                const suggested = generateTitle(formData.category, attrs);
+                return (
+                  <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Предлог наслов · само преглед, сајтот уште го користи стариот</p>
+                    <p className="text-sm font-semibold text-slate-800">{suggested.title}</p>
+                    {suggested.missing.length > 0 && <p className="text-xs text-amber-700">за подобар наслов фали: {suggested.missing.join(', ')}</p>}
+                  </div>
+                );
+              })()}
 
               <div>
                 <span className="block text-xs font-medium text-gray-600 mb-1">Состав (од етикетата)</span>
