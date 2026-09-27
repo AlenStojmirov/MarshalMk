@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { sizeLabel } from '@/lib/sizes';
 import Image from 'next/image';
 import Link from 'next/link';
 import { X, ShoppingBag, ArrowRight, Minus, Plus, Trash2 } from 'lucide-react';
@@ -20,7 +21,7 @@ export default function MiniCart() {
     updateQuantity,
     removeFromCart,
   } = useCart();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   // Lock body scroll when drawer is open
   useEffect(() => {
@@ -166,7 +167,7 @@ export default function MiniCart() {
                     {selectedSize && (
                       <p className="text-[11px] text-gray-500 mt-0.5">
                         {t('cart.size')}:{' '}
-                        <span className="text-gray-700 font-medium">{selectedSize}</span>
+                        <span className="text-gray-700 font-medium">{sizeLabel(selectedSize, (language === 'en' ? 'en' : 'mk'))}</span>
                       </p>
                     )}
 

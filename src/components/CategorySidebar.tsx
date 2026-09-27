@@ -2,7 +2,7 @@
 
 import * as Slider from '@radix-ui/react-slider';
 import { useTranslation } from '@/lib/i18n';
-import { groupSizes } from '@/lib/sizes';
+import { groupSizes, sizeLabel } from '@/lib/sizes';
 
 function formatPrice(value: number): string {
   return value.toLocaleString('mk-MK') + ' ден.';
@@ -31,7 +31,7 @@ export default function CategorySidebar({
   onSizeChange,
   onClearFilters,
 }: CategorySidebarProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const { min: absoluteMin, max: absoluteMax } = priceRange;
 
@@ -115,7 +115,7 @@ export default function CategorySidebar({
                         }`}
                         title={`${count} product(s)`}
                       >
-                        {size}
+                        {sizeLabel(size, (language === 'en' ? 'en' : 'mk'))}
                       </button>
                     );
                   })}

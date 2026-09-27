@@ -32,6 +32,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { canonicalSize } from '@/lib/sizes';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
@@ -48,7 +49,7 @@ const NON_MERCHANDISE = new Set(['vaucer']);
 /** The sizes that carry the business. Everything else is a tail size. */
 const CORE = ['M', 'L', 'XL'];
 /** Any of these makes a model "letter sized" and therefore judgeable here. */
-const LETTER = ['S', 'M', 'L', 'XL', 'XXL', '2XL', 'XXXL', '3XL'];
+const LETTER = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
 /** How many pieces a top-up assumes per missing size. One — the point of A5 is
  *  a small, certain spend, not a re-buy. */
@@ -74,9 +75,8 @@ interface Row {
   margin: number | null;
 }
 
-function normSize(s: unknown) {
-  return String(s).trim().toUpperCase();
-}
+// XXL and 2XL are one size (9.8).
+const normSize = canonicalSize;
 
 function SizesView() {
   const { products, loading } = useProducts();

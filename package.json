@@ -21,7 +21,8 @@
     "refresh": "tsx scripts/refresh.ts",
     "user:role": "tsx scripts/set-user-role.ts",
     "catalog:audit": "tsx scripts/catalog-audit.ts",
-    "attributes:parse": "tsx scripts/parse-descriptions.ts"
+    "attributes:parse": "tsx scripts/parse-descriptions.ts",
+    "sizes:canonical": "tsx scripts/canonical-sizes.ts"
   },
   "dependencies": {
     "@radix-ui/react-slider": "^1.3.6",

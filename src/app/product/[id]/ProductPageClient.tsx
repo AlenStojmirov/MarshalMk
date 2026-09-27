@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { sizeLabel } from '@/lib/sizes';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Minus, Plus, ShoppingCart } from 'lucide-react';
 import { useProductsByCategory } from '@/hooks/useProducts';
@@ -45,7 +46,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [addedToCart, setAddedToCart] = useState(false);
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const hasSizes = product?.sizes && product.sizes.length > 0;
   const selectedSizeData = hasSizes
@@ -210,7 +211,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
                           }
                         `}
                       >
-                        {sizeOption.size}
+                        {sizeLabel(sizeOption.size, (language === 'en' ? 'en' : 'mk'))}
                       </button>
                     );
                   })}
@@ -224,11 +225,11 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
                 selectedSize ? (
                   availableStock > 0 ? (
                     <p className="text-xs text-stone-500">
-                      {t('product.inStockInSize', { count: availableStock.toString(), size: selectedSize })}
+                      {t('product.inStockInSize', { count: availableStock.toString(), size: sizeLabel(selectedSize, (language === 'en' ? 'en' : 'mk')) })}
                     </p>
                   ) : (
                     <p className="text-xs text-red-700">
-                      {t('product.outOfStockInSize', { size: selectedSize })}
+                      {t('product.outOfStockInSize', { size: sizeLabel(selectedSize, (language === 'en' ? 'en' : 'mk')) })}
                     </p>
                   )
                 ) : (

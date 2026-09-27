@@ -2,6 +2,7 @@ import { getSupabaseAdmin } from './supabase-admin';
 import { rowToProduct, ProductRow } from './db-mappers';
 import { Product, PaginatedResult, ProductQueryParams } from '@/types';
 import { getProductImageMap, ProductImageMap } from './product-images';
+import { canonicalSize } from './sizes';
 
 const PRODUCTS_PER_PAGE = 12;
 
@@ -79,8 +80,11 @@ export async function fetchPaginatedProducts(
   }
 
   if (sizes && sizes.length > 0) {
+    // Canonical on both sides: "2XL" and "XXL" are one filter (9.8), and an
+    // old link with ?sizes=2XL still finds them.
+    const wanted = new Set(sizes.map(canonicalSize));
     allProducts = allProducts.filter((p) =>
-      p.sizes?.some((s) => sizes.includes(s.size) && s.quantity > 0)
+      p.sizes?.some((s) => wanted.has(canonicalSize(s.size)) && s.quantity > 0)
     );
   }
 
@@ -118,11 +122,9 @@ function computeFilterMeta(products: Product[]): PaginatedResult['filterMeta'] {
 
   const sizeMap = new Map<string, number>();
   products.forEach((p) => {
-    p.sizes?.forEach((s) => {
-      if (s.quantity > 0) {
-        sizeMap.set(s.size, (sizeMap.get(s.size) || 0) + 1);
-      }
-    });
+    // Once per product, even if it holds both "XXL" and "2XL".
+    const keys = new Set((p.sizes ?? []).filter((s) => s.quantity > 0).map((s) => canonicalSize(s.size)));
+    keys.forEach((key) => sizeMap.set(key, (sizeMap.get(key) || 0) + 1));
   });
 
   const availableSizes = Array.from(sizeMap.entries()).map(([size, count]) => ({

@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { sizeLabel } from '@/lib/sizes';
 import Link from 'next/link';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { CartItem as CartItemType } from '@/types';
@@ -15,7 +16,7 @@ interface CartItemProps {
 
 export default function CartItem({ item }: CartItemProps) {
   const { updateQuantity, removeFromCart } = useCart();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { product, quantity, selectedSize } = item;
 
   // Get max stock based on size or total stock
@@ -67,7 +68,7 @@ export default function CartItem({ item }: CartItemProps) {
           <p className="text-xs text-gray-400 mt-0.5">{t('categoryNames.' + product.category)}</p>
           {selectedSize && (
             <p className="text-xs text-gray-500 mt-1">
-              {t('cart.size')}: <span className="font-medium text-gray-700">{selectedSize}</span>
+              {t('cart.size')}: <span className="font-medium text-gray-700">{sizeLabel(selectedSize, (language === 'en' ? 'en' : 'mk'))}</span>
             </p>
           )}
           {onSale ? (

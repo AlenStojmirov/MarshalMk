@@ -19,6 +19,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { canonicalSize } from '@/lib/sizes';
 import Link from 'next/link';
 import { Order, Product } from '@/types';
 import { getOrders } from '@/lib/orders';
@@ -44,7 +45,7 @@ const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
 
 const NON_MERCHANDISE = new Set(['vaucer']);
 const CORE_SIZES = ['M', 'L', 'XL'];
-const LETTER_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '2XL', 'XXXL', '3XL'];
+const LETTER_SIZES = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
 /** Stock ceiling as a multiple of monthly cost of goods (docs/TURNAROUND.md). */
 const MAX_MONTHS_OF_STOCK = 2.5;
@@ -145,7 +146,7 @@ export default function DashboardSummary({
         const inStock = new Set(
           (p.sizes ?? [])
             .filter((s) => Number(s.quantity) >= 1)
-            .map((s) => String(s.size).trim().toUpperCase())
+            .map((s) => canonicalSize(s.size))
         );
         if (LETTER_SIZES.some((l) => inStock.has(l))) {
           liveLetterModels += 1;

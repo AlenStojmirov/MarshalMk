@@ -1,13 +1,70 @@
-// Custom sort order for letter-based sizes
+/**
+ * One size, one name (Task 9.8).
+ *
+ * The same size was entered under two names — XXL on 173 variants, 2XL on 14;
+ * XXXL 9 and 3XL 7 — and one-size accessories as "kolicina" / "количина".
+ * Counted raw, that split the size curve, the reorder plan and the storefront
+ * filter in two.
+ *
+ * The stored value is not changed here: the Firebase sync rewrites `sizes`
+ * and matches sales by size until the switchover (D-012), so a rename in the
+ * database now would be undone, or worse, stop those products syncing. Stored
+ * labels are renamed once, after the switchover (`npm run sizes:canonical`).
+ * Until then everything that groups or shows a size goes through here, and
+ * the raw label stays the value that is ordered and reserved.
+ */
+const SIZE_ALIASES: Record<string, string> = {
+  '2XL': 'XXL',
+  '3XL': 'XXXL',
+  KOLICINA: 'ONE',
+  КОЛИЧИНА: 'ONE',
+  'ЕДНА ГОЛЕМИНА': 'ONE',
+};
+
+/**
+ * The label stored after the rename (npm run sizes:canonical). Only aliases
+ * change; every other label is left exactly as typed.
+ */
+export function storedCanonicalLabel(label: string): string {
+  const raw = String(label ?? '').trim();
+  const c = canonicalSize(raw);
+  if (c === raw.toUpperCase()) return raw;
+  return c === ONE_SIZE ? ONE_SIZE_LABEL.mk : c;
+}
+
+/** The key for one-size items: accessories, belts. */
+export const ONE_SIZE = 'ONE';
+
+const ONE_SIZE_LABEL = { mk: 'Една големина', en: 'One size' } as const;
+
+/** Grouping key: trimmed, upper case, aliases folded. "2xl " → "XXL". */
+export function canonicalSize(size: unknown): string {
+  const key = String(size ?? '').trim().toUpperCase();
+  return SIZE_ALIASES[key] ?? key;
+}
+
+/** What a customer reads: "2XL" → "XXL", "kolicina" → "Една големина", "32" → "32". */
+export function sizeLabel(size: unknown, lang: 'mk' | 'en' = 'mk'): string {
+  const raw = String(size ?? '').trim();
+  const c = canonicalSize(raw);
+  if (c === ONE_SIZE) return ONE_SIZE_LABEL[lang];
+  return c !== raw.toUpperCase() ? c : raw;
+}
+
+// Custom sort order for letter-based sizes; aliases sort with their size.
 const LETTER_SIZE_ORDER: Record<string, number> = {
+  XS: -1,
   S: 0,
   M: 1,
   L: 2,
   XL: 3,
   XXL: 4,
-  '2XL': 5,
-  XXXL: 6,
-  '3XL': 7,
+  '2XL': 4,
+  XXXL: 5,
+  '3XL': 5,
+  '4XL': 6,
+  '5XL': 7,
+  '6XL': 8,
 };
 
 // A size is considered numeric if it parses to a finite number

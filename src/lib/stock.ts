@@ -532,3 +532,46 @@ export async function applyStockCount(
     error: 'Залихата се смени токму при зачувувањето. Отвори го производот повторно.',
   };
 }
+
+/**
+ * Rename size labels on one product — shelf and sales alike (Task 9.8).
+ *
+ * For the one-off move to canonical names (2XL → XXL) after the Firebase
+ * switchover. Shelf entries that land on the same name are merged, their
+ * quantities added; `sold[]` entries keep everything but the label. Stock is
+ * unchanged by construction. Read fresh, compare-and-set, retried like the
+ * other writers. `changed: false` when there was nothing to rename.
+ */
+export async function renameSizeLabels(
+  sb: SupabaseClient,
+  productId: string,
+  rename: (label: string) => string
+): Promise<{ ok: boolean; changed: boolean; error?: string }> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const product = await readProduct(sb, productId);
+    if (!product) return { ok: false, changed: false, error: 'Производот не е пронајден.' };
+
+    const merged = new Map<string, number>();
+    const order: string[] = [];
+    let changed = false;
+    for (const s of product.sizes ?? []) {
+      const from = norm(s.size);
+      const to = rename(from);
+      if (to !== from) changed = true;
+      if (!merged.has(to)) order.push(to);
+      merged.set(to, (merged.get(to) ?? 0) + (Number(s.quantity) || 0));
+    }
+    const sold = (product.sold ?? []).map((e) => {
+      const to = rename(norm(e.size));
+      if (to !== norm(e.size)) changed = true;
+      return { ...e, size: to };
+    });
+    if (!changed) return { ok: true, changed: false };
+
+    const sizes = order.map((size) => ({ size, quantity: merged.get(size)! }));
+    if (await casWrite(sb, productId, product.updated_at, { sizes, stock: totalOf(sizes), sold })) {
+      return { ok: true, changed: true };
+    }
+  }
+  return { ok: false, changed: false, error: 'Производот постојано се менуваше — пушти повторно.' };
+}

@@ -39,6 +39,7 @@
  */
 
 import { Product } from '@/types';
+import { canonicalSize } from './sizes';
 import { markup } from './cost';
 import { Month, monthOf, phaseOf, shouldBuyNow } from './seasons';
 import {
@@ -74,7 +75,8 @@ export const SIZE_SHARE_FLOOR = 0.05;
  */
 const REAL_SIZE = /^(XS|S|M|L|XL|XXL|2XL|XXXL|3XL|4XL|[2-6]\d)$/;
 
-const normSize = (s: unknown) => String(s).trim().toUpperCase();
+// XXL and 2XL are one size in the curve (9.8).
+const normSize = canonicalSize;
 
 /** Priced sales per size, per raw category, across all history. */
 export function categorySizeMix(products: Product[]): Map<string, Map<string, number>> {

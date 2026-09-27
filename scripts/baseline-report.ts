@@ -20,6 +20,7 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 import { createClient } from '@supabase/supabase-js';
+import { canonicalSize } from '../src/lib/sizes';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -473,7 +474,7 @@ async function main() {
   // =======================================================================
   const sizeCount = new Map<string, number>();
   for (const s of paidSales) {
-    const key = s.size.trim().toUpperCase() || '(празно)';
+    const key = canonicalSize(s.size) || '(празно)';
     sizeCount.set(key, (sizeCount.get(key) ?? 0) + 1);
   }
   const LETTER_ORDER = ['S', 'M', 'L', 'XL', 'XXL', '2XL', 'XXXL', '3XL'];
@@ -655,7 +656,7 @@ async function main() {
   // ---- size-run health --------------------------------------------------
   const CORE_SIZES = ['M', 'L', 'XL'];
   const sizeSet = (p: ProductRow) =>
-    new Set((p.sizes ?? []).filter((sz) => num(sz.quantity) >= 1).map((sz) => sz.size.trim().toUpperCase()));
+    new Set((p.sizes ?? []).filter((sz) => num(sz.quantity) >= 1).map((sz) => canonicalSize(sz.size)));
 
   const letterModels = liveInStock.filter((p) => {
     const s = sizeSet(p);
