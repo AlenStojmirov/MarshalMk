@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import StaffHome from '@/components/admin/StaffHome';
+import MarketingRedirect from '@/components/admin/MarketingRedirect';
 import { useProducts, createProduct, updateProduct, deleteProduct } from '@/hooks/useProducts';
 import { Product, ProductFormData } from '@/types';
 import { Plus, Edit2, Trash2, LogOut, Tag, Eye, EyeOff, Search, Filter } from 'lucide-react';
@@ -782,5 +783,7 @@ export default function AdminPage() {
   // Any other role never reaches here — AdminGate stops it at the layout.
   if (role === 'admin') return <AdminDashboard />;
   if (role === 'staff') return <StaffHome />;
+  // Marketing has one screen; /admin is only where it signs in (10.0).
+  if (role === 'marketing') return <MarketingRedirect />;
   return null;
 }

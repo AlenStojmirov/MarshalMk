@@ -75,6 +75,19 @@ async function main() {
       (error ? '· ' + error.message.split('.')[0] : ''));
   }
 
+  // 011 is two read policies and the function they share. The policies cannot
+  // be seen from here; the function can: it answers (false, for the service
+  // role) only once the migration has run.
+  {
+    const { error } = await sb.rpc('is_marketing');
+    if (error) {
+      missing += 1;
+      missingMigrations.add('011');
+    }
+    console.log('  ' + (error ? 'НЕМА' : 'ИМА ') + '  011  ' + 'улога маркетинг (само чита каталог)'.padEnd(34) +
+      (error ? '· ' + error.message.split('.')[0] : ''));
+  }
+
   // 007 is about what anon can NOT do, which the service role cannot see.
   // Probe with the key that ships in the storefront: it must not reach the
   // purchase price.

@@ -7,6 +7,7 @@
  *   npm run user:role                     list users and their roles
  *   npm run user:role <email> admin       make someone the owner
  *   npm run user:role <email> staff       warehouse: no statistics, no costs
+ *   npm run user:role <email> marketing   posts: reads the catalogue, no costs (D-021)
  *   npm run user:role <email> none        take the role away: no access
  *
  * A user without a role has no access to the admin at all (D-017).

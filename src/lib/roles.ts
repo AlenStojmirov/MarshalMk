@@ -3,9 +3,10 @@ import type { User } from '@supabase/supabase-js';
 /**
  * Who may see what (Task 8.2, D-017).
  *
- * The admin area has two roles today: `admin` (the owner — every screen, every
- * number) and `staff` (the shop floor — stock, products, the sales of their
- * shift, online orders; no statistics, costs or totals). More are coming —
+ * The admin area has three roles today: `admin` (the owner — every screen, every
+ * number), `staff` (the shop floor — stock, products, the sales of their
+ * shift, online orders; no statistics, costs or totals) and `marketing` (posts
+ * for Instagram and Facebook — reads the catalogue, writes nothing; D-021). More are coming —
  * customers who sign in to see their own orders, and others — so a role is a
  * key into ROLE_PATHS, not a yes/no "is admin".
  *
@@ -14,14 +15,18 @@ import type { User } from '@supabase/supabase-js';
  * the JWT, which lets the database enforce it too (Task 8.4). This file is the
  * screen side: it decides what is shown, not what the database allows.
  */
-export const ROLES = ['admin', 'staff', 'customer'] as const;
+export const ROLES = ['admin', 'staff', 'marketing', 'customer'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABEL: Record<Role, string> = {
   admin: 'Админ',
   staff: 'Магацин',
+  marketing: 'Маркетинг',
   customer: 'Купувач',
 };
+
+/** The roles the owner gives from /admin/users. Customers will sign up themselves. */
+export const BACK_OFFICE_ROLES: readonly Role[] = ['staff', 'marketing', 'admin'];
 
 /**
  * The admin screens each role may open. `'*'` is all of them. An allowlist on
@@ -32,6 +37,8 @@ const ROLE_PATHS: Record<Role, '*' | readonly string[]> = {
   admin: '*',
   // Catalogue (9.4): staff have the garment in hand, so they fill in what it is.
   staff: ['/admin', '/admin/orders', '/admin/in-store-sales', '/admin/product', '/admin/catalog'],
+  // EPIC 10: /admin is only the sign-in and a hop to the marketing screen.
+  marketing: ['/admin', '/admin/marketing'],
   // Customer accounts will live outside /admin entirely.
   customer: [],
 };

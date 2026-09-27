@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { ArrowLeft, KeyRound, UserPlus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { ROLE_LABEL, Role } from '@/lib/roles';
+import { BACK_OFFICE_ROLES, ROLE_LABEL, Role } from '@/lib/roles';
 
 /**
- * Back-office accounts (Task 8.7): add someone for the warehouse, change a
+ * Back-office accounts (Task 8.7): add someone for the warehouse or marketing, change a
  * role, set a new password. Everything goes through /api/admin/users, which
  * holds the service-role key and checks that the caller is the admin.
  */
@@ -24,7 +24,7 @@ interface Account {
 type Wanted = Role | 'none';
 
 /** The roles an account can be given from here. Customers sign up themselves. */
-const ASSIGNABLE: Wanted[] = ['staff', 'admin', 'none'];
+const ASSIGNABLE: Wanted[] = [...BACK_OFFICE_ROLES, 'none'];
 const WANTED_LABEL: Record<Wanted, string> = { ...ROLE_LABEL, none: 'Без пристап' };
 
 async function call(method: 'GET' | 'POST' | 'PATCH', body?: unknown) {
@@ -51,7 +51,7 @@ function UsersView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [form, setForm] = useState({ email: '', password: '', role: 'staff' as 'staff' | 'admin' });
+  const [form, setForm] = useState({ email: '', password: '', role: 'staff' as Role });
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -76,7 +76,7 @@ function UsersView() {
     try {
       await call('POST', form);
       setNotice(`Профилот ${form.email} е направен. Предај му ја лозинката лично.`);
-      setForm({ email: '', password: '', role: 'staff' });
+      setForm({ email: '', password: '', role: 'staff' as Role });
       await load();
     } catch (err) {
       setNotice(null);
@@ -144,15 +144,17 @@ function UsersView() {
           />
           <select
             value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value as 'staff' | 'admin' })}
+            onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
             className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
           >
-            <option value="staff">{ROLE_LABEL.staff}</option>
-            <option value="admin">{ROLE_LABEL.admin}</option>
+            {BACK_OFFICE_ROLES.map((r) => (
+              <option key={r} value={r}>{ROLE_LABEL[r]}</option>
+            ))}
           </select>
         </div>
         <p className="text-[11px] text-slate-500 mt-2">
           Магацин: залиха, производи, продажба, online нарачки — без статистики, набавни цени и збирови.
+          Маркетинг: само чита каталог, слики, цени и залиха за објави — без набавни цени, маржи и нарачки.
           Не се праќа мејл; лозинката ја предаваш ти.
         </p>
         <button

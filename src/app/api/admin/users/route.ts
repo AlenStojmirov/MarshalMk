@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { User } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { ROLES, Role, roleOf } from '@/lib/roles';
+import { BACK_OFFICE_ROLES, ROLES, Role, roleOf } from '@/lib/roles';
 
 /**
  * Back-office accounts (Task 8.7). Admin only.
@@ -78,7 +78,9 @@ export async function POST(req: NextRequest) {
   const password = typeof body.password === 'string' ? body.password : '';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail(400, 'Внеси исправна е-пошта.');
   if (password.length < MIN_PASSWORD) return fail(400, `Лозинката мора да има барем ${MIN_PASSWORD} знаци.`);
-  if (body.role !== 'staff' && body.role !== 'admin') return fail(400, 'Улогата е магацин или админ.');
+  if (!(BACK_OFFICE_ROLES as readonly unknown[]).includes(body.role)) {
+    return fail(400, 'Улогата е магацин, маркетинг или админ.');
+  }
 
   const { data, error } = await getSupabaseAdmin().auth.admin.createUser({
     email,

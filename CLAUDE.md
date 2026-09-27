@@ -52,7 +52,7 @@ Data scripts (`tsx`, service-role key, see `scripts/SCRIPTS.md`): `baseline`, `l
 
 Every write to `sizes`/`stock`/`sold` goes through `src/lib/stock.ts`: read fresh, compare-and-set on `updated_at` (D-013). A form must never write back the quantities it opened with — only a real count, and only onto the shelf it started from (`saveProductEdit` in `ProductForm.tsx`).
 
-## Roles and access (D-017 … D-020)
+## Roles and access (D-017 … D-021)
 
 The role is `app_metadata.role` on the Supabase user, writable only with the service-role key; it rides in the JWT, so the database enforces it too (`public.app_role()`, `is_admin()`, `is_back_office()`).
 
@@ -60,6 +60,7 @@ The role is `app_metadata.role` on the Supabase user, writable only with the ser
 |---|---|---|
 | `admin` | `/admin` — the owner's dashboard, all screens | everything |
 | `staff` | `/admin` — `StaffHome` (stock, new/edit product without cost, sales without totals, orders, `/admin/catalog`) | products and `product_attributes` read/insert/update; orders read/update; ledger insert + three functions (`ledger_refund_one`, `ledger_remove_order`, `ledger_reprice_order_line`) — **never reads the ledger** (rows carry cost) |
+| `marketing` | `/admin/marketing` only (EPIC 10: post preparation, no publishing) | products and `product_attributes` **read only** (`is_marketing()`, 011) — cost empty, no ledger/orders/expenses; sales per product come from `sold[]` |
 | none / unknown / `customer` | blank page | nothing |
 
 - Screen rules: `ROLE_PATHS` in `src/lib/roles.ts` (an allowlist — a new admin page is admin-only until added), enforced by `AdminGate` in `admin/layout.tsx`. **A user without a role gets no access, never staff** — Supabase sign-up is open, and customers with their own accounts (and their own screen, outside `/admin`) are planned.
