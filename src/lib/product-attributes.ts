@@ -48,6 +48,37 @@ export async function fetchAllAttributes(sb: SupabaseClient): Promise<Attributes
 }
 
 /**
+ * Products of one category that already have measurements — the candidates for
+ * "copy from a similar model" (Task 9.5). Joined to `products` for the name
+ * and internal brand; the caller ranks them (rankMeasurementSources).
+ */
+export async function fetchMeasuredInCategory(sb: SupabaseClient, category: string): Promise<Array<{
+  id: string; name: string; brand?: string; category: string; measurements: ProductAttributes['measurements']; updatedAt?: Date;
+}>> {
+  const { data, error } = await sb
+    .from(PRODUCT_ATTRIBUTES)
+    .select('product_id, measurements, updated_at, products!inner(name, brand, category)')
+    .eq('products.category', category)
+    .neq('measurements', '{}')
+    .order('updated_at', { ascending: false })
+    .limit(50);
+  if (error || !data) return [];
+  type Joined = { product_id: string; measurements: ProductAttributes['measurements'] | null; updated_at: string | null;
+    products: { name: string | null; brand: string | null; category: string } | Array<{ name: string | null; brand: string | null; category: string }> };
+  return (data as unknown as Joined[]).map((r) => {
+    const p = Array.isArray(r.products) ? r.products[0] : r.products;
+    return {
+      id: r.product_id,
+      name: p?.name ?? r.product_id,
+      brand: p?.brand ?? undefined,
+      category: p?.category ?? category,
+      measurements: r.measurements ?? {},
+      updatedAt: r.updated_at ? new Date(r.updated_at) : undefined,
+    };
+  });
+}
+
+/**
  * Upsert only the fields given. On a new row the others take their defaults;
  * on an existing one they are left as they are — so the catalogue screen can
  * save a colour without touching a composition someone else is typing.

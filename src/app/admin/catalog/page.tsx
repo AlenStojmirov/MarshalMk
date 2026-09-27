@@ -18,7 +18,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, Check, ImageOff, Loader2, Pencil, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Check, ImageOff, Loader2, Pencil, AlertCircle, Ruler } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
 import { supabase } from '@/lib/supabase';
 import { useTranslation } from '@/lib/i18n';
@@ -32,6 +32,7 @@ import { getEffectivePrice } from '@/lib/pricing';
 import {
   ColorSelect, CompositionEditor, FitSelect, SizeAdviceButtons,
 } from '@/components/admin/AttributeFields';
+import MeasurementsEditor, { measurementErrors, rankMeasurementSources } from '@/components/admin/MeasurementsEditor';
 
 type Gap = 'composition' | 'color' | 'fit' | 'sizeAdvice' | 'measured' | 'photos';
 
@@ -70,6 +71,7 @@ export default function CatalogPage() {
   const [missingTable, setMissingTable] = useState(false);
   const [rowState, setRowState] = useState<Record<string, RowState>>({});
   const [editingComposition, setEditingComposition] = useState<string | null>(null);
+  const [measuring, setMeasuring] = useState<string | null>(null);
 
   const [tier, setTier] = useState<'all' | WorkTier>('all');
   const [category, setCategory] = useState('all');
@@ -225,7 +227,7 @@ export default function CatalogPage() {
 
           {filtered.slice(0, shown).map((e) => {
             const st = rowState[e.p.id] ?? {};
-            const other = e.gaps.missing.filter((m) => /слик|мерки/.test(m));
+            const other = e.gaps.missing.filter((m) => /слик/.test(m));
             return (
               <div key={e.p.id} className="border-b border-slate-100 last:border-b-0">
                 <div className="grid grid-cols-[3.5rem_1fr] lg:grid-cols-[3.5rem_minmax(9rem,1fr)_minmax(12rem,1.4fr)_10rem_9rem_8.5rem_minmax(7rem,0.8fr)] gap-3 px-4 py-3 items-center">
@@ -287,13 +289,35 @@ export default function CatalogPage() {
                     <SizeAdviceButtons compact value={e.a.sizeAdvice} onChange={(v: SizeAdvice | '') => save(e.p.id, { sizeAdvice: v })} />
                   </div>
 
-                  <div className="col-start-2 lg:col-start-auto flex flex-wrap gap-1">
+                  <div className="col-start-2 lg:col-start-auto flex flex-wrap items-center gap-1">
+                    {e.gaps.needsMeasurements && (
+                      <button
+                        type="button"
+                        disabled={missingTable}
+                        onClick={() => setMeasuring(measuring === e.p.id ? null : e.p.id)}
+                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] border ${e.gaps.measured ? 'border-green-300 text-green-700 bg-green-50' : 'border-amber-300 text-amber-800 bg-amber-50'}`}
+                      >
+                        <Ruler className="h-3 w-3" /> {e.gaps.measured ? 'мерки ✓' : 'измери'}
+                      </button>
+                    )}
                     {other.length === 0 && e.gaps.ready && <span className="text-xs font-medium text-green-700">✓ спремен</span>}
                     {other.map((m) => (
                       <span key={m} className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px]">{m}</span>
                     ))}
                   </div>
                 </div>
+
+                {measuring === e.p.id && (
+                  <MeasureRow
+                    entry={e}
+                    sources={rankMeasurementSources(
+                      { id: e.p.id, brand: e.p.brand, category: e.p.category },
+                      entries.map((x) => ({ id: x.p.id, label: x.p.name || x.p.id, brand: x.p.brand, category: x.p.category, measurements: x.a.measurements, updatedAt: x.a.updatedAt })),
+                    )}
+                    onCancel={() => setMeasuring(null)}
+                    onSave={async (measurements) => { await save(e.p.id, { measurements }); setMeasuring(null); }}
+                  />
+                )}
 
                 {editingComposition === e.p.id && (
                   <CompositionRow
@@ -316,7 +340,7 @@ export default function CatalogPage() {
         )}
 
         <p className="mt-4 text-xs text-slate-500">
-          Мерките, шарата и деталите по категорија се внесуваат во формата за производ. Истите бројки: <code>npm run catalog:audit</code>.
+          Шарата и деталите по категорија се внесуваат во формата за производ. Истите бројки: <code>npm run catalog:audit</code>.
         </p>
       </div>
     </div>
@@ -335,6 +359,31 @@ function CompositionRow({
         <div className="flex gap-2 mt-3">
           <button type="button" disabled={value.length > 0 && Math.abs(sum - 100) > 1e-9} onClick={() => onSave(value)} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg disabled:opacity-40">
             Зачувај состав
+          </button>
+          <button type="button" onClick={onCancel} className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg">Откажи</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MeasureRow({
+  entry, sources, onSave, onCancel,
+}: {
+  entry: Entry;
+  sources: ReturnType<typeof rankMeasurementSources>;
+  onSave: (m: ProductAttributes['measurements']) => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(entry.a.measurements);
+  const errors = measurementErrors(value);
+  return (
+    <div className="px-4 pb-4 lg:pl-[4.75rem]">
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 max-w-3xl">
+        <MeasurementsEditor category={entry.p.category} sizes={entry.p.sizes ?? []} value={value} onChange={setValue} sources={sources} />
+        <div className="flex gap-2 mt-3">
+          <button type="button" disabled={errors.length > 0} onClick={() => onSave(value)} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg disabled:opacity-40">
+            Зачувај мерки
           </button>
           <button type="button" onClick={onCancel} className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg">Откажи</button>
         </div>

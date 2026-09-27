@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Save, X, ImagePlus, PlusCircle, Trash, Tag, Shirt } from 'lucide-react';
+import { Save, X, ImagePlus, PlusCircle, Trash, Tag, Shirt, Ruler } from 'lucide-react';
 import { uploadProductImage, updateProduct } from '@/hooks/useProducts';
 import { supabase } from '@/lib/supabase';
 import { applyStockCount } from '@/lib/stock';
 import { Product, ProductAttributes, ProductFormData, ProductSize } from '@/types';
-import { emptyAttributes, fetchAttributes, saveAttributes } from '@/lib/product-attributes';
+import { emptyAttributes, fetchAttributes, fetchMeasuredInCategory, saveAttributes } from '@/lib/product-attributes';
+import MeasurementsEditor, { measurementErrors, rankMeasurementSources, type MeasurementSource } from '@/components/admin/MeasurementsEditor';
 import { careFromComposition, isStretch, validateComposition } from '@/lib/attributes';
 import {
   ColorSwatches, CompositionEditor, DetailsEditor, FitSelect, PatternSelect, SizeAdviceButtons,
@@ -84,6 +85,16 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
     setAttrsDirty(true);
   };
   const compositionErrors = validateComposition(attrs.composition);
+  const measureErrors = measurementErrors(attrs.measurements);
+  const [measureSources, setMeasureSources] = useState<MeasurementSource[]>([]);
+  const loadMeasureSources = async () => {
+    if (!formData.category) return;
+    const found = await fetchMeasuredInCategory(supabase, formData.category);
+    setMeasureSources(rankMeasurementSources(
+      { id: product?.id ?? '', brand: product?.brand, category: formData.category },
+      found.map((f) => ({ ...f, label: f.name })),
+    ));
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -189,6 +200,10 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
       alert(`Составот не е точен: ${compositionErrors.join(' · ')}`);
       return;
     }
+    if (measureErrors.length) {
+      alert(`Мерките не се точни: ${measureErrors.join(' · ')}`);
+      return;
+    }
     setSaving(true);
     try {
       // If sizes exist, calculate total stock from sizes
@@ -203,6 +218,7 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
           fit: attrs.fit ?? '',
           sizeAdvice: attrs.sizeAdvice ?? '',
           details: attrs.details,
+          measurements: attrs.measurements,
         });
         if (res.error) alert(`Производот е зачуван, но составот и деталите не се: ${res.error}`);
       }
@@ -622,6 +638,22 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
               ) : (
                 <p className="text-sm text-gray-500 italic">{t('admin.noSizesAdded')}</p>
               )}
+            </div>
+
+            {/* Measurements (9.5) — taken by hand, per size on the shelf */}
+            <div className="md:col-span-2 border border-gray-200 rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Ruler className="h-5 w-5 text-blue-700" />
+                <span className="text-sm font-medium text-gray-700">Мерки (cm)</span>
+              </div>
+              <MeasurementsEditor
+                category={formData.category}
+                sizes={formData.sizes ?? []}
+                value={attrs.measurements}
+                onChange={(measurements) => editAttrs({ measurements })}
+                sources={measureSources}
+                onLoadSources={loadMeasureSources}
+              />
             </div>
           </div>
 
