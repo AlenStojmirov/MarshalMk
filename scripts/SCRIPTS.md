@@ -131,7 +131,7 @@ often as you like. Supersedes the one-shot backfill (see git history).
 ```bash
 npm run ledger:sync                 # report drift, write nothing
 npm run ledger:sync apply           # insert what is missing
-npm run ledger:sync apply --prune   # also delete rows sold[] no longer has
+npm run ledger:sync apply prune     # also delete rows sold[] no longer has
 ```
 
 Both channels now write to the ledger live — the order API (D-006) and the POS
@@ -142,12 +142,12 @@ report that depends on the ledger, and see `docs/DECISIONS.md` D-008 for why
 reports still read `sold[]`.
 
 Rows written live carry `source` `pos` or `online` and are outside
-`OWNED_SOURCES`, so `--prune` never touches them.
+`OWNED_SOURCES`, so `prune` never touches them.
 
 Matching is a multiset comparison per product on size + day + price, because
 `sold[]` entries have no id, entries get added with past dates, and two
 identical sales on one day are legitimate. Extras are reported rather than
-deleted unless `--prune` is passed, and even then only rows this tooling
+deleted unless `prune` is passed, and even then only rows this tooling
 wrote — a row written live is never touched.
 
 ---

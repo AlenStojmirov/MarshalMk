@@ -4,7 +4,7 @@
  *
  *   npm run ledger:sync                 # report drift, write nothing
  *   npm run ledger:sync apply           # insert what is missing
- *   npm run ledger:sync apply --prune   # also delete rows sold[] no longer has
+ *   npm run ledger:sync apply prune     # also delete rows sold[] no longer has
  *
  * Supersedes the one-shot backfill (see git history). That script could only run
  * once; this one closes the gap that opens every day.
@@ -36,7 +36,9 @@ import { buildLedgerRow, reasonForPrice, SalesLedgerRow, SalesReason } from '../
 import { canonicalSize } from '../src/lib/sizes';
 
 const APPLY = process.argv.includes('apply');
-const PRUNE = process.argv.includes('--prune');
+// A bare word, like `apply`: npm keeps `--prune` for itself unless it comes
+// after `--`, so `npm run ledger:sync apply --prune` silently did not prune.
+const PRUNE = process.argv.includes('prune') || process.argv.includes('--prune');
 
 const SOURCE_SYNC = 'sync:sold-array';
 /** Sources this tooling owns and may prune. Anything else was written live. */
@@ -281,7 +283,7 @@ async function main() {
       console.log('Ledger-от е усогласен со sold[]. Нема што да се прави.');
     } else {
       console.log('DRY RUN — ништо не е запишано. Пушти со `apply`' +
-        (extras.length ? ' (и `--prune` за вишокот)' : '') + '.');
+        (extras.length ? ' (и `prune` за вишокот: `npm run ledger:sync apply prune`)' : '') + '.');
     }
     return;
   }
@@ -308,7 +310,7 @@ async function main() {
     }
     console.log('Избришани: ' + fmt(pruned));
   } else if (extras.length && !PRUNE) {
-    console.log('Вишокот е оставен. Додади `--prune` за да се избрише.');
+    console.log('Вишокот е оставен. За да се избрише: `npm run ledger:sync apply prune`');
   }
 
   // --- attribute online orders onto the rows they produced -----------------
@@ -426,7 +428,7 @@ async function main() {
   console.log('  редови:   ' + fmt(after.length) + ' vs sold[] ' + fmt(soldCount) + '  ' + (okRows ? 'OK' : 'РАЗЛИКА'));
   console.log('  вредност: ' + fmt(afterSum) + ' vs ' + fmt(soldSum) + '  ' + (okSum ? 'OK' : 'РАЗЛИКА'));
   if (!okRows || !okSum) {
-    console.log('  (разлика останува ако вишокот не е избришан — пушти со `--prune`)');
+    console.log('  (разлика останува ако вишокот не е избришан — `npm run ledger:sync apply prune`)');
   }
 }
 
