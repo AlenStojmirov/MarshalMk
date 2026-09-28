@@ -41,6 +41,7 @@
 import { Product } from '@/types';
 import { canonicalSize } from './sizes';
 import { markup } from './cost';
+import { groupOf } from './open-to-buy';
 import { Month, monthOf, phaseOf, shouldBuyNow } from './seasons';
 import {
   RESTOCK_RECENCY_DAYS, VelocityMetrics, isDecidable, velocityOf,
@@ -137,6 +138,12 @@ export interface ReorderLine {
   score: number;
   /** False once the running total has passed the budget. */
   withinBudget: boolean;
+  /**
+   * Why a line is out: the whole budget is spent, or its group has used its
+   * share of it (open-to-buy, D-023) — the group already holds more than its
+   * part of the stock target.
+   */
+  blockedBy: 'total' | 'group' | null;
 }
 
 export interface ReorderOptions {
@@ -144,6 +151,11 @@ export interface ReorderOptions {
   month?: Month;
   /** Hard ceiling on the plan's cost. Lines past it are excluded, not hidden. */
   budget?: number;
+  /**
+   * Budget per group (`groupOf`), from open-to-buy. When given, a line also
+   * has to fit what is left of its group's share.
+   */
+  groupBudgets?: Map<string, number>;
   coverMonths?: number;
 }
 
@@ -156,6 +168,8 @@ export interface ReorderPlan {
   /** Cost of the lines the budget cut off. */
   blockedCost: number;
   blockedLines: number;
+  /** Of those, the lines cut because their group is at its share. */
+  blockedByGroup: number;
 }
 
 /**
@@ -240,6 +254,7 @@ export function planReorder(products: Product[], opts: ReorderOptions = {}): Reo
       // Both halves matter: a fat margin that never sells is not a return.
       score: Math.max(0, gm ?? 0) * Math.max(0, m.sellThrough ?? 0),
       withinBudget: true,
+      blockedBy: null,
     });
   }
 
@@ -252,12 +267,28 @@ export function planReorder(products: Product[], opts: ReorderOptions = {}): Reo
   // that silently omitted what it could not afford would hide the size of the
   // gap between what the shop needs and what it can pay for.
   const budget = opts.budget;
+  const groupBudgets = opts.groupBudgets;
   let running = 0;
+  const spent = new Map<string, number>();
   for (const l of lines) {
-    if (budget === undefined) continue;
-    if (running + l.cost <= budget) running += l.cost;
-    else l.withinBudget = false;
+    const g = groupOf(l.p.category);
+    if (budget !== undefined && running + l.cost > budget) {
+      l.withinBudget = false;
+      l.blockedBy = 'total';
+      continue;
+    }
+    if (groupBudgets && (spent.get(g) ?? 0) + l.cost > (groupBudgets.get(g) ?? 0)) {
+      l.withinBudget = false;
+      l.blockedBy = 'group';
+      continue;
+    }
+    running += l.cost;
+    spent.set(g, (spent.get(g) ?? 0) + l.cost);
   }
+
+  // What fits first, in rank order, then what does not — so the line where the
+  // money runs out is one line on screen, not scattered through the table.
+  lines.sort((a, b) => Number(b.withinBudget) - Number(a.withinBudget));
 
   const inb = lines.filter((l) => l.withinBudget);
   const out = lines.filter((l) => !l.withinBudget);
@@ -269,6 +300,7 @@ export function planReorder(products: Product[], opts: ReorderOptions = {}): Reo
     revenue: inb.reduce((a, l) => a + l.revenue, 0),
     blockedCost: out.reduce((a, l) => a + l.cost, 0),
     blockedLines: out.length,
+    blockedByGroup: out.filter((l) => l.blockedBy === 'group').length,
   };
 }
 
