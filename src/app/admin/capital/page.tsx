@@ -1,173 +1,48 @@
 'use client';
 
 /**
- * Where the next purchase money should go — and whether there should be any.
+ * Where the next purchase money should go (D-023).
  *
- * The order of the two questions matters. Stock currently sits at roughly twelve
- * months of supply against a healthy three to four, so a screen that cheerfully
- * splits a budget across categories would contradict the plan it is meant to
- * serve (A4 in docs/TURNAROUND.md: no buying until turnover clears 2x). The
- * open-to-buy gate comes first and can return zero; the split is what to do with
- * a budget that has been earned, not an invitation to spend.
+ * Three answers, in the order they are needed:
  *
- * GMROI is the ranking metric rather than revenue or margin alone: it is gross
- * profit per denar tied up, which is the only one of the three that answers
- * "where does capital work hardest".
+ *  1. **Zero.** What a month has to sell to cover its costs, at the margin the
+ *     shop actually makes — and how far the last twelve months were from it.
+ *  2. **How much.** The shop keeps 600.000 den. of stock at cost. What the next
+ *     thirty days sell is replaced, less whatever the shelf is above target.
+ *  3. **Where.** Each group's share of the 600.000 follows what it sells in the
+ *     coming half year; the money goes to the groups below their share.
+ *
+ * The arithmetic is in `src/lib/open-to-buy.ts`, shared with the reorder plan
+ * and the dashboard, so the three screens cannot disagree about the number.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
-import { Product } from '@/types';
-import { MAX_MONTHS_OF_STOCK, MIN_TURNOVER_TO_BUY } from '@/lib/open-to-buy';
+import { Expense, expensesForPeriod, getExpenses, periodOf } from '@/lib/expenses';
+import {
+  OTB_HORIZON_DAYS, SHARE_WINDOW_DAYS, STOCK_TARGET_COST, openToBuy,
+} from '@/lib/open-to-buy';
+import { ArrowLeft, Coins, PackagePlus, Scale, Target } from 'lucide-react';
 
-import { ArrowLeft, Ban, Coins, TrendingUp } from 'lucide-react';
-
-const DAY = 86_400_000;
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
-
-const CATEGORY_GROUPS: Record<string, string> = {
-  tShirts: 'Маици & Поло', oversizeTshirts: 'Маици & Поло', polos: 'Маици & Поло',
-  shirts: 'Кошули', shortSleevedShirt: 'Кошули', blouses: 'Кошули',
-  cardigans: 'Плетиво', turtleNecks: 'Плетиво', halfZips: 'Плетиво',
-  hoodies: 'Дуксери', fullZips: 'Дуксери',
-  jeans: 'Фармерки', shortsJeans: 'Фармерки',
-  pants: 'Панталони', cargoTrousers: 'Панталони',
-  jackets: 'Јакни & Мантили', coats: 'Јакни & Мантили', vests: 'Јакни & Мантили',
-  suits: 'Свечено', blazers: 'Свечено', suitJackets: 'Свечено',
-  belts: 'Аксесоари', accessories: 'Аксесоари',
-};
-const NON_MERCHANDISE = new Set(['vaucer']);
-const groupOf = (c: string) => CATEGORY_GROUPS[c] ?? c ?? '—';
-
-/** Groups that sell from autumn into winter. */
-const AUTUMN_GROUPS = new Set(['Јакни & Мантили', 'Плетиво', 'Дуксери']);
-
-// The gate itself lives in lib/open-to-buy so this screen and the reorder plan
-// cannot disagree about where the line is.
-/** Guardrails so one strong category cannot take everything. */
-const MIN_SHARE = 0.05;
-const MAX_SHARE = 0.35;
-
-interface GroupStat {
-  name: string;
-  models: number;
-  units: number;
-  cost: number;
-  soldUnits: number;
-  revenue: number;
-  grossProfit: number;
-  gmroi: number;
-  /** Of what was on hand over the year, how much moved. A proxy, not a true
-   *  sell-through: goods received historically were never recorded. */
-  sellThrough: number;
-  monthsOfSupply: number;
-  score: number;
-  share: number;
-  autumn: boolean;
-}
+const signed = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n));
 
 function CapitalView() {
   const { products, loading } = useProducts();
-  const [budgetInput, setBudgetInput] = useState('100000');
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [now] = useState(() => Date.now());
 
-  const model = useMemo(() => {
-    const merch = products.filter((p) => !NON_MERCHANDISE.has(p.category));
-    const unitsOf = (p: Product) =>
-      (p.sizes ?? []).reduce((a, s) => a + Math.max(0, Number(s.quantity) || 0), 0);
+  useEffect(() => {
+    // Optional: without entered costs the owner's 65.000 estimate is used.
+    getExpenses().then(setExpenses).catch(() => setExpenses([]));
+  }, []);
 
-    const raw = new Map<string, GroupStat>();
-    let totalCost = 0;
-    let totalCogs = 0;
-    let totalRevenue = 0;
-
-    for (const p of merch) {
-      const g = groupOf(p.category);
-      const st = raw.get(g) ?? {
-        name: g, models: 0, units: 0, cost: 0, soldUnits: 0, revenue: 0,
-        grossProfit: 0, gmroi: 0, sellThrough: 0, monthsOfSupply: 0,
-        score: 0, share: 0, autumn: AUTUMN_GROUPS.has(g),
-      };
-
-      const units = unitsOf(p);
-      const cost = p.purchasePrice;
-      if (units > 0) {
-        st.models += 1;
-        st.units += units;
-        if (cost !== undefined) {
-          st.cost += units * cost;
-          totalCost += units * cost;
-        }
-      }
-
-      for (const s of p.sold ?? []) {
-        const price = Number(s.price) || 0;
-        if (price <= 0) continue; // giveaways are not demand
-        if (Date.parse(String(s.soldDate)) < now - 365 * DAY) continue;
-        st.soldUnits += 1;
-        st.revenue += price;
-        totalRevenue += price;
-        if (cost !== undefined) {
-          st.grossProfit += price - cost;
-          totalCogs += cost;
-        }
-      }
-
-      raw.set(g, st);
-    }
-
-    const groups = [...raw.values()].filter((g) => g.units > 0 || g.soldUnits > 0);
-    for (const g of groups) {
-      g.gmroi = g.cost > 0 ? g.grossProfit / g.cost : 0;
-      const hadOnHand = g.soldUnits + g.units;
-      g.sellThrough = hadOnHand > 0 ? g.soldUnits / hadOnHand : 0;
-      const perMonth = g.soldUnits / 12;
-      g.monthsOfSupply = perMonth > 0 ? g.units / perMonth : Infinity;
-      // Both halves matter: return per denar tied up, and whether it clears.
-      g.score = Math.max(0, g.gmroi) * Math.max(0, g.sellThrough);
-    }
-
-    // Guardrails, applied by clamping then redistributing the remainder among
-    // the groups that are not yet clamped, so the shares still sum to one.
-    const scored = groups.filter((g) => g.score > 0);
-    const totalScore = scored.reduce((a, g) => a + g.score, 0);
-    if (totalScore > 0) {
-      for (const g of groups) g.share = g.score / totalScore;
-
-      for (let pass = 0; pass < 4; pass += 1) {
-        const over = groups.filter((g) => g.share > MAX_SHARE);
-        const under = groups.filter((g) => g.share > 0 && g.share < MIN_SHARE);
-        if (over.length === 0 && under.length === 0) break;
-
-        let freed = 0;
-        for (const g of over) { freed += g.share - MAX_SHARE; g.share = MAX_SHARE; }
-        for (const g of under) { freed -= MIN_SHARE - g.share; g.share = MIN_SHARE; }
-
-        const flexible = groups.filter(
-          (g) => g.share > 0 && g.share < MAX_SHARE && g.share > MIN_SHARE
-        );
-        const flexTotal = flexible.reduce((a, g) => a + g.share, 0);
-        if (flexTotal <= 0) break;
-        for (const g of flexible) g.share += (freed * g.share) / flexTotal;
-      }
-    }
-
-    groups.sort((a, b) => b.gmroi - a.gmroi);
-
-    const monthlyCogs = totalCogs / 12;
-    const annualCogs = totalCogs;
-    const turnover = totalCost > 0 ? annualCogs / totalCost : 0;
-    const maxStock = monthlyCogs * MAX_MONTHS_OF_STOCK;
-    const headroom = maxStock - totalCost;
-
-    return {
-      groups, totalCost, monthlyCogs, annualCogs, totalRevenue,
-      turnover, maxStock, headroom,
-      canBuy: turnover >= MIN_TURNOVER_TO_BUY && headroom > 0,
-    };
-  }, [products, now]);
+  const otb = useMemo(() => {
+    const e = expensesForPeriod(expenses, periodOf(new Date(now)));
+    return openToBuy(products, { now, opex: e.total > 0 ? e.total : undefined });
+  }, [products, expenses, now]);
 
   if (loading) {
     return (
@@ -177,9 +52,12 @@ function CapitalView() {
     );
   }
 
-  const budget = Math.max(0, Number(budgetInput) || 0);
-  const month = new Date().getMonth() + 1;
-  const preSeason = month >= 7 && month <= 10;
+  const short = otb.revenueGap > 0;
+  const monthsAtZero = Number.isFinite(otb.breakEvenCogs) && otb.breakEvenCogs > 0
+    ? otb.target / otb.breakEvenCogs
+    : null;
+  const buying = otb.groups.filter((g) => g.buy > 0);
+  const maxBuy = Math.max(1, ...buying.map((g) => g.buy));
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -191,127 +69,127 @@ function CapitalView() {
 
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">Каде да одат следните денари</h1>
         <p className="text-sm text-slate-500 mt-1 mb-6">
-          Прво прашање е дали воопшто да се купува. Дури потоа — каде.
+          Целта е {fmt(STOCK_TARGET_COST)} ден. залиха по набавна. Што ќе се продаде — се докупува,
+          таму каде што фали.
         </p>
 
-        {/* the gate */}
-        <div className={`rounded-xl border p-5 mb-6 shadow-sm ${
-          model.canBuy ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'
-        }`}>
+        {/* 1 · zero */}
+        <section className={`rounded-xl border p-5 mb-5 shadow-sm ${short ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`}>
           <div className="flex items-center gap-2 mb-3">
-            {model.canBuy
-              ? <TrendingUp className="h-5 w-5 text-green-700" />
-              : <Ban className="h-5 w-5 text-red-700" />}
-            <h2 className={`font-bold ${model.canBuy ? 'text-green-900' : 'text-red-900'}`}>
-              {model.canBuy
-                ? `Простор за набавка: ${fmt(model.headroom)} ден.`
-                : 'Буџет за набавка: нула'}
+            <Scale className={`h-5 w-5 ${short ? 'text-red-700' : 'text-green-700'}`} />
+            <h2 className={`font-bold ${short ? 'text-red-900' : 'text-green-900'}`}>
+              Нула: {fmt(otb.breakEvenRevenue)} ден. промет месечно
             </h2>
           </div>
-
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
             {[
-              { k: 'Залиха по набавна', v: fmt(model.totalCost) + ' ден.' },
-              { k: 'COGS месечно', v: fmt(model.monthlyCogs) + ' ден.' },
-              { k: 'Здрав максимум', v: fmt(model.maxStock) + ' ден.', hint: `${MAX_MONTHS_OF_STOCK}× месечен COGS` },
-              { k: 'Turnover', v: model.turnover.toFixed(2) + '×', hint: `праг за набавка ${MIN_TURNOVER_TO_BUY}×` },
+              { k: 'Трошоци месечно', v: fmt(otb.opex), hint: otb.opexKnown ? 'внесени за овој месец' : 'претпоставка — внеси ги во Финансии' },
+              { k: 'Маржа 12 м.', v: `${(otb.grossMargin * 100).toFixed(1)}%`, hint: `1 ден. набавна се продава за ${otb.markupMultiple.toFixed(2)}` },
+              { k: 'Промет 12 м., просек', v: fmt(otb.monthlyRevenue), hint: `бруто ${fmt(otb.monthlyGross)} месечно` },
+              { k: short ? 'Фали месечно' : 'Над нулата', v: fmt(Math.abs(otb.revenueGap)), hint: 'промет', tone: short ? 'text-red-700' : 'text-green-700' },
             ].map((x) => (
               <div key={x.k} className="bg-white/70 rounded-lg px-3 py-2">
                 <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{x.k}</p>
-                <p className="text-lg font-bold text-slate-800 tabular-nums">{x.v}</p>
-                {x.hint && <p className="text-[10px] text-slate-400">{x.hint}</p>}
+                <p className={`text-lg font-bold tabular-nums ${x.tone ?? 'text-slate-800'}`}>{x.v}</p>
+                <p className="text-[10px] text-slate-400">{x.hint}</p>
               </div>
             ))}
           </div>
-
-          {!model.canBuy && (
-            <div className="text-sm text-red-900 space-y-1.5">
-              <p>
-                Залихата е <strong>{fmt(model.totalCost)}</strong> ден. наспроти здрав максимум од{' '}
-                <strong>{fmt(model.maxStock)}</strong> — тоа е{' '}
-                <strong>{(model.totalCost / Math.max(1, model.maxStock)).toFixed(1)}×</strong> над,
-                односно околу <strong>{(model.totalCost / Math.max(1, model.monthlyCogs)).toFixed(0)} месеци</strong> залиха
-                при здрави 3–4.
-              </p>
-              <p>
-                Нулата не е грешка во пресметката — тоа е одговорот. Парите за набавка веќе се
-                потрошени и стојат на полица; следниот денар не купува, туку го ослободува тоа
-                што е таму (A2).
-              </p>
-              <p className="text-red-800">
-                <strong>Единствен исклучок:</strong> докупување на M/L/XL за модели со докажана
-                продажба (A5). Тоа не додава асортиман — го поправа тоа што веќе се продава.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* allocation */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <Coins className="h-4 w-4 text-slate-500" />
-            <h2 className="font-bold text-slate-800 text-sm">Ако имаше буџет, вака би се поделил</h2>
-          </div>
-          <div className="flex items-center gap-2 mb-4">
-            <label className="text-xs text-slate-500">Износ</label>
-            <input
-              type="number"
-              min="0"
-              step="1000"
-              value={budgetInput}
-              onChange={(e) => setBudgetInput(e.target.value)}
-              className="w-32 px-3 py-1.5 text-sm border border-slate-300 rounded-lg tabular-nums"
-            />
-            <span className="text-xs text-slate-500">ден.</span>
-            {!model.canBuy && (
-              <span className="text-xs text-red-700 ml-2">
-                хипотетички — вистинскиот буџет е нула
-              </span>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            {model.groups.filter((g) => g.share > 0).map((g) => (
-              <div key={g.name} className="flex items-center gap-3">
-                <span className="w-36 shrink-0 text-sm text-slate-700 truncate">{g.name}</span>
-                <div className="flex-1 h-6 bg-slate-100 rounded overflow-hidden">
-                  <div
-                    className={`h-full ${g.gmroi >= 1.3 ? 'bg-green-500' : g.gmroi >= 0.9 ? 'bg-amber-400' : 'bg-red-400'}`}
-                    style={{ width: `${Math.min(100, g.share * 100 * 2.5)}%` }}
-                  />
-                </div>
-                <span className="w-12 shrink-0 text-right text-xs text-slate-500 tabular-nums">
-                  {(g.share * 100).toFixed(0)}%
-                </span>
-                <span className="w-24 shrink-0 text-right text-sm font-semibold text-slate-800 tabular-nums">
-                  {fmt(budget * g.share)}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <p className="text-[11px] text-slate-400 mt-3">
-            Поделбата е GMROI × sell-through, ограничена на најмалку {MIN_SHARE * 100}% и најмногу{' '}
-            {MAX_SHARE * 100}% по група — една силна категорија не смее да земе сè.
+          <p className="text-sm text-slate-700">
+            Бруто профитот треба да ги покрие трошоците: {fmt(otb.opex)} ÷ {(otb.grossMargin * 100).toFixed(1)}% ={' '}
+            <strong>{fmt(otb.breakEvenRevenue)}</strong> ден. промет, односно{' '}
+            <strong>{fmt(otb.breakEvenCogs)}</strong> ден. стока по набавна што излегува од полиците секој месец.
+            При маржа од 100% (500 → 1.000) би било {fmt(otb.opex * 2)}.
           </p>
-          {preSeason && (
-            <p className="text-[11px] text-amber-700 mt-1">
-              Сезонска забелешка: есенските групи (јакни, плетиво, дуксери) се мерат надвор од
-              својата сезона, па нивниот GMROI е потценет во овој месец.
+          {monthsAtZero !== null && (
+            <p className="text-xs text-slate-600 mt-2">
+              Со {fmt(otb.target)} залиха, нулата бара залихата да се продаде за околу{' '}
+              <strong>{monthsAtZero.toFixed(1)} месеци</strong> (обрт {otb.breakEvenTurnover.toFixed(2)}× годишно).
+              Сега се продава за <strong>{Number.isFinite(otb.monthsOfSupply) ? otb.monthsOfSupply.toFixed(1) : '∞'} месеци</strong>{' '}
+              (обрт {otb.turnover.toFixed(2)}×) — пократкото доаѓа од повеќе продажба, не од помалку стока.
             </p>
           )}
-        </div>
+        </section>
+
+        {/* 2 · how much */}
+        <section className={`rounded-xl border p-5 mb-5 shadow-sm ${otb.budget > 0 ? 'border-green-200 bg-white' : 'border-amber-200 bg-amber-50'}`}>
+          <div className="flex items-center gap-2 mb-3">
+            <Target className="h-5 w-5 text-slate-600" />
+            <h2 className="font-bold text-slate-900">
+              Набавка за следните {OTB_HORIZON_DAYS} дена: {fmt(otb.budget)} ден.
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+            <div className="bg-slate-50 rounded-lg px-3 py-2">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Залиха по набавна</p>
+              <p className="text-lg font-bold text-slate-800 tabular-nums">{fmt(otb.stockCost)}</p>
+              <p className={`text-[11px] ${otb.overTarget > 0 ? 'text-amber-700' : 'text-green-700'}`}>
+                {otb.overTarget > 0 ? `${fmt(otb.overTarget)} над целта` : `${fmt(-otb.overTarget)} под целта`} од {fmt(otb.target)}
+              </p>
+            </div>
+            <div className="bg-slate-50 rounded-lg px-3 py-2">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Ќе излезе од полиците</p>
+              <p className="text-lg font-bold text-slate-800 tabular-nums">{fmt(otb.expectedCogs)}</p>
+              <p className="text-[11px] text-slate-500">по набавна, истите {OTB_HORIZON_DAYS} дена лани</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg px-3 py-2">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Смее да се купи</p>
+              <p className={`text-lg font-bold tabular-nums ${otb.budget > 0 ? 'text-green-700' : 'text-amber-700'}`}>{fmt(otb.budget)}</p>
+              <p className="text-[11px] text-slate-500">
+                {fmt(otb.expectedCogs)} {otb.overTarget > 0 ? '−' : '+'} {fmt(Math.abs(otb.overTarget))}
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-slate-600">
+            {otb.budget > 0
+              ? <>Толку купено ја враќа залихата на {fmt(otb.target)} по продажбите на следниот месец.</>
+              : <>Залихата е толку над целта што продажбите на следниот месец не ја враќаат под неа — овој месец не се купува, се продава.</>}{' '}
+            Докажаните модели за дополнување, со овој буџет веќе поставен, се во{' '}
+            <Link href="/admin/reorder" className="underline font-medium">Планот за набавка</Link>.
+          </p>
+        </section>
+
+        {/* 3 · where */}
+        <section className="bg-white rounded-xl border border-slate-200 p-4 mb-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <Coins className="h-4 w-4 text-slate-500" />
+            <h2 className="font-bold text-slate-800 text-sm">Каде: групите под својот дел од целта</h2>
+          </div>
+          {buying.length === 0 ? (
+            <p className="text-sm text-slate-500">Нема буџет за поделба овој месец.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {buying.map((g) => (
+                <div key={g.name} className="flex items-center gap-3">
+                  <span className="w-36 shrink-0 text-sm text-slate-700 truncate">{g.name}</span>
+                  <div className="flex-1 h-6 bg-slate-100 rounded overflow-hidden">
+                    <div className="h-full bg-green-500" style={{ width: `${(g.buy / maxBuy) * 100}%` }} />
+                  </div>
+                  <span className="w-24 shrink-0 text-right text-sm font-semibold text-slate-800 tabular-nums">
+                    {fmt(g.buy)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-[11px] text-slate-400 mt-3">
+            Делот на секоја група од {fmt(otb.target)} е колку продала (по набавна) во наредните{' '}
+            {Math.round(SHARE_WINDOW_DAYS / 30)} месеци лани — така зимската стока добива место пред зимата.
+            Буџетот оди на групите под својот дел, сразмерно колку им фали.
+          </p>
+        </section>
 
         {/* detail */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50/60">
-            <h2 className="font-bold text-slate-800 text-sm">По група, подредено по GMROI</h2>
+        <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50/60 flex items-center gap-2">
+            <PackagePlus className="h-4 w-4 text-slate-500" />
+            <h2 className="font-bold text-slate-800 text-sm">По група</h2>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[820px] text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  {['Група', 'Залиха', 'Бруто 12м', 'GMROI', 'Sell-through', 'Месеци залиха', 'Дел од буџет'].map((h, i) => (
+                  {['Група', 'Залиха', 'Дел од целта', 'Над / под', `${OTB_HORIZON_DAYS} дена лани`, 'Купи', 'GMROI', 'Месеци залиха'].map((h, i) => (
                     <th key={h} className={`px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'}`}>
                       {h}
                     </th>
@@ -319,48 +197,47 @@ function CapitalView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {model.groups.map((g) => (
+                {otb.groups.map((g) => (
                   <tr key={g.name} className="hover:bg-slate-50/60">
-                    <td className="px-3 py-2.5 font-medium text-slate-800">
-                      {g.name}
-                      {g.autumn && preSeason && (
-                        <span className="ml-1.5 text-[10px] text-amber-600">вон сезона</span>
-                      )}
-                    </td>
+                    <td className="px-3 py-2.5 font-medium text-slate-800">{g.name}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-slate-700">{fmt(g.cost)}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-700">{fmt(g.grossProfit)}</td>
-                    <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${
+                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-500">{fmt(g.target)}</td>
+                    <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${g.overTarget > 0 ? 'text-amber-700' : 'text-green-700'}`}>
+                      {signed(g.overTarget)}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-500">{fmt(g.expectedCogs)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-slate-800">
+                      {g.buy > 0 ? fmt(g.buy) : '—'}
+                    </td>
+                    <td className={`px-3 py-2.5 text-right tabular-nums ${
                       g.gmroi >= 1.3 ? 'text-green-700' : g.gmroi >= 0.9 ? 'text-amber-700' : 'text-red-700'
                     }`}>
                       {g.gmroi.toFixed(2)}
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">
-                      {(g.sellThrough * 100).toFixed(0)}%
-                    </td>
                     <td className={`px-3 py-2.5 text-right tabular-nums ${
-                      g.monthsOfSupply > 12 ? 'text-red-700' : g.monthsOfSupply > 6 ? 'text-amber-700' : 'text-slate-600'
+                      g.monthsOfSupply > 18 ? 'text-red-700' : g.monthsOfSupply > 12 ? 'text-amber-700' : 'text-slate-600'
                     }`}>
                       {Number.isFinite(g.monthsOfSupply) ? g.monthsOfSupply.toFixed(1) : '∞'}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-800 font-semibold">
-                      {g.share > 0 ? (g.share * 100).toFixed(0) + '%' : '—'}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
 
         <div className="mt-4 text-[11px] text-slate-400 space-y-1">
           <p>
-            <strong>GMROI</strong> = бруто профит за 12 месеци ÷ вредност на залихата по набавна.
-            Колку денари носи секој денар врзан во стока. Здраво за мода е 2,5–3,0.
+            <strong>Над целта</strong> значи дека парите за таа група веќе стојат на полица: таа не добива
+            набавка додека продажбите не ја спуштат — а ако не се продава, место за неа се прави со попуст
+            (<Link href="/admin/season" className="underline">сезона</Link>,{' '}
+            <Link href="/admin/aging" className="underline">стареење</Link>).
           </p>
           <p>
-            <strong>Sell-through</strong> тука е приближен: продадено ÷ (продадено + на залиха).
-            Вистинскиот бара примени количини, кои историски не се запишувани — од приемот наваму
-            ќе бидат.
+            <strong>GMROI</strong> = бруто профит за 12 месеци ÷ залиха по набавна: колку денари носи секој
+            денар врзан во стока. <strong>Месеци залиха</strong> = залиха ÷ месечна набавна вредност на
+            продаденото. Со залиха од {fmt(otb.target)} и продажба колку за нулата, тоа е околу{' '}
+            {monthsAtZero !== null ? monthsAtZero.toFixed(0) : '9'} за целата продавница.
           </p>
         </div>
       </div>
