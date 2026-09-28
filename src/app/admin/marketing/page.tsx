@@ -12,15 +12,18 @@
  *
  * 10.1: what to post, sorted into buckets that each carry a reason to post
  * (src/lib/marketing.ts). A discount is the message only in clearance.
+ * 10.2: the text of each post (src/lib/post-copy.ts), edited and copied here.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
-  AlertTriangle, ArrowLeft, CalendarDays, Copy, ExternalLink, Image as ImageIcon, ImageOff, LogOut,
-  Megaphone, Target, Truck,
+  AlertTriangle, ArrowLeft, CalendarDays, ExternalLink, Image as ImageIcon, ImageOff, LogOut,
+  Megaphone, PenLine, ShieldCheck, Target, Truck,
 } from 'lucide-react';
+import PostCopyPanel from '@/components/admin/PostCopyPanel';
+import { comboCopy, productCopy, trustCopy, type CopyKind, type PostCopy } from '@/lib/post-copy';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import { supabase } from '@/lib/supabase';
@@ -29,7 +32,7 @@ import { ROLE_LABEL } from '@/lib/roles';
 import { PHASE_LABEL } from '@/lib/seasons';
 import {
   BUCKETS, COMBO_TARGET, POST_KIND_LABEL, READINESS_LABEL, buildMarketingPlan,
-  type BucketKey, type Combo, type PostCandidate,
+  type BucketKey, type Combo, type PostCandidate, type PostKind,
 } from '@/lib/marketing';
 import type { ProductAttributes } from '@/types';
 
@@ -37,11 +40,23 @@ const den = (n: number) => `${n.toLocaleString('mk-MK')} ден.`;
 
 /** What is coming, in the order it is built. */
 const NEXT: Array<{ id: string; title: string; hint: string; icon: typeof Megaphone }> = [
-  { id: '10.2', title: 'Текст за објава', hint: 'на македонски, со малку хумор и емоџи', icon: Copy },
   { id: '10.3', title: 'Пакет за објава', hint: 'слики по ред и картичка со цена и големини', icon: ImageIcon },
   { id: '10.4', title: 'Календар', hint: 'следниот месец по денови, рамка за три месеци', icon: CalendarDays },
   { id: '10.5', title: 'Цел до нула', hint: 'колку фали овој месец', icon: Target },
 ];
+
+interface Writing {
+  heading: string;
+  kinds: CopyKind[];
+  make: (kind: CopyKind, variant: number) => PostCopy;
+}
+
+/** The kinds a product post can take from a bucket; a story is always on offer. */
+function productKinds(kinds: PostKind[]): Array<Exclude<CopyKind, 'combo' | 'trust'>> {
+  const out = kinds.filter((k): k is Exclude<PostKind, 'combo'> => k !== 'combo');
+  if (!out.includes('story')) out.push('story');
+  return out.length ? out : ['carousel', 'story'];
+}
 
 const READINESS_TONE = {
   carousel: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -54,6 +69,7 @@ export default function MarketingPage() {
   const { products, loading } = useProducts();
   const [attrs, setAttrs] = useState<Map<string, ProductAttributes>>(new Map());
   const [bucket, setBucket] = useState<BucketKey>('season');
+  const [writing, setWriting] = useState<Writing | null>(null);
 
   useEffect(() => {
     fetchAllAttributes(supabase).then((r) => setAttrs(r.data));
@@ -62,6 +78,32 @@ export default function MarketingPage() {
   const plan = useMemo(() => buildMarketingPlan(products, attrs), [products, attrs]);
   const info = BUCKETS.find((b) => b.key === bucket)!;
   const list = plan.byBucket[bucket];
+  const month = plan.month;
+
+  const writeProduct = useCallback((c: PostCandidate) => {
+    const kinds = productKinds(info.kinds);
+    setWriting({
+      heading: c.label,
+      kinds,
+      make: (kind, variant) => productCopy(kind as (typeof kinds)[number], c, attrs.get(c.product.id), variant, month),
+    });
+  }, [info, attrs, month]);
+
+  const writeCombo = useCallback((combo: Combo) => {
+    setWriting({
+      heading: `${combo.top.label} + ${combo.bottom.label}`,
+      kinds: ['combo'],
+      make: (_kind, variant) => comboCopy(combo, attrs, variant, month),
+    });
+  }, [attrs, month]);
+
+  const writeTrust = useCallback(() => {
+    setWriting({
+      heading: 'Објава за доверба · еднаш неделно',
+      kinds: ['trust'],
+      make: (_kind, variant) => trustCopy(variant, month),
+    });
+  }, [month]);
 
   if (authLoading) return null;
   if (!user) {
@@ -157,11 +199,20 @@ export default function MarketingPage() {
         })}
       </div>
 
-      <div className="mb-4 p-3 rounded-lg bg-slate-50 border border-slate-200">
-        <p className="text-sm text-slate-700">{info.why}</p>
-        <p className="text-xs text-slate-500 mt-1">
-          Вид на објава: {info.kinds.map((k) => POST_KIND_LABEL[k]).join(' · ')}
-        </p>
+      <div className="mb-4 p-3 rounded-lg bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2">
+        <div className="flex-1">
+          <p className="text-sm text-slate-700">{info.why}</p>
+          <p className="text-xs text-slate-500 mt-1">
+            Вид на објава: {info.kinds.map((k) => POST_KIND_LABEL[k]).join(' · ')}
+          </p>
+        </div>
+        <button
+          onClick={writeTrust}
+          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50"
+          title="Како се нарачува, плаќање при достава, дуќанот во Виница"
+        >
+          <ShieldCheck className="h-4 w-4" /> Објава за доверба
+        </button>
       </div>
 
       {loading ? (
@@ -173,7 +224,9 @@ export default function MarketingPage() {
           <Empty text={`Нема горен и долен дел во сезона што заедно минуваат ${den(COMBO_TARGET)}.`} />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {plan.combos.map((c) => <ComboCard key={c.top.product.id + c.bottom.product.id} combo={c} />)}
+            {plan.combos.map((c) => (
+              <ComboCard key={c.top.product.id + c.bottom.product.id} combo={c} onWrite={() => writeCombo(c)} />
+            ))}
           </div>
         )
       ) : list.length === 0 ? (
@@ -186,7 +239,7 @@ export default function MarketingPage() {
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {list.map((c) => <CandidateCard key={c.product.id} c={c} bucket={bucket} />)}
+          {list.map((c) => <CandidateCard key={c.product.id} c={c} bucket={bucket} onWrite={() => writeProduct(c)} />)}
         </div>
       )}
 
@@ -195,6 +248,15 @@ export default function MarketingPage() {
           Уште {plan.hiddenInStock} производи со залиха се скриени од сајтот, од кои {plan.hiddenWithPhoto} со слика.
           Штом ќе бидат фотографирани и објавени, сами ќе се појават во групите.
         </p>
+      )}
+
+      {writing && (
+        <PostCopyPanel
+          heading={writing.heading}
+          kinds={writing.kinds}
+          make={writing.make}
+          onClose={() => setWriting(null)}
+        />
       )}
 
       <div className="mt-8 bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
@@ -254,7 +316,18 @@ function Price({ c }: { c: PostCandidate }) {
   );
 }
 
-function CandidateCard({ c, bucket }: { c: PostCandidate; bucket: BucketKey }) {
+function WriteButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-pink-600 text-white hover:bg-pink-700"
+    >
+      <PenLine className="h-3.5 w-3.5" /> Текст за објава
+    </button>
+  );
+}
+
+function CandidateCard({ c, bucket, onWrite }: { c: PostCandidate; bucket: BucketKey; onWrite: () => void }) {
   const missing = [!c.hasComposition && 'состав', !c.hasColor && 'боја'].filter(Boolean) as string[];
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex gap-3">
@@ -317,12 +390,13 @@ function CandidateCard({ c, bucket }: { c: PostCandidate; bucket: BucketKey }) {
             На сајтот е на попуст, но {c.discount.reason}: во објавата попустот не е пораката.
           </p>
         )}
+        <WriteButton onClick={onWrite} />
       </div>
     </div>
   );
 }
 
-function ComboCard({ combo }: { combo: Combo }) {
+function ComboCard({ combo, onWrite }: { combo: Combo; onWrite: () => void }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
       <div className="grid grid-cols-2 gap-3">
@@ -348,6 +422,7 @@ function ComboCard({ combo }: { combo: Combo }) {
           <Truck className="h-3.5 w-3.5" /> бесплатна достава
         </span>
       </p>
+      <WriteButton onClick={onWrite} />
     </div>
   );
 }
