@@ -15,6 +15,7 @@
  * 10.2: the text of each post (src/lib/post-copy.ts), edited and copied here.
  * 10.3: its pictures — the photos in order and a drawn price card (post-images.ts).
  * 10.4: the calendar — next month by day, three months by week (MarketingCalendar).
+ * 10.5: how far the month is from zero, and what that asks of marketing (PaceTile).
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -22,10 +23,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   AlertTriangle, ArrowLeft, CalendarDays, ExternalLink, ImageOff, Lightbulb, LogOut,
-  Megaphone, PenLine, ShieldCheck, Target, Truck,
+  Megaphone, PenLine, ShieldCheck, Truck,
 } from 'lucide-react';
 import PostCopyPanel from '@/components/admin/PostCopyPanel';
 import MarketingCalendar from '@/components/admin/MarketingCalendar';
+import PaceTile from '@/components/admin/PaceTile';
 import { comboWriter, productKinds, productWriter, trustWriter, type Writing } from '@/components/admin/marketing-writers';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
@@ -40,11 +42,6 @@ import {
 import type { ProductAttributes } from '@/types';
 
 type Tab = 'ideas' | 'calendar';
-
-/** What is coming, in the order it is built. */
-const NEXT: Array<{ id: string; title: string; hint: string; icon: typeof Megaphone }> = [
-  { id: '10.5', title: 'Цел до нула', hint: 'колку фали овој месец', icon: Target },
-];
 
 const READINESS_TONE = {
   carousel: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -151,6 +148,8 @@ export default function MarketingPage() {
         </div>
       )}
 
+      <PaceTile />
+
       <div className="flex gap-1 p-1 mb-4 bg-slate-100 rounded-xl w-fit">
         {([
           { key: 'ideas', label: 'Што да објавиме', icon: Lightbulb },
@@ -256,24 +255,6 @@ export default function MarketingPage() {
         />
       )}
 
-      <div className="mt-8 bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
-        <h2 className="font-semibold text-slate-900 mb-1">Што доаѓа тука</h2>
-        <p className="text-sm text-slate-500 mb-4">
-          Страната ја подготвува објавата. Објавувањето на Instagram и Facebook останува рачно.
-        </p>
-        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {NEXT.map((n) => (
-            <li key={n.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
-              <n.icon className="h-5 w-5 text-slate-400 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-700">{n.title}</p>
-                <p className="text-xs text-slate-500">{n.hint}</p>
-              </div>
-              <span className="ml-auto text-[11px] text-slate-400 tabular-nums">{n.id}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
     </div>
   );
 }

@@ -25,6 +25,7 @@ import { Order, Product } from '@/types';
 import { getOrders } from '@/lib/orders';
 import { getEffectivePrice, isOnSale } from '@/lib/pricing';
 import { Expense, expensesForPeriod, getExpenses, periodLabel } from '@/lib/expenses';
+import { knownOpex, monthCosts } from '@/lib/break-even';
 import { monthOf, phaseForSeason, seasonOf, suggestedMarkdown } from '@/lib/seasons';
 import { planReorder } from '@/lib/reorder';
 import { STOCK_TARGET_COST, openToBuy } from '@/lib/open-to-buy';
@@ -199,9 +200,11 @@ export default function DashboardSummary({
     const prevGross = prev.revenue - prevCogs;
 
     const e = expensesForPeriod(expenses, thisPeriod);
-    // The stock target and the buying budget come from open-to-buy (D-023), the
-    // same numbers /admin/capital and /admin/reorder show.
-    const otb = openToBuy(merch, { now, opex: e.total > 0 ? e.total : undefined });
+    // A month counts as entered only when it is whole — the rent alone is not the
+    // month's costs (break-even.ts). The same rule feeds open-to-buy (D-023), so
+    // this tile, /admin/capital and /admin/reorder agree.
+    const costs = monthCosts(e.items);
+    const otb = openToBuy(merch, { now, opex: knownOpex(e.items) });
 
     const alerts: Alert[] = [];
 
@@ -352,9 +355,10 @@ export default function DashboardSummary({
       thisPeriod, lastPeriod,
       month: { ...month, cogs: monthCogs, gross: monthGross },
       prev: { ...prev, cogs: prevCogs, gross: prevGross },
-      expenses: e.total,
-      expensesKnown: e.items.length > 0,
-      net: monthGross - e.total,
+      expenses: costs.target,
+      expensesKnown: costs.baseKnown,
+      expensesPartial: costs.incomplete ? costs.entered : 0,
+      net: monthGross - costs.target,
       alerts: alerts.slice(0, MAX_ALERTS),
       alertsHidden: Math.max(0, alerts.length - MAX_ALERTS),
     };
@@ -409,7 +413,13 @@ export default function DashboardSummary({
           <Tile
             k="Трошоци"
             v={model.expensesKnown ? fmt(model.expenses) : '—'}
-            sub={model.expensesKnown ? 'внесени' : 'не се внесени'}
+            sub={
+              model.expensesKnown
+                ? 'внесени'
+                : model.expensesPartial > 0
+                  ? `непотполни: ${fmt(model.expensesPartial)} (фали кирија или плати)`
+                  : 'не се внесени'
+            }
             muted={!model.expensesKnown}
           />
           {model.expensesKnown ? (

@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import { Expense, expensesForPeriod, getExpenses, periodOf } from '@/lib/expenses';
+import { knownOpex } from '@/lib/break-even';
 import {
   OTB_HORIZON_DAYS, SHARE_WINDOW_DAYS, STOCK_TARGET_COST, openToBuy,
 } from '@/lib/open-to-buy';
@@ -41,7 +42,8 @@ function CapitalView() {
 
   const otb = useMemo(() => {
     const e = expensesForPeriod(expenses, periodOf(new Date(now)));
-    return openToBuy(products, { now, opex: e.total > 0 ? e.total : undefined });
+    // Only a whole month counts (break-even.ts): the rent alone would put zero at a tenth of itself.
+    return openToBuy(products, { now, opex: knownOpex(e.items) });
   }, [products, expenses, now]);
 
   if (loading) {
