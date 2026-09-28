@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, RefreshCw, X } from 'lucide-react';
+import { Check, Copy, RefreshCw, Save, X } from 'lucide-react';
 import { POST_KIND_LABEL } from '@/lib/marketing';
 import { latinOutsideSizes, VARIANTS, type CopyKind, type PostCopy } from '@/lib/post-copy';
 import PostPack, { type PackSpec } from '@/components/admin/PostPack';
@@ -12,25 +12,45 @@ const KIND_LABEL: Record<CopyKind, string> = { ...POST_KIND_LABEL, trust: 'До�
  * One post's text, ready to paste (Task 10.2). The generated version is a
  * starting point: the marketing employee picks a kind and a variant, edits in
  * place, and copies. Nothing is saved — the calendar (10.4) will keep texts.
- * With `pack` (10.3) the photos and the drawn card come with it.
+ * With `pack` (10.3) the photos and the drawn card come with it; with `onSave`
+ * (10.4) the text goes into the calendar post it was opened from.
  */
 export default function PostCopyPanel({
-  heading, kinds, make, pack, onClose,
+  heading, kinds, make, pack, initialText, onSave, onClose,
 }: {
   heading: string;
   kinds: CopyKind[];
   make: (kind: CopyKind, variant: number) => PostCopy;
   pack?: (kind: CopyKind, copy: PostCopy) => PackSpec | null;
+  /** A text saved earlier: it opens in place of the generated one. */
+  initialText?: string;
+  onSave?: (text: string) => Promise<string | null>;
   onClose: () => void;
 }) {
   const [kind, setKind] = useState<CopyKind>(kinds[0]);
   const [variant, setVariant] = useState(0);
   const copy = useMemo(() => make(kind, variant), [make, kind, variant]);
   // Edits belong to the kind and variant they were made on; each starts from its own text.
-  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [edits, setEdits] = useState<Record<string, string>>(() =>
+    initialText ? { [`${kinds[0]}:0`]: initialText } : {},
+  );
+  const [saving, setSaving] = useState<'idle' | 'saving' | 'saved'>('idle');
   const key = `${kind}:${variant}`;
   const text = edits[key] ?? copy.text;
-  const setText = (t: string) => setEdits((e) => ({ ...e, [key]: t }));
+  const setText = (t: string) => {
+    setEdits((e) => ({ ...e, [key]: t }));
+    setSaving('idle');
+  };
+
+  const doSave = async () => {
+    if (!onSave) return;
+    setSaving('saving');
+    const err = await onSave(text);
+    if (err) {
+      alert(err);
+      setSaving('idle');
+    } else setSaving('saved');
+  };
   const [copied, setCopied] = useState(false);
   const spec = useMemo(() => pack?.(kind, copy) ?? null, [pack, kind, copy]);
 
@@ -123,6 +143,16 @@ export default function PostCopyPanel({
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             {copied ? 'Копирано' : 'Копирај'}
           </button>
+          {onSave && (
+            <button
+              onClick={doSave}
+              disabled={saving === 'saving'}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+            >
+              {saving === 'saved' ? <Check className="h-4 w-4 text-emerald-600" /> : <Save className="h-4 w-4" />}
+              {saving === 'saved' ? 'Зачувано' : 'Зачувај во календарот'}
+            </button>
+          )}
           {text !== copy.text && (
             <button onClick={() => setText(copy.text)} className="text-sm text-slate-500 hover:text-slate-700">
               Врати го предлогот

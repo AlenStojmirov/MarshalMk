@@ -14,20 +14,19 @@
  * (src/lib/marketing.ts). A discount is the message only in clearance.
  * 10.2: the text of each post (src/lib/post-copy.ts), edited and copied here.
  * 10.3: its pictures — the photos in order and a drawn price card (post-images.ts).
+ * 10.4: the calendar — next month by day, three months by week (MarketingCalendar).
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
-  AlertTriangle, ArrowLeft, CalendarDays, ExternalLink, ImageOff, LogOut,
+  AlertTriangle, ArrowLeft, CalendarDays, ExternalLink, ImageOff, Lightbulb, LogOut,
   Megaphone, PenLine, ShieldCheck, Target, Truck,
 } from 'lucide-react';
 import PostCopyPanel from '@/components/admin/PostCopyPanel';
-import { comboCopy, productCopy, productTitle, trustCopy, type CopyKind, type PostCopy } from '@/lib/post-copy';
-import { renderComboCard, renderPriceCard, renderStoryCard, type CardProduct } from '@/lib/post-images';
-import { photoUrls } from '@/lib/catalog-gaps';
-import type { PackSpec } from '@/components/admin/PostPack';
+import MarketingCalendar from '@/components/admin/MarketingCalendar';
+import { comboWriter, productKinds, productWriter, trustWriter, type Writing } from '@/components/admin/marketing-writers';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import { supabase } from '@/lib/supabase';
@@ -36,49 +35,16 @@ import { ROLE_LABEL } from '@/lib/roles';
 import { PHASE_LABEL } from '@/lib/seasons';
 import {
   BUCKETS, COMBO_TARGET, POST_KIND_LABEL, READINESS_LABEL, buildMarketingPlan, den,
-  type BucketKey, type Combo, type PostCandidate, type PostKind,
+  type BucketKey, type Combo, type PostCandidate,
 } from '@/lib/marketing';
 import type { ProductAttributes } from '@/types';
 
+type Tab = 'ideas' | 'calendar';
 
 /** What is coming, in the order it is built. */
 const NEXT: Array<{ id: string; title: string; hint: string; icon: typeof Megaphone }> = [
-  { id: '10.4', title: 'Календар', hint: 'следниот месец по денови, рамка за три месеци', icon: CalendarDays },
   { id: '10.5', title: 'Цел до нула', hint: 'колку фали овој месец', icon: Target },
 ];
-
-interface Writing {
-  heading: string;
-  kinds: CopyKind[];
-  make: (kind: CopyKind, variant: number) => PostCopy;
-  pack?: (kind: CopyKind, copy: PostCopy) => PackSpec | null;
-}
-
-const photosOf = (c: PostCandidate, limit = Infinity) =>
-  photoUrls(c.product.imageUrl, c.product.images)
-    .slice(0, limit)
-    .map((url, i) => ({ url, name: `${c.product.id}-${i + 1}` }));
-
-/** What the drawn card says. The old price only where the post may talk about the discount (D-022). */
-function cardProduct(c: PostCandidate, attrs?: ProductAttributes): CardProduct {
-  const discount = c.discount.allowed && c.percentOff > 0;
-  return {
-    title: productTitle(c, attrs),
-    price: c.price,
-    listPrice: discount ? c.listPrice : undefined,
-    percentOff: discount ? c.percentOff : undefined,
-    sizes: c.sizes.map((s) => s.size),
-    lastSizes: c.lastSizes,
-    photo: c.product.imageUrl,
-  };
-}
-
-/** The kinds a product post can take from a bucket; a story is always on offer. */
-function productKinds(kinds: PostKind[]): Array<Exclude<CopyKind, 'combo' | 'trust'>> {
-  const out = kinds.filter((k): k is Exclude<PostKind, 'combo'> => k !== 'combo');
-  if (!out.includes('story')) out.push('story');
-  return out.length ? out : ['carousel', 'story'];
-}
 
 const READINESS_TONE = {
   carousel: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -92,6 +58,7 @@ export default function MarketingPage() {
   const [attrs, setAttrs] = useState<Map<string, ProductAttributes>>(new Map());
   const [bucket, setBucket] = useState<BucketKey>('season');
   const [writing, setWriting] = useState<Writing | null>(null);
+  const [tab, setTab] = useState<Tab>('ideas');
 
   useEffect(() => {
     fetchAllAttributes(supabase).then((r) => setAttrs(r.data));
@@ -102,46 +69,12 @@ export default function MarketingPage() {
   const list = plan.byBucket[bucket];
   const month = plan.month;
 
-  const writeProduct = useCallback((c: PostCandidate) => {
-    const kinds = productKinds(info.kinds);
-    setWriting({
-      heading: c.label,
-      kinds,
-      make: (kind, variant) => productCopy(kind as (typeof kinds)[number], c, attrs.get(c.product.id), variant, month),
-      pack: (kind, copy) => {
-        const card = cardProduct(c, attrs.get(c.product.id));
-        if (kind === 'story') {
-          // One frame: the photo with the story's first line on it.
-          const headline = copy.text.split('\n')[0];
-          return { photos: [], card: () => renderStoryCard(card, headline), cardName: `${c.product.id}-storis`, aspect: 'story' };
-        }
-        return { photos: photosOf(c), card: () => renderPriceCard(card), cardName: `${c.product.id}-cena`, aspect: 'feed' };
-      },
-    });
-  }, [info, attrs, month]);
-
-  const writeCombo = useCallback((combo: Combo) => {
-    setWriting({
-      heading: `${combo.top.label} + ${combo.bottom.label}`,
-      kinds: ['combo'],
-      make: (_kind, variant) => comboCopy(combo, attrs, variant, month),
-      pack: () => ({
-        // Two of each is enough to show both; the card closes the carousel.
-        photos: [...photosOf(combo.top, 2), ...photosOf(combo.bottom, 2)],
-        card: () => renderComboCard(cardProduct(combo.top, attrs.get(combo.top.product.id)), cardProduct(combo.bottom, attrs.get(combo.bottom.product.id))),
-        cardName: `${combo.top.product.id}-${combo.bottom.product.id}-komplet`,
-        aspect: 'feed',
-      }),
-    });
-  }, [attrs, month]);
-
-  const writeTrust = useCallback(() => {
-    setWriting({
-      heading: 'Објава за доверба · еднаш неделно',
-      kinds: ['trust'],
-      make: (_kind, variant) => trustCopy(variant, month),
-    });
-  }, [month]);
+  const writeProduct = useCallback(
+    (c: PostCandidate) => setWriting(productWriter(c, attrs, month, productKinds(info.kinds))),
+    [info, attrs, month],
+  );
+  const writeCombo = useCallback((combo: Combo) => setWriting(comboWriter(combo, attrs, month)), [attrs, month]);
+  const writeTrust = useCallback(() => setWriting(trustWriter(month)), [month]);
 
   if (authLoading) return null;
   if (!user) {
@@ -218,74 +151,97 @@ export default function MarketingPage() {
         </div>
       )}
 
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
-        {BUCKETS.map((b) => {
-          const n = b.key === 'combos' ? plan.combos.length : plan.byBucket[b.key].length;
-          return (
-            <button
-              key={b.key}
-              onClick={() => setBucket(b.key)}
-              className={`shrink-0 px-3 py-2 rounded-lg text-sm font-medium border ${
-                bucket === b.key
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              {b.title} <span className="ml-1 tabular-nums opacity-70">{loading ? '' : n}</span>
-            </button>
-          );
-        })}
+      <div className="flex gap-1 p-1 mb-4 bg-slate-100 rounded-xl w-fit">
+        {([
+          { key: 'ideas', label: 'Што да објавиме', icon: Lightbulb },
+          { key: 'calendar', label: 'Календар', icon: CalendarDays },
+        ] as const).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium ${
+              tab === t.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <t.icon className="h-4 w-4" /> {t.label}
+          </button>
+        ))}
       </div>
 
-      <div className="mb-4 p-3 rounded-lg bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2">
-        <div className="flex-1">
-          <p className="text-sm text-slate-700">{info.why}</p>
-          <p className="text-xs text-slate-500 mt-1">
-            Вид на објава: {info.kinds.map((k) => POST_KIND_LABEL[k]).join(' · ')}
-          </p>
-        </div>
-        <button
-          onClick={writeTrust}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50"
-          title="Како се нарачува, плаќање при достава, дуќанот во Виница"
-        >
-          <ShieldCheck className="h-4 w-4" /> Објава за доверба
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-10">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full" />
-        </div>
-      ) : bucket === 'combos' ? (
-        plan.combos.length === 0 ? (
-          <Empty text={`Нема горен и долен дел во сезона што заедно минуваат ${den(COMBO_TARGET)}.`} />
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {plan.combos.map((c) => (
-              <ComboCard key={c.top.product.id + c.bottom.product.id} combo={c} onWrite={() => writeCombo(c)} />
-            ))}
-          </div>
-        )
-      ) : list.length === 0 ? (
-        <Empty
-          text={
-            bucket === 'new'
-              ? 'Нема стока стигната во последните 30 дена. По фотографирањето, новото на сајтот ќе се појави тука.'
-              : 'Засега нема производи во оваа група.'
-          }
-        />
+      {tab === 'calendar' ? (
+        <MarketingCalendar plan={plan} attrs={attrs} loading={loading} onWrite={setWriting} />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {list.map((c) => <CandidateCard key={c.product.id} c={c} bucket={bucket} onWrite={() => writeProduct(c)} />)}
+        <>
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
+          {BUCKETS.map((b) => {
+            const n = b.key === 'combos' ? plan.combos.length : plan.byBucket[b.key].length;
+            return (
+              <button
+                key={b.key}
+                onClick={() => setBucket(b.key)}
+                className={`shrink-0 px-3 py-2 rounded-lg text-sm font-medium border ${
+                  bucket === b.key
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                {b.title} <span className="ml-1 tabular-nums opacity-70">{loading ? '' : n}</span>
+              </button>
+            );
+          })}
         </div>
-      )}
 
-      {plan.hiddenInStock > 0 && !loading && (
-        <p className="mt-4 text-xs text-slate-500">
-          Уште {plan.hiddenInStock} производи со залиха се скриени од сајтот, од кои {plan.hiddenWithPhoto} со слика.
-          Штом ќе бидат фотографирани и објавени, сами ќе се појават во групите.
-        </p>
+        <div className="mb-4 p-3 rounded-lg bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2">
+          <div className="flex-1">
+            <p className="text-sm text-slate-700">{info.why}</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Вид на објава: {info.kinds.map((k) => POST_KIND_LABEL[k]).join(' · ')}
+            </p>
+          </div>
+          <button
+            onClick={writeTrust}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50"
+            title="Како се нарачува, плаќање при достава, дуќанот во Виница"
+          >
+            <ShieldCheck className="h-4 w-4" /> Објава за доверба
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+          </div>
+        ) : bucket === 'combos' ? (
+          plan.combos.length === 0 ? (
+            <Empty text={`Нема горен и долен дел во сезона што заедно минуваат ${den(COMBO_TARGET)}.`} />
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {plan.combos.map((c) => (
+                <ComboCard key={c.top.product.id + c.bottom.product.id} combo={c} onWrite={() => writeCombo(c)} />
+              ))}
+            </div>
+          )
+        ) : list.length === 0 ? (
+          <Empty
+            text={
+              bucket === 'new'
+                ? 'Нема стока стигната во последните 30 дена. По фотографирањето, новото на сајтот ќе се појави тука.'
+                : 'Засега нема производи во оваа група.'
+            }
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {list.map((c) => <CandidateCard key={c.product.id} c={c} bucket={bucket} onWrite={() => writeProduct(c)} />)}
+          </div>
+        )}
+
+        {plan.hiddenInStock > 0 && !loading && (
+          <p className="mt-4 text-xs text-slate-500">
+            Уште {plan.hiddenInStock} производи со залиха се скриени од сајтот, од кои {plan.hiddenWithPhoto} со слика.
+            Штом ќе бидат фотографирани и објавени, сами ќе се појават во групите.
+          </p>
+        )}
+        </>
       )}
 
       {writing && (
@@ -294,6 +250,8 @@ export default function MarketingPage() {
           kinds={writing.kinds}
           make={writing.make}
           pack={writing.pack}
+          initialText={writing.initialText}
+          onSave={writing.onSave}
           onClose={() => setWriting(null)}
         />
       )}

@@ -32,6 +32,7 @@ const CHECKS: Array<{ migration: string; label: string; table: string; column: s
   { migration: '008', label: 'product_costs (набавна, само админ)', table: 'product_costs',      column: 'purchase_price' },
   { migration: '008', label: 'products_costed (поглед за админ)', table: 'products_costed',     column: 'purchase_price' },
   { migration: '010', label: 'product_attributes (состав, мерки)', table: 'product_attributes', column: 'size_advice' },
+  { migration: '012', label: 'marketing_plan (календар за објави)', table: 'marketing_plan',   column: 'moved_count' },
 ];
 
 async function probe(sb: SupabaseClient, table: string, column: string) {
