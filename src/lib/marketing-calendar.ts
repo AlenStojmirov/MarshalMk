@@ -51,6 +51,14 @@ export interface PlanItem {
   postUrl: string;
   originalDay: string;
   movedCount: number;
+  /** 10.7: the question this post tests, and which side of it it is. */
+  hypothesis: string;
+  variant: '' | 'A' | 'B';
+  /** 10.7: from Meta Insights, by hand. Null = not entered, which is not zero. */
+  reach: number | null;
+  saves: number | null;
+  messages: number | null;
+  storeVisits: number | null;
 }
 
 export type PlanDraft = Pick<PlanItem, 'day' | 'kind' | 'productIds' | 'title'>;

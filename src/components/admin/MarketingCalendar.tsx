@@ -24,9 +24,11 @@ import {
   planStats, proposeMonth, weekStart, weekTheme, weekdayOf,
   type PlanChannel, type PlanDraft, type PlanItem, type PlanStatus,
 } from '@/lib/marketing-calendar';
-import { deletePlan, fetchPlan, insertPlan, updatePlan } from '@/lib/marketing-plan-db';
+import { deletePlan, fetchPlan, insertPlan, touchesResults, updatePlan, type PlanPatch } from '@/lib/marketing-plan-db';
 import { comboWriter, productKinds, productWriter, trustWriter, type Writing } from '@/components/admin/marketing-writers';
-import { trackedLink } from '@/lib/attribution';
+import { campaignOf, trackedLink } from '@/lib/attribution';
+import { HYPOTHESES, hypothesisOf } from '@/lib/marketing-tests';
+import { fetchCampaignOrders, type CampaignOrders } from '@/lib/marketing-results';
 
 const KIND_LABEL: Record<CopyKind, string> = { ...POST_KIND_LABEL, trust: 'Доверба' };
 const KINDS: CopyKind[] = ['carousel', 'reel', 'story', 'combo', 'clearance', 'trust'];
@@ -74,6 +76,7 @@ export default function MarketingCalendar({ plan, attrs, loading, onWrite }: Pro
   const [drafts, setDrafts] = useState<Array<PlanDraft & { on: boolean }> | null>(null);
   const [editing, setEditing] = useState<PlanItem | PlanDraft | null>(null);
   const [showFrame, setShowFrame] = useState(false);
+  const [campaignOrders, setCampaignOrders] = useState<CampaignOrders>({});
 
   const today = dayOf(new Date());
   const days = useMemo(() => monthDays(y, m), [y, m]);
@@ -97,6 +100,15 @@ export default function MarketingCalendar({ plan, attrs, loading, onWrite }: Pro
       live = false;
     };
   }, [from, to]);
+
+  // Online orders that came by each post's tracked link (10.6), counted on the server.
+  useEffect(() => {
+    let live = true;
+    fetchCampaignOrders(from).then((r) => live && setCampaignOrders(r));
+    return () => {
+      live = false;
+    };
+  }, [from]);
 
   const byId = useMemo(() => new Map(plan.candidates.map((c) => [c.product.id, c])), [plan]);
   const byDay = useMemo(() => {
@@ -358,6 +370,7 @@ export default function MarketingCalendar({ plan, attrs, loading, onWrite }: Pro
             reload();
           }}
           onWrite={(i) => writeItem(i)}
+          orders={isSaved(editing) ? campaignOrders[campaignOf(editing.id)] : undefined}
         />
       )}
     </div>
@@ -447,8 +460,11 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 
 const isSaved = (i: PlanItem | PlanDraft): i is PlanItem => 'id' in i;
 
+const toCount = (v: string): number | null => (v.trim() === '' ? null : Math.max(0, Math.round(Number(v)) || 0));
+const fromCount = (v: number | null | undefined) => (v === null || v === undefined ? '' : String(v));
+
 function ItemEditor({
-  item, candidates, byId, onClose, onSaved, onWrite,
+  item, candidates, byId, onClose, onSaved, onWrite, orders,
 }: {
   item: PlanItem | PlanDraft;
   candidates: PostCandidate[];
@@ -456,6 +472,7 @@ function ItemEditor({
   onClose: () => void;
   onSaved: () => void;
   onWrite: (i: PlanItem) => void;
+  orders?: { orders: number; units: number; value?: number };
 }) {
   const saved = isSaved(item) ? item : null;
   const [day, setDay] = useState(item.day);
@@ -465,6 +482,12 @@ function ItemEditor({
   const [channel, setChannel] = useState<PlanChannel>(saved?.channel ?? 'both');
   const [note, setNote] = useState(saved?.note ?? '');
   const [postUrl, setPostUrl] = useState(saved?.postUrl ?? '');
+  const [hypothesis, setHypothesis] = useState(saved?.hypothesis ?? '');
+  const [variant, setVariant] = useState<'' | 'A' | 'B'>(saved?.variant ?? '');
+  const [reach, setReach] = useState(fromCount(saved?.reach));
+  const [saves, setSaves] = useState(fromCount(saved?.saves));
+  const [messages, setMessages] = useState(fromCount(saved?.messages));
+  const [storeVisits, setStoreVisits] = useState(fromCount(saved?.storeVisits));
   const [busy, setBusy] = useState(false);
 
   const sorted = useMemo(() => [...candidates].sort((a, b) => a.label.localeCompare(b.label, 'mk')), [candidates]);
@@ -477,18 +500,34 @@ function ItemEditor({
   const current: PlanItem = {
     id: saved?.id ?? '', day, kind, productIds: ids.filter(Boolean), title, body: saved?.body ?? '',
     status, channel, note, postUrl, originalDay: saved?.originalDay ?? day, movedCount: saved?.movedCount ?? 0,
+    hypothesis, variant: hypothesis ? variant : '',
+    reach: toCount(reach), saves: toCount(saves), messages: toCount(messages), storeVisits: toCount(storeVisits),
   };
+  // Only what changed is sent, so a calendar without migration 013 still saves days and statuses.
+  const resultPatch: PlanPatch = {};
+  if (saved) {
+    if (current.hypothesis !== saved.hypothesis) resultPatch.hypothesis = current.hypothesis;
+    if (current.variant !== saved.variant) resultPatch.variant = current.variant;
+    if (current.reach !== saved.reach) resultPatch.reach = current.reach;
+    if (current.saves !== saved.saves) resultPatch.saves = current.saves;
+    if (current.messages !== saved.messages) resultPatch.messages = current.messages;
+    if (current.storeVisits !== saved.storeVisits) resultPatch.storeVisits = current.storeVisits;
+  }
   const warnings = itemWarnings(current, byId);
-  const changed = !saved || JSON.stringify([day, kind, current.productIds, status, channel, note, postUrl]) !==
+  const changed = !saved || touchesResults(resultPatch) || JSON.stringify([day, kind, current.productIds, status, channel, note, postUrl]) !==
     JSON.stringify([saved.day, saved.kind, saved.productIds, saved.status, saved.channel, saved.note, saved.postUrl]);
 
   const save = async () => {
     if (slots > 0 && current.productIds.length < slots) return alert(kind === 'combo' ? 'Избери два производа.' : 'Избери производ.');
     setBusy(true);
-    const patch = { day, kind, productIds: current.productIds, title, status, channel, note, postUrl };
+    const patch: PlanPatch = { day, kind, productIds: current.productIds, title, status, channel, note, postUrl, ...resultPatch };
     const err = saved ? await updatePlan(supabase, saved.id, patch) : await insertPlan(supabase, [{ day, kind, productIds: current.productIds, title }]);
     setBusy(false);
-    if (err) return alert(err);
+    if (err) {
+      return alert(/hypothesis|variant|reach|saves|messages|store_visits|results_at/.test(err)
+        ? 'Тестот и резултатите чекаат миграција 013. Денот, статусот и останатото може да се зачуваат без нив.'
+        : err);
+    }
     onSaved();
   };
 
@@ -592,6 +631,65 @@ function ItemEditor({
         </div>
         {saved?.body && <p className="text-xs text-slate-500">Текстот е зачуван ({saved.body.length} знаци).</p>}
         {saved && <TrackedLinks id={saved.id} path={saved.productIds[0] ? `/product/${saved.productIds[0]}` : '/'} />}
+
+        {saved && (
+          <div className="p-2 rounded-lg bg-violet-50 border border-violet-200 text-xs text-violet-900 space-y-2">
+            <p><strong>Тест</strong>: на кое прашање одговара оваа објава? (незадолжително)</p>
+            <select
+              value={hypothesis}
+              onChange={(e) => setHypothesis(e.target.value)}
+              className="w-full px-2 py-1.5 border border-violet-300 rounded-lg bg-white text-slate-800"
+            >
+              <option value="">— без тест —</option>
+              {HYPOTHESES.map((h) => <option key={h.key} value={h.key}>{h.question}</option>)}
+            </select>
+            {hypothesisOf(hypothesis) && (
+              <>
+                <div className="flex gap-1.5">
+                  {(['A', 'B'] as const).map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setVariant(v)}
+                      className={`flex-1 px-2 py-1 rounded-lg border ${variant === v ? 'bg-violet-700 text-white border-violet-700' : 'bg-white border-violet-300 hover:bg-violet-100'}`}
+                    >
+                      {v}: {v === 'A' ? hypothesisOf(hypothesis)!.a : hypothesisOf(hypothesis)!.b}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-violet-700">{hypothesisOf(hypothesis)!.hint}</p>
+              </>
+            )}
+          </div>
+        )}
+
+        {saved && status === 'posted' && (
+          <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 space-y-2">
+            <p>
+              <strong>Резултати</strong> од Insights на објавата, по 2–3 дена. Празно значи „не е внесено“, не нула.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {([
+                ['Дофат', reach, setReach],
+                ['Зачувувања', saves, setSaves],
+                ['Пораки', messages, setMessages],
+                ['Дошле во дуќан', storeVisits, setStoreVisits],
+              ] as const).map(([label, value, set]) => (
+                <label key={label} className="block">
+                  <span className="block mb-0.5">{label}</span>
+                  <input
+                    type="number" min="0" inputMode="numeric" value={value}
+                    onChange={(e) => set(e.target.value)}
+                    className="w-full px-2 py-1 border border-emerald-300 rounded-lg bg-white text-slate-800 tabular-nums"
+                  />
+                </label>
+              ))}
+            </div>
+            <p>
+              Online нарачки по следливиот линк: <strong>{orders?.orders ?? 0}</strong>
+              {orders ? ` (${orders.units} парч.${orders.value !== undefined ? `, ${den(orders.value)}` : ''})` : ''}. Се бројат сами.
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <button

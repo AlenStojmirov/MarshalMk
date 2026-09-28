@@ -27,6 +27,14 @@ interface PlanRow {
   post_url: string | null;
   original_day: string | null;
   moved_count: number | null;
+  // Absent until migration 013 has run.
+  hypothesis?: string | null;
+  variant?: 'A' | 'B' | null;
+  reach?: number | null;
+  saves?: number | null;
+  messages?: number | null;
+  store_visits?: number | null;
+  results_at?: string | null;
 }
 
 export interface PlanRead<T> {
@@ -55,10 +63,23 @@ function rowToItem(r: PlanRow): PlanItem {
     postUrl: r.post_url ?? '',
     originalDay: r.original_day ?? r.day,
     movedCount: r.moved_count ?? 0,
+    hypothesis: r.hypothesis ?? '',
+    variant: r.variant ?? '',
+    reach: r.reach ?? null,
+    saves: r.saves ?? null,
+    messages: r.messages ?? null,
+    storeVisits: r.store_visits ?? null,
   };
 }
 
-export type PlanPatch = Partial<Pick<PlanItem, 'day' | 'kind' | 'productIds' | 'title' | 'body' | 'status' | 'channel' | 'note' | 'postUrl'>>;
+export type PlanPatch = Partial<Pick<PlanItem,
+  'day' | 'kind' | 'productIds' | 'title' | 'body' | 'status' | 'channel' | 'note' | 'postUrl' |
+  'hypothesis' | 'variant' | 'reach' | 'saves' | 'messages' | 'storeVisits'>>;
+
+const RESULT_FIELDS = ['hypothesis', 'variant', 'reach', 'saves', 'messages', 'storeVisits'] as const;
+
+/** Does a patch touch what only exists once migration 013 has run? */
+export const touchesResults = (p: PlanPatch) => RESULT_FIELDS.some((k) => p[k] !== undefined);
 
 function patchToRow(p: PlanPatch): Partial<PlanRow> {
   const row: Partial<PlanRow> = {};
@@ -71,6 +92,14 @@ function patchToRow(p: PlanPatch): Partial<PlanRow> {
   if (p.channel !== undefined) row.channel = p.channel;
   if (p.note !== undefined) row.note = p.note;
   if (p.postUrl !== undefined) row.post_url = p.postUrl;
+  if (p.hypothesis !== undefined) row.hypothesis = p.hypothesis || null;
+  if (p.variant !== undefined) row.variant = p.variant || null;
+  if (p.reach !== undefined) row.reach = p.reach;
+  if (p.saves !== undefined) row.saves = p.saves;
+  if (p.messages !== undefined) row.messages = p.messages;
+  if (p.storeVisits !== undefined) row.store_visits = p.storeVisits;
+  // When the numbers were read matters: Insights keep counting for days.
+  if ([p.reach, p.saves, p.messages, p.storeVisits].some((v) => v !== undefined)) row.results_at = new Date().toISOString();
   return row;
 }
 

@@ -16,18 +16,20 @@
  * 10.3: its pictures — the photos in order and a drawn price card (post-images.ts).
  * 10.4: the calendar — next month by day, three months by week (MarketingCalendar).
  * 10.5: how far the month is from zero, and what that asks of marketing (PaceTile).
+ * 10.7: what worked — the month's numbers and the tests (MarketingResults).
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
-  AlertTriangle, ArrowLeft, CalendarDays, ExternalLink, ImageOff, Lightbulb, LogOut,
+  AlertTriangle, ArrowLeft, CalendarDays, ExternalLink, FlaskConical, ImageOff, Lightbulb, LogOut,
   Megaphone, PenLine, ShieldCheck, Truck,
 } from 'lucide-react';
 import PostCopyPanel from '@/components/admin/PostCopyPanel';
 import MarketingCalendar from '@/components/admin/MarketingCalendar';
 import PaceTile from '@/components/admin/PaceTile';
+import MarketingResults from '@/components/admin/MarketingResults';
 import { comboWriter, productKinds, productWriter, trustWriter, type Writing } from '@/components/admin/marketing-writers';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
@@ -41,7 +43,7 @@ import {
 } from '@/lib/marketing';
 import type { ProductAttributes } from '@/types';
 
-type Tab = 'ideas' | 'calendar';
+type Tab = 'ideas' | 'calendar' | 'results';
 
 const READINESS_TONE = {
   carousel: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -154,6 +156,7 @@ export default function MarketingPage() {
         {([
           { key: 'ideas', label: 'Што да објавиме', icon: Lightbulb },
           { key: 'calendar', label: 'Календар', icon: CalendarDays },
+          { key: 'results', label: 'Резултати', icon: FlaskConical },
         ] as const).map((t) => (
           <button
             key={t.key}
@@ -167,7 +170,9 @@ export default function MarketingPage() {
         ))}
       </div>
 
-      {tab === 'calendar' ? (
+      {tab === 'results' ? (
+        <MarketingResults />
+      ) : tab === 'calendar' ? (
         <MarketingCalendar plan={plan} attrs={attrs} loading={loading} onWrite={setWriting} />
       ) : (
         <>
