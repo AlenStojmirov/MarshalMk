@@ -27,6 +27,7 @@ import { getEffectivePrice, isOnSale } from '@/lib/pricing';
 import { Expense, expensesForPeriod, getExpenses, periodLabel } from '@/lib/expenses';
 import { monthOf, phaseForSeason, seasonOf, suggestedMarkdown } from '@/lib/seasons';
 import { planReorder } from '@/lib/reorder';
+import { STOCK_TARGET_COST, openToBuy } from '@/lib/open-to-buy';
 import {
   AlertTriangle,
   ArrowRight,
@@ -46,9 +47,6 @@ const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
 const NON_MERCHANDISE = new Set(['vaucer']);
 const CORE_SIZES = ['M', 'L', 'XL'];
 const LETTER_SIZES = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
-
-/** Stock ceiling as a multiple of monthly cost of goods (docs/TURNAROUND.md). */
-const MAX_MONTHS_OF_STOCK = 2.5;
 
 /**
  * How many alerts get shown (Task 4.4).
@@ -115,7 +113,6 @@ export default function DashboardSummary({
     const month = { units: 0, revenue: 0, cogs: 0, costed: 0 };
     const prev = { units: 0, revenue: 0, cogs: 0, costed: 0 };
 
-    let stockCost = 0;
     let unpublishedCount = 0;
     let unpublishedRetail = 0;
     let deadCount = 0;
@@ -124,9 +121,6 @@ export default function DashboardSummary({
     let leakCount = 0;
     let brokenCore = 0;
     let liveLetterModels = 0;
-    let annualCogs = 0;
-    let annualCosted = 0;
-    let annualUnits = 0;
 
     for (const p of merch) {
       const units = unitsOf(p);
@@ -134,7 +128,6 @@ export default function DashboardSummary({
       const effective = getEffectivePrice(p);
       const live = p.isVisible !== false && units > 0;
 
-      if (units > 0 && cost !== undefined) stockCost += units * cost;
 
       if (p.isVisible === false && units > 0) {
         unpublishedCount += 1;
@@ -179,8 +172,6 @@ export default function DashboardSummary({
 
         if (t >= now - 365 * DAY) {
           sold365 += 1;
-          annualUnits += 1;
-          if (cost !== undefined) { annualCogs += cost; annualCosted += 1; }
         }
         if (t >= now - 90 * DAY) sold90 += 1;
       }
@@ -208,8 +199,9 @@ export default function DashboardSummary({
     const prevGross = prev.revenue - prevCogs;
 
     const e = expensesForPeriod(expenses, thisPeriod);
-    const monthlyCogs = annualUnits > 0 ? (annualCogs * (annualUnits / Math.max(1, annualCosted))) / 12 : 0;
-    const maxStock = monthlyCogs * MAX_MONTHS_OF_STOCK;
+    // The stock target and the buying budget come from open-to-buy (D-023), the
+    // same numbers /admin/capital and /admin/reorder show.
+    const otb = openToBuy(merch, { now, opex: e.total > 0 ? e.total : undefined });
 
     const alerts: Alert[] = [];
 
@@ -226,14 +218,18 @@ export default function DashboardSummary({
       });
     }
 
-    if (stockCost > maxStock && maxStock > 0) {
+    // Only worth an alert past a few percent: a shelf a little over target is
+    // just a good month's sales away from it.
+    if (otb.overTarget > STOCK_TARGET_COST * 0.05) {
       alerts.push({
         key: 'ceiling',
-        weight: (stockCost - maxStock) / 12,
+        weight: otb.overTarget / 12,
         icon: AlertTriangle,
-        tone: 'red',
-        title: `Залихата е ${(stockCost / maxStock).toFixed(1)}× над здравиот максимум`,
-        detail: `${fmt(stockCost)} ден. наспроти ${fmt(maxStock)}. Буџетот за набавка е нула додека не се врати.`,
+        tone: 'amber',
+        title: `Залихата е ${fmt(otb.overTarget)} ден. над целта од ${fmt(STOCK_TARGET_COST)}`,
+        detail: otb.budget > 0
+          ? `Се докупува само што ќе се продаде минус вишокот: ${fmt(otb.budget)} ден. за следните 30 дена.`
+          : 'Следниот месец не се купува — продажбите прво треба да ја спуштат залихата.',
         href: '/admin/capital',
         action: 'Отвори капитал',
       });
@@ -314,16 +310,19 @@ export default function DashboardSummary({
     // Restock: the one alert that points at money coming in rather than money
     // stuck. Weighted on the gross profit the plan would earn, spread over the
     // cover it buys, so it is comparable with the monthly figures above.
-    const plan = planReorder(merch, { now, month: month12 });
-    if (plan.lines.length > 0) {
+    const plan = planReorder(merch, {
+      now, month: month12, budget: Math.round(otb.budget), groupBudgets: otb.groupBudget,
+    });
+    const fitting = plan.lines.filter((l) => l.withinBudget);
+    if (fitting.length > 0) {
       const gross = plan.revenue - plan.cost;
       alerts.push({
         key: 'restock',
         weight: gross / 6,
         icon: PackagePlus,
         tone: 'blue',
-        title: `${plan.lines.length} модели со докажана побарувачка чекаат дополнување`,
-        detail: `${fmt(plan.cost)} ден. набавна → ${fmt(gross)} ден. бруто. Единствената набавка што A4 ја дозволува.`,
+        title: `${fitting.length} модели со докажана побарувачка чекаат дополнување`,
+        detail: `${fmt(plan.cost)} ден. набавна → ${fmt(gross)} ден. бруто, во буџетот од ${fmt(otb.budget)} за 30 дена.`,
         href: '/admin/reorder',
         action: 'Отвори план',
       });

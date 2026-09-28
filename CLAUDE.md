@@ -77,7 +77,7 @@ Orders are created **only** by `POST /api/orders` (service-role). Layers, in ord
 
 ## Business logic (back office)
 
-Cost and margin `src/lib/cost.ts` (Firebase stores purchase price **×2**; `realPurchasePrice` halves it — D-002), seasons per raw category `src/lib/seasons.ts`, velocity classes `velocity.ts`, reorder plan `reorder.ts`, open-to-buy `open-to-buy.ts`, markdown ladder `markdown.ts`, customers by normalised phone `customers.ts`, ledger `sales-ledger.ts` / `ledger-ops.ts`, product attributes vocabulary (fibres, colours with Macedonian gender forms, fits, per-category fields and measurements) `attributes.ts`. Thresholds live as named constants in those files — change them there, not inline.
+Cost and margin `src/lib/cost.ts` (Firebase stores purchase price **×2**; `realPurchasePrice` halves it — D-002), seasons per raw category `src/lib/seasons.ts`, velocity classes `velocity.ts`, reorder plan `reorder.ts`, open-to-buy `open-to-buy.ts` (600.000 den. stock target at cost, break-even = opex ÷ margin, budget = next 30 days' cost of goods ± distance from target, split by group — D-023), markdown ladder `markdown.ts`, customers by normalised phone `customers.ts`, ledger `sales-ledger.ts` / `ledger-ops.ts`, product attributes vocabulary (fibres, colours with Macedonian gender forms, fits, per-category fields and measurements) `attributes.ts`. Thresholds live as named constants in those files — change them there, not inline.
 
 ## i18n
 

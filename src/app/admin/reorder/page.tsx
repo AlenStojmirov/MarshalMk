@@ -10,11 +10,11 @@
  * joining is where the mistake gets made. So this page does the join and hands
  * over one order: model, sizes, pieces, price, ranked, cut off at the budget.
  *
- * The budget goes first and is allowed to say zero. It currently does, and the
- * page does not soften that — it names the only exception the plan permits (A5:
- * refilling proven, in-window sellers) and makes the exception's price visible
- * before it is spent, rather than presenting a shopping list as if the money
- * were there.
+ * The budget comes from open-to-buy (D-023): what the next thirty days will
+ * sell at cost, less whatever the shelf is above the 600.000 target, split by
+ * group. A line has to fit the whole budget and its group's share of it — a
+ * proven jacket is still not bought while jackets hold more than their share.
+ * The owner can type another amount; the page says when the number is theirs.
  *
  * The arithmetic and its guardrails are in `src/lib/reorder.ts`.
  */
@@ -24,7 +24,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import { getProductDisplayName } from '@/lib/product-display';
-import { MIN_TURNOVER_TO_BUY, openToBuy } from '@/lib/open-to-buy';
+import { OTB_HORIZON_DAYS, STOCK_TARGET_COST, groupOf, openToBuy } from '@/lib/open-to-buy';
 import {
   MONTH_LABEL, NON_MERCHANDISE, PHASE_LABEL, monthAhead, monthOf, phaseOf,
 } from '@/lib/seasons';
@@ -37,16 +37,6 @@ import {
 
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
 const pct = (n: number | null) => (n === null ? '—' : `${Math.round(n * 100)}%`);
-
-/**
- * The A5 exception, as a number.
- *
- * `/admin/sizes` measured the whole size-gap top-up at 39.231 den. for proven
- * sizes. Rounding to 40.000 gives the exception a shape: large enough to refill
- * what sells, small enough that being wrong costs less than a month of opex.
- * An exception without a ceiling is not an exception, it is a policy.
- */
-const EXCEPTION_BUDGET = 40_000;
 
 /**
  * How far ahead the plan can look, in weeks (Task 6.2).
@@ -74,7 +64,9 @@ const brandOf = (p: { brand?: string; id: string }) =>
 
 function ReorderView() {
   const { products, loading } = useProducts();
-  const [budgetInput, setBudgetInput] = useState(String(EXCEPTION_BUDGET));
+  // null follows open-to-buy; a typed amount is the owner's override.
+  const [budgetInput, setBudgetInput] = useState<string | null>(null);
+  const [byGroup, setByGroup] = useState(true);
   const [cover, setCover] = useState(TARGET_COVER_MONTHS);
   const [copied, setCopied] = useState(false);
 
@@ -86,18 +78,25 @@ function ReorderView() {
   const month = useMemo(() => monthAhead(horizon, now), [horizon, now]);
   const today = useMemo(() => monthOf(now), [now]);
 
-  const budget = Math.max(0, Number(budgetInput) || 0);
-
   const merch = useMemo(
     () => products.filter((p) => !NON_MERCHANDISE.has(p.category)),
     [products]
   );
 
-  const otb = useMemo(() => openToBuy(merch, now), [merch, now]);
+  const otb = useMemo(() => openToBuy(merch, { now }), [merch, now]);
+  const overridden = budgetInput !== null;
+  const budget = overridden ? Math.max(0, Number(budgetInput) || 0) : Math.round(otb.budget);
+  // The group shares are shares of the open-to-buy amount; a typed budget is
+  // scaled onto them, so the split still follows where stock is missing.
+  const groupBudgets = useMemo(() => {
+    if (!byGroup) return undefined;
+    const scale = otb.budget > 0 ? budget / otb.budget : 0;
+    return new Map([...otb.groupBudget].map(([g, v]) => [g, v * scale] as [string, number]));
+  }, [byGroup, otb, budget]);
 
   const plan = useMemo(
-    () => planReorder(merch, { now, month, budget, coverMonths: cover }),
-    [merch, now, month, budget, cover]
+    () => planReorder(merch, { now, month, budget, groupBudgets, coverMonths: cover }),
+    [merch, now, month, budget, groupBudgets, cover]
   );
 
   if (loading) {
@@ -114,7 +113,7 @@ function ReorderView() {
   // door opening between now and then, not that the control is broken.
   const sameAsToday =
     horizon > 0 &&
-    planReorder(merch, { now, month: today, budget, coverMonths: cover }).lines.length ===
+    planReorder(merch, { now, month: today, budget, groupBudgets, coverMonths: cover }).lines.length ===
       plan.lines.length;
 
   // The copied text is split one section per brand, because that is how it
@@ -180,33 +179,25 @@ function ReorderView() {
 
         {/* the gate, first and allowed to say zero */}
         <div className={`mb-6 rounded-xl border px-4 py-3 ${
-          otb.canBuy ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+          otb.budget > 0 ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'
         }`}>
           <div className="flex items-start gap-2">
-            {otb.canBuy
+            {otb.budget > 0
               ? <PackagePlus className="h-4 w-4 shrink-0 mt-0.5 text-green-700" />
-              : <Ban className="h-4 w-4 shrink-0 mt-0.5 text-red-700" />}
+              : <Ban className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />}
             <div className="flex-1 min-w-0">
-              <p className={`text-sm font-bold ${otb.canBuy ? 'text-green-900' : 'text-red-900'}`}>
-                Open-to-buy: {fmt(otb.budget)} ден.
+              <p className={`text-sm font-bold ${otb.budget > 0 ? 'text-green-900' : 'text-amber-900'}`}>
+                Open-to-buy за следните {OTB_HORIZON_DAYS} дена: {fmt(otb.budget)} ден.
               </p>
               <p className="text-xs text-slate-600 mt-1">
-                Turnover <strong>{otb.turnover.toFixed(2)}×</strong> (праг {MIN_TURNOVER_TO_BUY.toFixed(1)}×) ·
-                залиха <strong>{fmt(otb.totalCost)}</strong> ден. наспроти здрав максимум{' '}
-                <strong>{fmt(otb.maxStock)}</strong> ден. ·{' '}
-                {otb.headroom < 0
-                  ? <>над таванот за <strong>{fmt(-otb.headroom)}</strong> ден.</>
-                  : <>простор <strong>{fmt(otb.headroom)}</strong> ден.</>}
+                Лани во истите {OTB_HORIZON_DAYS} дена се продало <strong>{fmt(otb.expectedCogs)}</strong> ден.
+                по набавна · залихата е <strong>{fmt(otb.stockCost)}</strong> наспроти целта{' '}
+                <strong>{fmt(STOCK_TARGET_COST)}</strong> ({otb.overTarget > 0
+                  ? <>над за <strong>{fmt(otb.overTarget)}</strong></>
+                  : <>под за <strong>{fmt(-otb.overTarget)}</strong></>}).{' '}
+                Што ќе се продаде се докупува, во групите под својот дел од целта.{' '}
+                <Link href="/admin/capital" className="underline font-medium">Каде и зошто</Link>.
               </p>
-              {!otb.canBuy && (
-                <p className="text-xs text-red-900 mt-2">
-                  Формулата дава <strong>нула</strong> и тоа е точно (A4). Единствениот исклучок што
-                  планот дозволува е <strong>A5</strong> — дополнување на докажани модели чиј прозорец
-                  е отворен. Затоа буџетот подолу е рачен, и затоа е важно да се види пред да се
-                  потроши.{' '}
-                  <Link href="/admin/capital" className="underline font-medium">Види ја пресметката</Link>.
-                </p>
-              )}
             </div>
           </div>
         </div>
@@ -221,11 +212,29 @@ function ReorderView() {
               type="number"
               min={0}
               step={1000}
-              value={budgetInput}
+              value={budgetInput ?? String(Math.round(otb.budget))}
               onChange={(e) => { setBudgetInput(e.target.value); setCopied(false); }}
               className="w-32 px-3 py-1.5 rounded-lg border border-slate-200 text-sm tabular-nums text-right"
             />
+            <p className="text-[10px] mt-0.5">
+              {overridden ? (
+                <button onClick={() => setBudgetInput(null)} className="text-blue-600 underline">
+                  врати на open-to-buy ({fmt(otb.budget)})
+                </button>
+              ) : (
+                <span className="text-slate-400">од open-to-buy</span>
+              )}
+            </p>
           </div>
+          <label className="flex items-center gap-2 text-xs text-slate-600 self-center">
+            <input
+              type="checkbox"
+              checked={byGroup}
+              onChange={(e) => { setByGroup(e.target.checked); setCopied(false); }}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Почитувај го делот на групата
+          </label>
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
               Покриеност (месеци)
@@ -264,7 +273,7 @@ function ReorderView() {
           </div>
           <p className="text-[11px] text-slate-400 flex-1 min-w-[200px]">
             Плитка покриеност е намерна: брза кошула на 2 месеци може да се докупи повторно наскоро,
-            а длабоко купување е начинот како се дојде до 14 месеци залиха.
+            а длабоко купување на еден модел врзува пари што му требаат на друга група.
           </p>
         </div>
 
@@ -298,7 +307,14 @@ function ReorderView() {
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Чини</p>
             <p className="text-xl font-bold text-slate-800 tabular-nums">{fmt(plan.cost)}</p>
-            <p className="text-[11px] text-slate-400">ден. набавна</p>
+            <p className="text-[11px] text-slate-400">
+              ден. набавна
+              {budget - plan.cost >= 1000 && (
+                // What the proven models do not use is the room for new ones —
+                // /admin/capital says in which groups.
+                <> · остануваат <Link href="/admin/capital" className="underline">{fmt(budget - plan.cost)} за нови модели</Link></>
+              )}
+            </p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Враќа</p>
@@ -382,9 +398,11 @@ function ReorderView() {
                             <td colSpan={9} className="px-3 py-2 bg-amber-50 border-y border-amber-200">
                               <p className="text-[11px] font-semibold text-amber-900 flex items-center gap-1.5">
                                 <ShieldAlert className="h-3.5 w-3.5" />
-                                Буџетот од {fmt(budget)} ден. се потроши тука. Подолу е што
-                                продавницата ѝ треба но не може да го плати — прикажано намерно,
-                                зашто тивко скратен план го крие јазот.
+                                Тука завршува буџетот од {fmt(budget)} ден. Подолу е што не влезе —
+                                прикажано намерно, зашто тивко скратен план го крие јазот.
+                                {plan.blockedByGroup > 0 && (
+                                  <> {plan.blockedByGroup} од нив се во група што веќе го има својот дел од залихата.</>
+                                )}
                               </p>
                             </td>
                           </tr>
@@ -419,6 +437,11 @@ function ReorderView() {
                             )}
                             {l.capped && (
                               <p className="text-[10px] text-amber-600 mt-0.5">{CAP_LABEL[l.capped]}</p>
+                            )}
+                            {l.blockedBy === 'group' && (
+                              <p className="text-[10px] text-amber-700 mt-0.5">
+                                {groupOf(l.p.category)}: групата е над својот дел од целта
+                              </p>
                             )}
                             {l.urgent && (
                               <p className="text-[10px] font-semibold text-red-700 mt-0.5">
@@ -473,8 +496,8 @@ function ReorderView() {
             <span>
               Количината <strong>никогаш не надминува првата набавка</strong>, ниту{' '}
               {MAX_UNITS_PER_MODEL} парчиња. Модел што се испразнил за три недели пресметува темпо
-              што би оправдало десет парчиња — а десет парчиња од што и да е е начинот како се дојде
-              до 14 месеци залиха. Големините доаѓаат од <strong>категоријата</strong>, коригирани од
+              што би оправдало десет парчиња — а десет парчиња од еден модел се пари што ѝ фалат на
+              друга група. Големините доаѓаат од <strong>категоријата</strong>, коригирани од
               моделот: моделот има пет-шест продажби, категоријата има стотици. Измерената крива е
               L &gt; M &gt; XL &gt; XXL &gt; S, не рамна.
             </span>
