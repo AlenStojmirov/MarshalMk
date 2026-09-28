@@ -100,6 +100,75 @@ export async function addExpense(input: NewExpense): Promise<void> {
   if (error) throw error;
 }
 
+/** Several rows in one insert — all of them, or none. */
+export async function addExpenses(inputs: NewExpense[]): Promise<void> {
+  if (!inputs.length) return;
+  const { error } = await supabase.from(TABLE).insert(
+    inputs.map((input) => ({
+      period: input.period,
+      category: input.category,
+      amount: Math.round(input.amount * 100) / 100,
+      description: input.description?.trim() || null,
+      occurred_on: input.occurredOn ?? null,
+      is_monthly_total: input.isMonthlyTotal ?? false,
+    })),
+  );
+  if (error) throw error;
+}
+
+/** Every month from `from` to `to`, both included, oldest first. */
+export function periodsBetween(from: string, to: string): string[] {
+  const [a, b] = from <= to ? [from, to] : [to, from];
+  let [y, m] = a.split('-').map(Number);
+  const out: string[] = [];
+  for (;;) {
+    const p = y + '-' + String(m).padStart(2, '0');
+    out.push(p);
+    if (p >= b) break;
+    m += 1;
+    if (m === 13) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+/**
+ * One expense over several months (the owner, 2026-09-28: some costs span
+ * months). `repeat` puts the same amount in every month — rent, salaries.
+ * `split` divides one bill across the months it covers — a quarterly
+ * accountant — in whole denars, the remainder in the last month so the months
+ * add up to the bill exactly.
+ *
+ * A month that already holds the same expense (category, amount, description,
+ * total-or-line) is skipped rather than doubled, and returned as skipped.
+ */
+export function spreadExpense(
+  input: Omit<NewExpense, 'period'>,
+  periods: string[],
+  mode: 'repeat' | 'split',
+  existing: Expense[],
+): { rows: NewExpense[]; skipped: string[] } {
+  const n = periods.length;
+  const each = mode === 'split' ? Math.floor(input.amount / n) : input.amount;
+  const last = mode === 'split' ? input.amount - each * (n - 1) : input.amount;
+  const desc = input.description?.trim() || '';
+  const rows: NewExpense[] = [];
+  const skipped: string[] = [];
+  periods.forEach((period, i) => {
+    const amount = i === n - 1 ? last : each;
+    const dup = existing.some(
+      (e) =>
+        e.period === period &&
+        e.category === input.category &&
+        e.isMonthlyTotal === (input.isMonthlyTotal ?? false) &&
+        Math.abs(e.amount - amount) < 0.01 &&
+        (e.description ?? '').trim() === desc,
+    );
+    if (dup) skipped.push(period);
+    else rows.push({ ...input, period, amount });
+  });
+  return { rows, skipped };
+}
+
 export async function updateExpense(id: string, patch: Partial<NewExpense>): Promise<void> {
   const row: Record<string, unknown> = {};
   if (patch.period !== undefined) row.period = patch.period;

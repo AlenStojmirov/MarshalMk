@@ -26,12 +26,14 @@ import {
   ExpenseCategory,
   EXPENSE_CATEGORIES,
   CATEGORY_LABELS_MK,
-  addExpense,
+  addExpenses,
   deleteExpense,
   expensesForPeriod,
   getExpenses,
   periodLabel,
+  periodsBetween,
   periodsSince,
+  spreadExpense,
 } from '@/lib/expenses';
 import { ArrowLeft, Plus, Trash2, TrendingDown, TrendingUp, AlertTriangle, Wallet, Download } from 'lucide-react';
 
@@ -64,11 +66,16 @@ function FinanceView() {
 
   const [form, setForm] = useState({
     period: periodsSince(START_PERIOD)[0],
+    /** Last month of the range; the same as `period` for one month. */
+    periodTo: periodsSince(START_PERIOD)[0],
+    /** Over several months: the same amount each month, or one bill divided. */
+    mode: 'repeat' as 'repeat' | 'split',
     amount: '',
     description: '',
     category: 'other' as ExpenseCategory,
     detailed: false,
   });
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -167,18 +174,36 @@ function FinanceView() {
   const sum = (rows: MonthRow[], k: keyof MonthRow) =>
     rows.reduce((a, r) => a + (typeof r[k] === 'number' ? (r[k] as number) : 0), 0);
 
+  const range = periodsBetween(form.period, form.periodTo);
+  const amountNum = Number(form.amount);
+  const spread =
+    Number.isFinite(amountNum) && amountNum > 0
+      ? spreadExpense(
+          {
+            category: form.detailed ? form.category : 'other',
+            amount: amountNum,
+            description: form.description,
+            isMonthlyTotal: !form.detailed,
+          },
+          range,
+          range.length > 1 ? form.mode : 'repeat',
+          expenses,
+        )
+      : null;
+
   const handleAdd = async () => {
-    const amount = Number(form.amount);
-    if (!Number.isFinite(amount) || amount <= 0) return;
+    if (!spread || spread.rows.length === 0) return;
+    if (spread.rows.length > 1 && !confirm(
+      `Ќе се внесат ${spread.rows.length} реда, вкупно ${fmt(spread.rows.reduce((a, r) => a + r.amount, 0))} ден. Продолжи?`,
+    )) return;
     setSaving(true);
     try {
-      await addExpense({
-        period: form.period,
-        category: form.detailed ? form.category : 'other',
-        amount,
-        description: form.description,
-        isMonthlyTotal: !form.detailed,
-      });
+      await addExpenses(spread.rows);
+      setNotice(
+        spread.skipped.length
+          ? `Внесени ${spread.rows.length}. Прескокнати ${spread.skipped.length} (веќе го имаат истиот трошок): ${spread.skipped.map(periodLabel).join(', ')}.`
+          : `Внесени ${spread.rows.length}.`,
+      );
       setForm((f) => ({ ...f, amount: '', description: '' }));
       await load();
     } catch (err) {
@@ -259,10 +284,23 @@ function FinanceView() {
           </div>
           <div className="flex flex-wrap items-end gap-2">
             <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1">Месец</label>
+              <label className="block text-[11px] font-medium text-slate-500 mb-1">Од месец</label>
               <select
                 value={form.period}
-                onChange={(e) => setForm((f) => ({ ...f, period: e.target.value }))}
+                // Moving the start past the end drags the end along: one month by default.
+                onChange={(e) => setForm((f) => ({ ...f, period: e.target.value, periodTo: e.target.value > f.periodTo ? e.target.value : f.periodTo }))}
+                className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white"
+              >
+                {periodsSince(START_PERIOD).map((p) => (
+                  <option key={p} value={p}>{periodLabel(p)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-500 mb-1">До месец</label>
+              <select
+                value={form.periodTo}
+                onChange={(e) => setForm((f) => ({ ...f, periodTo: e.target.value, period: e.target.value < f.period ? e.target.value : f.period }))}
                 className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white"
               >
                 {periodsSince(START_PERIOD).map((p) => (
@@ -308,13 +346,40 @@ function FinanceView() {
             </div>
             <button
               onClick={handleAdd}
-              disabled={saving || !form.amount}
+              disabled={saving || !spread || spread.rows.length === 0}
               className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-40"
             >
               <Plus className="h-4 w-4" />
-              {saving ? '…' : 'Додади'}
+              {saving ? '…' : range.length > 1 ? `Додади во ${range.length} месеци` : 'Додади'}
             </button>
           </div>
+
+          {range.length > 1 && (
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" checked={form.mode === 'repeat'} onChange={() => setForm((f) => ({ ...f, mode: 'repeat' }))} />
+                Ист износ секој месец <span className="text-slate-400">(кирија, плати)</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" checked={form.mode === 'split'} onChange={() => setForm((f) => ({ ...f, mode: 'split' }))} />
+                Подели го износот на месеците <span className="text-slate-400">(една сметка за повеќе месеци)</span>
+              </label>
+            </div>
+          )}
+          {spread && range.length > 1 && (
+            <p className="mt-2 text-xs text-slate-500">
+              {spread.rows.length > 0
+                ? form.mode === 'split'
+                  ? `${fmt(amountNum)} ден. поделени на ${range.length} месеци: по ${fmt(spread.rows[0].amount)} ден.`
+                  : `${fmt(amountNum)} ден. × ${spread.rows.length} месеци = ${fmt(amountNum * spread.rows.length)} ден.`
+                : 'Сите избрани месеци веќе го имаат овој трошок.'}
+              {spread.skipped.length > 0 && spread.rows.length > 0 && ` Се прескокнуваат ${spread.skipped.length} што веќе го имаат.`}
+            </p>
+          )}
+          {notice && <p className="mt-2 text-xs text-emerald-700">{notice}</p>}
+          <p className="mt-2 text-[11px] text-slate-400">
+            Месецот се смета за внесен кога има „вкупно за месецот“, или барем кирија и плати (D-024). Инаку нулата се пресметува со 65.000.
+          </p>
         </div>
 
         {/* months */}
