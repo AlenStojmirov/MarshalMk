@@ -26,6 +26,16 @@ import { SHIPPING_CONFIG } from '@/config/shipping';
 
 const DAY = 86_400_000;
 
+/**
+ * "1.650 ден." — the same in every browser. `toLocaleString('mk-MK')` falls back
+ * to "1,650" where the browser lacks Macedonian locale data, and a price that
+ * reads differently on the card and in the caption looks like two prices.
+ */
+export function den(n: number): string {
+  const digits = String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${n < 0 ? '−' : ''}${digits} ден.`;
+}
+
 /** A carousel wants front, back and a detail; fewer is a single-photo post. */
 export const CAROUSEL_MIN_PHOTOS = 3;
 /** On the shelf this long or less counts as new. */
@@ -74,8 +84,8 @@ export const BUCKETS: BucketInfo[] = [
   },
   {
     key: 'combos',
-    title: `Комбинации до ${COMBO_TARGET.toLocaleString('mk-MK')} ден.`,
-    why: `Горен и долен дел што заедно минуваат ${COMBO_TARGET.toLocaleString('mk-MK')} ден., па доставата е бесплатна. Една објава, две парчиња во кошничката.`,
+    title: `Комбинации до ${den(COMBO_TARGET)}`,
+    why: `Горен и долен дел што заедно минуваат ${den(COMBO_TARGET)}, па доставата е бесплатна. Една објава, две парчиња во кошничката.`,
     kinds: ['combo'],
   },
   {

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Copy, RefreshCw, X } from 'lucide-react';
 import { POST_KIND_LABEL } from '@/lib/marketing';
 import { latinOutsideSizes, VARIANTS, type CopyKind, type PostCopy } from '@/lib/post-copy';
+import PostPack, { type PackSpec } from '@/components/admin/PostPack';
 
 const KIND_LABEL: Record<CopyKind, string> = { ...POST_KIND_LABEL, trust: 'Доверба' };
 
@@ -11,13 +12,15 @@ const KIND_LABEL: Record<CopyKind, string> = { ...POST_KIND_LABEL, trust: 'До�
  * One post's text, ready to paste (Task 10.2). The generated version is a
  * starting point: the marketing employee picks a kind and a variant, edits in
  * place, and copies. Nothing is saved — the calendar (10.4) will keep texts.
+ * With `pack` (10.3) the photos and the drawn card come with it.
  */
 export default function PostCopyPanel({
-  heading, kinds, make, onClose,
+  heading, kinds, make, pack, onClose,
 }: {
   heading: string;
   kinds: CopyKind[];
   make: (kind: CopyKind, variant: number) => PostCopy;
+  pack?: (kind: CopyKind, copy: PostCopy) => PackSpec | null;
   onClose: () => void;
 }) {
   const [kind, setKind] = useState<CopyKind>(kinds[0]);
@@ -29,6 +32,7 @@ export default function PostCopyPanel({
   const text = edits[key] ?? copy.text;
   const setText = (t: string) => setEdits((e) => ({ ...e, [key]: t }));
   const [copied, setCopied] = useState(false);
+  const spec = useMemo(() => pack?.(kind, copy) ?? null, [pack, kind, copy]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -95,6 +99,9 @@ export default function PostCopyPanel({
             <span className="font-medium">Идеја: </span>{copy.idea}
           </p>
         )}
+
+        {/* Keyed so a new kind or variant draws its own card from scratch. */}
+        {spec && <PostPack key={key} spec={spec} text={text} />}
 
         <textarea
           value={text}

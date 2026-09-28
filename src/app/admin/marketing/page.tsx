@@ -13,17 +13,21 @@
  * 10.1: what to post, sorted into buckets that each carry a reason to post
  * (src/lib/marketing.ts). A discount is the message only in clearance.
  * 10.2: the text of each post (src/lib/post-copy.ts), edited and copied here.
+ * 10.3: its pictures — the photos in order and a drawn price card (post-images.ts).
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
-  AlertTriangle, ArrowLeft, CalendarDays, ExternalLink, Image as ImageIcon, ImageOff, LogOut,
+  AlertTriangle, ArrowLeft, CalendarDays, ExternalLink, ImageOff, LogOut,
   Megaphone, PenLine, ShieldCheck, Target, Truck,
 } from 'lucide-react';
 import PostCopyPanel from '@/components/admin/PostCopyPanel';
-import { comboCopy, productCopy, trustCopy, type CopyKind, type PostCopy } from '@/lib/post-copy';
+import { comboCopy, productCopy, productTitle, trustCopy, type CopyKind, type PostCopy } from '@/lib/post-copy';
+import { renderComboCard, renderPriceCard, renderStoryCard, type CardProduct } from '@/lib/post-images';
+import { photoUrls } from '@/lib/catalog-gaps';
+import type { PackSpec } from '@/components/admin/PostPack';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import { supabase } from '@/lib/supabase';
@@ -31,16 +35,14 @@ import { fetchAllAttributes } from '@/lib/product-attributes';
 import { ROLE_LABEL } from '@/lib/roles';
 import { PHASE_LABEL } from '@/lib/seasons';
 import {
-  BUCKETS, COMBO_TARGET, POST_KIND_LABEL, READINESS_LABEL, buildMarketingPlan,
+  BUCKETS, COMBO_TARGET, POST_KIND_LABEL, READINESS_LABEL, buildMarketingPlan, den,
   type BucketKey, type Combo, type PostCandidate, type PostKind,
 } from '@/lib/marketing';
 import type { ProductAttributes } from '@/types';
 
-const den = (n: number) => `${n.toLocaleString('mk-MK')} ден.`;
 
 /** What is coming, in the order it is built. */
 const NEXT: Array<{ id: string; title: string; hint: string; icon: typeof Megaphone }> = [
-  { id: '10.3', title: 'Пакет за објава', hint: 'слики по ред и картичка со цена и големини', icon: ImageIcon },
   { id: '10.4', title: 'Календар', hint: 'следниот месец по денови, рамка за три месеци', icon: CalendarDays },
   { id: '10.5', title: 'Цел до нула', hint: 'колку фали овој месец', icon: Target },
 ];
@@ -49,6 +51,26 @@ interface Writing {
   heading: string;
   kinds: CopyKind[];
   make: (kind: CopyKind, variant: number) => PostCopy;
+  pack?: (kind: CopyKind, copy: PostCopy) => PackSpec | null;
+}
+
+const photosOf = (c: PostCandidate, limit = Infinity) =>
+  photoUrls(c.product.imageUrl, c.product.images)
+    .slice(0, limit)
+    .map((url, i) => ({ url, name: `${c.product.id}-${i + 1}` }));
+
+/** What the drawn card says. The old price only where the post may talk about the discount (D-022). */
+function cardProduct(c: PostCandidate, attrs?: ProductAttributes): CardProduct {
+  const discount = c.discount.allowed && c.percentOff > 0;
+  return {
+    title: productTitle(c, attrs),
+    price: c.price,
+    listPrice: discount ? c.listPrice : undefined,
+    percentOff: discount ? c.percentOff : undefined,
+    sizes: c.sizes.map((s) => s.size),
+    lastSizes: c.lastSizes,
+    photo: c.product.imageUrl,
+  };
 }
 
 /** The kinds a product post can take from a bucket; a story is always on offer. */
@@ -86,6 +108,15 @@ export default function MarketingPage() {
       heading: c.label,
       kinds,
       make: (kind, variant) => productCopy(kind as (typeof kinds)[number], c, attrs.get(c.product.id), variant, month),
+      pack: (kind, copy) => {
+        const card = cardProduct(c, attrs.get(c.product.id));
+        if (kind === 'story') {
+          // One frame: the photo with the story's first line on it.
+          const headline = copy.text.split('\n')[0];
+          return { photos: [], card: () => renderStoryCard(card, headline), cardName: `${c.product.id}-storis`, aspect: 'story' };
+        }
+        return { photos: photosOf(c), card: () => renderPriceCard(card), cardName: `${c.product.id}-cena`, aspect: 'feed' };
+      },
     });
   }, [info, attrs, month]);
 
@@ -94,6 +125,13 @@ export default function MarketingPage() {
       heading: `${combo.top.label} + ${combo.bottom.label}`,
       kinds: ['combo'],
       make: (_kind, variant) => comboCopy(combo, attrs, variant, month),
+      pack: () => ({
+        // Two of each is enough to show both; the card closes the carousel.
+        photos: [...photosOf(combo.top, 2), ...photosOf(combo.bottom, 2)],
+        card: () => renderComboCard(cardProduct(combo.top, attrs.get(combo.top.product.id)), cardProduct(combo.bottom, attrs.get(combo.bottom.product.id))),
+        cardName: `${combo.top.product.id}-${combo.bottom.product.id}-komplet`,
+        aspect: 'feed',
+      }),
     });
   }, [attrs, month]);
 
@@ -255,6 +293,7 @@ export default function MarketingPage() {
           heading={writing.heading}
           kinds={writing.kinds}
           make={writing.make}
+          pack={writing.pack}
           onClose={() => setWriting(null)}
         />
       )}

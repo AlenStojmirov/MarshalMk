@@ -48,9 +48,13 @@ export interface GapInput {
 
 const isUsableUrl = (u: string | null | undefined) => !!u && /^(https?:\/\/|\/)/.test(u.trim());
 
-/** Distinct usable image urls. Local files have already replaced these (product-images.ts). */
+/** Distinct usable image urls, main first. Local files have already replaced these (product-images.ts). */
+export function photoUrls(imageUrl?: string | null, images?: string[] | null): string[] {
+  return [...new Set([imageUrl, ...(images ?? [])].filter((u): u is string => isUsableUrl(u)))];
+}
+
 export function photoCount(imageUrl?: string | null, images?: string[] | null): number {
-  return new Set([imageUrl, ...(images ?? [])].filter(isUsableUrl)).size;
+  return photoUrls(imageUrl, images).length;
 }
 
 export function sizesOnShelf(sizes?: Pick<ProductSize, 'size' | 'quantity'>[] | null) {

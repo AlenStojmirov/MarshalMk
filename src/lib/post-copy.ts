@@ -22,7 +22,7 @@ import type { ProductAttributes } from '@/types';
 import { formatComposition, FITS, SIZE_ADVICE } from './attributes';
 import { generateTitle } from './product-title';
 import { seasonOf, type Month } from './seasons';
-import type { Combo, PostCandidate, PostKind } from './marketing';
+import { den, type Combo, type PostCandidate, type PostKind } from './marketing';
 import { SHIPPING_CONFIG } from '@/config/shipping';
 import { STORE_ADDRESS } from '@/config/store';
 
@@ -43,7 +43,6 @@ export interface PostCopy {
   idea?: string;
 }
 
-const den = (n: number) => `${n.toLocaleString('mk-MK')} ден.`;
 const pick = <T,>(list: T[], variant: number): T => list[((variant % list.length) + list.length) % list.length];
 const emptyAttrs = (productId: string): ProductAttributes => ({ productId, composition: [], details: {}, measurements: {} });
 
