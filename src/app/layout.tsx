@@ -6,6 +6,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { LanguageProvider } from "@/lib/i18n";
 import Header from "@/components/Header";
 import FloatingContactButton from "@/components/FloatingContactButton";
+import AttributionCapture from "@/components/AttributionCapture";
 import Footer from "@/components/Footer";
 import MiniCart from "@/components/MiniCart";
 import { Analytics } from "@vercel/analytics/next";
@@ -121,6 +122,7 @@ export default function RootLayout({
               </main>
               <Footer />
               <FloatingContactButton />
+              <AttributionCapture />
               <MiniCart />
               <Analytics />
             </CartProvider>

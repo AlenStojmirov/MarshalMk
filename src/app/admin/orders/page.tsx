@@ -13,6 +13,7 @@ import {
 } from '@/lib/orders';
 import { Order, OrderOutcome, OrderStatus } from '@/types';
 import { useTranslation } from '@/lib/i18n';
+import { describeSource } from '@/lib/attribution';
 import {
   ArrowLeft,
   Package,
@@ -236,6 +237,10 @@ function OrderCard({
                   <span className="font-medium">{t('orders.notes')}: </span>
                   {order.customer.notes}
                 </div>
+              )}
+              {describeSource(order.customer.source) && (
+                // Where the order came from (D-025): the tracked link and/or the checkout answer.
+                <p className="mt-2 text-xs text-pink-700">Извор: {describeSource(order.customer.source)}</p>
               )}
             </div>
 

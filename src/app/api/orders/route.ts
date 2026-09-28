@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cleanSource } from '@/lib/attribution';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { applyOrderToStock, revertOrderFromStock } from '@/lib/stock';
 import { buildLedgerRow } from '@/lib/sales-ledger';
@@ -117,6 +118,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid delivery method.' }, { status: 400 });
   }
   const deliveryMethod: 'courier' | 'pickup' = rawMethod === 'pickup' ? 'pickup' : 'courier';
+  const source = cleanSource(body.source);
 
   // An address is only needed when there is something to deliver to.
   const requiredFields = deliveryMethod === 'pickup'
@@ -243,6 +245,8 @@ export async function POST(request: NextRequest) {
         city: deliveryMethod === 'pickup' ? '' : (customer.city || '').trim(),
         notes: (customer.notes || '').trim().substring(0, 500),
         deliveryMethod,
+        // How they found the shop (D-025). Cleaned, never a reason to refuse an order.
+        ...(source ? { source } : {}),
       },
       items: orderItems.map((item) => ({
         productId: item.productId,

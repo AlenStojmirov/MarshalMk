@@ -1,3 +1,4 @@
+import type { OrderSource } from '@/lib/attribution';
 export interface ProductSize {
   size: string;
   quantity: number;
@@ -120,6 +121,8 @@ export interface CustomerInfo {
    * courier deliveries — so absent reads as 'courier' (see D-011).
    */
   deliveryMethod?: DeliveryMethod;
+  /** Where the order came from: the answer at checkout and the tracked link (D-025). */
+  source?: OrderSource;
 }
 
 export interface OrderItem {

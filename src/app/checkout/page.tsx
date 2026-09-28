@@ -12,6 +12,18 @@ import { customerShippingFor, getShippingLabel } from '@/config/shipping';
 import { STORE_ADDRESS, STORE_MAPS_URL } from '@/config/store';
 import FreeShippingProgress from '@/components/FreeShippingProgress';
 import { getEffectivePrice, isOnSale, getPercentOff } from '@/lib/pricing';
+import { ATTRIBUTION_KEY, HEARD_FROM, HEARD_LABEL, isFresh, type HeardFrom, type OrderSource } from '@/lib/attribution';
+
+/** The tracked link this visitor arrived by, if it is recent enough to explain the order (D-025). */
+function storedSource(): OrderSource | null {
+  try {
+    const raw = window.localStorage.getItem(ATTRIBUTION_KEY);
+    const s = raw ? (JSON.parse(raw) as OrderSource) : null;
+    return isFresh(s) ? s : null;
+  } catch {
+    return null;
+  }
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -21,7 +33,7 @@ export default function CheckoutPage() {
   const [honeypot, setHoneypot] = useState('');
   const formLoadedAt = useRef(Date.now());
   const errorBoxRef = useRef<HTMLDivElement>(null);
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const [formData, setFormData] = useState<CustomerInfo>({
     firstName: '',
@@ -38,6 +50,8 @@ export default function CheckoutPage() {
   // Courier stays the default: it is what every existing customer expects, and
   // a checkout that silently changed its default would be noticed as a bug.
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('courier');
+  // Optional: "how did you hear about us?" — never required, never blocks an order.
+  const [heard, setHeard] = useState<HeardFrom | ''>('');
   const isPickup = deliveryMethod === 'pickup';
   const shippingNow = customerShippingFor(deliveryMethod, totalPrice);
 
@@ -142,6 +156,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           customer: formData,
           deliveryMethod,
+          source: { ...(storedSource() ?? {}), ...(heard ? { heard } : {}) },
           items: orderItems,
           subtotal: totalPrice,
           website: honeypot,
@@ -440,6 +455,23 @@ export default function CheckoutPage() {
                     placeholder={t('checkout.orderNotesPlaceholder')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
+                </div>
+                <div>
+                  <label htmlFor="heardFrom" className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('checkout.heardFrom')}
+                  </label>
+                  <select
+                    id="heardFrom"
+                    value={heard}
+                    onChange={(e) => setHeard(e.target.value as HeardFrom | '')}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">{t('checkout.heardFromChoose')}</option>
+                    {HEARD_FROM.map((h) => (
+                      <option key={h} value={h}>{HEARD_LABEL[h][language === 'en' ? 'en' : 'mk']}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">{t('checkout.heardFromHint')}</p>
                 </div>
               </div>
             </div>

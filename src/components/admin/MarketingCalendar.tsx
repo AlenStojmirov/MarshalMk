@@ -26,6 +26,7 @@ import {
 } from '@/lib/marketing-calendar';
 import { deletePlan, fetchPlan, insertPlan, updatePlan } from '@/lib/marketing-plan-db';
 import { comboWriter, productKinds, productWriter, trustWriter, type Writing } from '@/components/admin/marketing-writers';
+import { trackedLink } from '@/lib/attribution';
 
 const KIND_LABEL: Record<CopyKind, string> = { ...POST_KIND_LABEL, trust: 'Доверба' };
 const KINDS: CopyKind[] = ['carousel', 'reel', 'story', 'combo', 'clearance', 'trust'];
@@ -363,6 +364,40 @@ export default function MarketingCalendar({ plan, attrs, loading, onWrite }: Pro
   );
 }
 
+/**
+ * The post's own link (Task 10.6): an order placed after following it carries
+ * the post, so 10.7 can say which post sold. Instagram does not open links in a
+ * caption — it goes into the bio or a story link sticker; Facebook opens it in
+ * the post.
+ */
+function TrackedLinks({ id, path }: { id: string; path: string }) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = async (network: 'instagram' | 'facebook') => {
+    try {
+      await navigator.clipboard.writeText(trackedLink(path, network, id));
+      setCopied(network);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      alert(trackedLink(path, network, id));
+    }
+  };
+  return (
+    <div className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
+      <p className="mb-1.5">
+        <strong>Следлив линк</strong>: нарачка по овој линк ќе покаже дека дошла од оваа објава. Во Instagram оди во
+        биото или во стикер „линк“ на сторис; во Facebook во самата објава.
+      </p>
+      <div className="flex gap-2">
+        {(['instagram', 'facebook'] as const).map((n) => (
+          <button key={n} onClick={() => copy(n)} className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">
+            {copied === n ? 'Копирано ✓' : n === 'instagram' ? 'Копирај за Instagram' : 'Копирај за Facebook'}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Chip({ item, warn, onClick }: { item: PlanItem; warn: boolean; onClick: () => void }) {
   return (
     <button
@@ -556,6 +591,7 @@ function ItemEditor({
           )}
         </div>
         {saved?.body && <p className="text-xs text-slate-500">Текстот е зачуван ({saved.body.length} знаци).</p>}
+        {saved && <TrackedLinks id={saved.id} path={saved.productIds[0] ? `/product/${saved.productIds[0]}` : '/'} />}
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <button
