@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/lib/i18n";
 import Header from "@/components/Header";
 import FloatingContactButton from "@/components/FloatingContactButton";
 import AttributionCapture from "@/components/AttributionCapture";
+import { HOME_SHARE, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from "@/lib/share-preview";
 import Footer from "@/components/Footer";
 import MiniCart from "@/components/MiniCart";
 import { Analytics } from "@vercel/analytics/next";
@@ -42,29 +43,23 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  // What a shared link shows on Facebook, Instagram and Viber (Task 10.8):
+  // Macedonian, with the shop's own card. <title> above stays for search (9.7).
   openGraph: {
     type: "website",
-    locale: "en_US",
+    locale: SHARE_LOCALE,
+    alternateLocale: ["en_US"],
     url: "/",
-    siteName: "Marshal",
-    title: "Marshal — Men's Fashion & Clothing Store",
-    description:
-      "Shop premium men's clothing — t-shirts, polos, shirts, pants, jackets and more.",
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Marshal — Men's Fashion Store",
-      },
-    ],
+    siteName: SHARE_SITE_NAME,
+    title: HOME_SHARE.title,
+    description: HOME_SHARE.description,
+    images: [SHARE_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Marshal — Men's Fashion & Clothing Store",
-    description:
-      "Shop premium men's clothing — t-shirts, polos, shirts, pants, jackets and more.",
-    images: ["/og-image.jpg"],
+    title: HOME_SHARE.title,
+    description: HOME_SHARE.description,
+    images: [SHARE_IMAGE.url],
   },
   robots: {
     index: true,

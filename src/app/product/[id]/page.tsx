@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getProductById } from '@/lib/products-server';
 import { getProductDisplayName, getCategoryLabel } from '@/lib/product-display';
+import { productShare, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from '@/lib/share-preview';
 import ProductPageClient from './ProductPageClient';
 
 interface ProductPageProps {
@@ -22,6 +23,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const description =
     product.description?.slice(0, 155) ||
     `Shop ${displayName} in men's ${categoryLabel}. Premium quality, great prices. Free shipping available.`;
+  const share = productShare(product);
 
   return {
     title,
@@ -29,29 +31,23 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     alternates: {
       canonical: `/product/${id}`,
     },
+    // The share card (Task 10.8): Macedonian, with price, sizes on the shelf and
+    // delivery. Title and description above stay for search until 9.7.
     openGraph: {
-      title,
-      description,
+      title: share.title,
+      description: share.description,
       url: `/product/${id}`,
-      siteName: 'Marshal',
-      images: product.imageUrl
-        ? [
-            {
-              url: product.imageUrl,
-              width: 800,
-              height: 1067,
-              alt: `${displayName} - Men's ${categoryLabel}`,
-            },
-          ]
-        : [],
+      siteName: SHARE_SITE_NAME,
+      // The photos are not all 800×1067, so no size is claimed; without one the shop's card stands in.
+      images: product.imageUrl ? [{ url: product.imageUrl, alt: share.alt }] : [SHARE_IMAGE],
       type: 'website',
-      locale: 'en_US',
+      locale: SHARE_LOCALE,
     },
     twitter: {
       card: 'summary_large_image',
-      title,
-      description,
-      images: product.imageUrl ? [product.imageUrl] : [],
+      title: share.title,
+      description: share.description,
+      images: [product.imageUrl || SHARE_IMAGE.url],
     },
   };
 }
