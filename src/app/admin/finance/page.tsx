@@ -376,6 +376,12 @@ function FinanceView() {
               {spread.skipped.length > 0 && spread.rows.length > 0 && ` Се прескокнуваат ${spread.skipped.length} што веќе го имаат.`}
             </p>
           )}
+          {form.detailed && form.category === 'marketing' && (
+            // D-026: ads are held against the 3.000 den. budget, so a salary must not land here.
+            <p className="mt-2 text-xs text-amber-700">
+              Само реклами (Instagram, Facebook, печатење…). Платата на вработениот за маркетинг внеси ја под „Плати“.
+            </p>
+          )}
           {notice && <p className="mt-2 text-xs text-emerald-700">{notice}</p>}
           <p className="mt-2 text-[11px] text-slate-400">
             Месецот се смета за внесен кога има „вкупно за месецот“, или барем кирија и плати (D-024). Инаку нулата се пресметува со 65.000.

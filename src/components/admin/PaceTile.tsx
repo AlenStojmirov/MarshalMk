@@ -76,7 +76,9 @@ export default function PaceTile() {
       {answer.role === 'admin' && <AdminDetail p={answer.pace} />}
       {answer.role === 'marketing' && (
         <p className="mt-1 text-xs text-slate-500">
-          Реклами овој месец: {den(answer.pace.adSpend)} од {den(answer.pace.adBudget)}
+          {answer.pace.adBudget !== null && answer.pace.adSpend !== null
+            ? `Реклами овој месец: ${den(answer.pace.adSpend)} од ${den(answer.pace.adBudget)}`
+            : `Буџетот за реклами од ${den(AD_BUDGET)} месечно почнува од ноември.`}
         </p>
       )}
 
@@ -105,22 +107,28 @@ function AdminDetail({ p }: { p: Pace }) {
         <p className="text-slate-400">{p.units} парч. продадени</p>
       </div>
       <div>
-        <p className="text-slate-500">Реклами</p>
-        <p className="font-semibold text-slate-900 tabular-nums">{den(c.adSpend)} / {den(AD_BUDGET)}</p>
-        <p className="text-slate-400">се исплати ако донесе {p.adBreakEvenUnits} парч.</p>
+        <p className="text-slate-500">{p.adBudgetActive ? 'Реклами' : 'Маркетинг'}</p>
+        <p className="font-semibold text-slate-900 tabular-nums">
+          {p.adBudgetActive ? `${den(c.adSpend)} / ${den(AD_BUDGET)}` : den(c.adSpend)}
+        </p>
+        <p className="text-slate-400">
+          {p.adBudgetActive
+            ? `се исплати ако донесе ${p.adBreakEvenUnits} парч.`
+            : `реклами и плата заедно; буџетот од ${den(AD_BUDGET)} почнува од ноември`}
+        </p>
       </div>
       <p className="col-span-2 sm:col-span-4 text-slate-500">
         {c.fromMonthlyTotal
           ? 'Трошоци: месечниот збир од Финансии, рекламите се во него.'
           : c.baseKnown
-            ? `Трошоци: ${den(c.base)} внесени + ${den(c.adSpend)} реклами.`
+            ? `Трошоци: ${den(c.base)} внесени + ${den(c.adSpend)} ${p.adBudgetActive ? 'реклами' : 'маркетинг'}.`
             : c.incomplete
               ? `Трошоците се непотполни (внесени ${den(c.entered)}, фали кирија или плати), па се користи ${den(c.base)}. `
               : `Трошоците не се внесени, па се користи ${den(c.base)}. `}
         {!c.baseKnown && (
           <Link href="/admin/finance" className="text-blue-600 hover:text-blue-700 underline">Внеси ги во Финансии</Link>
         )}
-        {!c.fromMonthlyTotal && ' Потрошеното за реклами внеси го како трошок „Маркетинг“.'}
+        {!c.fromMonthlyTotal && ' Рекламите се внесуваат под „Маркетинг (реклами)“, а платата на вработениот за маркетинг под „Плати“.'}
         {p.estimatedUnits > 0 && ` ${p.estimatedUnits} парч. без набавна цена се проценети по маржата од годината.`}
       </p>
     </div>

@@ -18,6 +18,14 @@ import { OPEX_FALLBACK } from './open-to-buy';
 
 /** The owner's monthly advertising budget (2026-09-27). */
 export const AD_BUDGET = 3_000;
+/**
+ * The budget applies from this month on (owner, 2026-09-29). Until then the
+ * "Маркетинг" lines hold the ads *and* the marketing employee's pay together,
+ * so they are neither an ad spend to hold against 3.000 nor something the
+ * marketing role should see (D-026). From November the pay goes under "Плати".
+ */
+export const AD_BUDGET_FROM = '2026-11';
+export const adBudgetApplies = (period: string) => period >= AD_BUDGET_FROM;
 /** Within this share of the expected pace a month is "on track". */
 export const PACE_TOLERANCE = 0.05;
 
@@ -126,6 +134,8 @@ export interface Pace {
   unitsToGo: number;
   /** Units an ad budget has to bring in to pay for itself. */
   adBreakEvenUnits: number;
+  /** From AD_BUDGET_FROM: the "Маркетинг" lines are ads only, and held against AD_BUDGET. */
+  adBudgetActive: boolean;
   advice: string;
 }
 
@@ -189,6 +199,7 @@ export function monthPace(input: PaceInput): Pace {
     grossPerUnit,
     unitsToGo: grossPerUnit > 0 ? Math.ceil(gap / grossPerUnit) : 0,
     adBreakEvenUnits: grossPerUnit > 0 ? Math.ceil(AD_BUDGET / grossPerUnit) : 0,
+    adBudgetActive: adBudgetApplies(period),
     advice: ADVICE[status],
   };
 }
@@ -202,14 +213,16 @@ export interface PaceForMarketing {
   expected: number;
   status: PaceStatus;
   advice: string;
-  adBudget: number;
-  adSpend: number;
+  /** Null before AD_BUDGET_FROM: those lines include a salary (D-026). */
+  adBudget: number | null;
+  adSpend: number | null;
 }
 
 export function forMarketing(p: Pace): PaceForMarketing {
   return {
     period: p.period, day: p.day, daysInMonth: p.daysInMonth,
     progress: p.progress, expected: p.expected, status: p.status, advice: p.advice,
-    adBudget: AD_BUDGET, adSpend: p.costs.adSpend,
+    adBudget: p.adBudgetActive ? AD_BUDGET : null,
+    adSpend: p.adBudgetActive ? p.costs.adSpend : null,
   };
 }

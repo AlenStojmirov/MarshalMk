@@ -263,7 +263,8 @@ export const CATEGORY_LABELS_MK: Record<ExpenseCategory, string> = {
   rent: 'Кирија',
   salary: 'Плати',
   utilities: 'Режии',
-  marketing: 'Маркетинг',
+  // Ads only (D-026). The marketing employee's pay is a salary.
+  marketing: 'Маркетинг (реклами)',
   delivery: 'Достава',
   packaging: 'Пакување',
   fees: 'Банкарски',
