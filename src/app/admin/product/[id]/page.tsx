@@ -22,6 +22,7 @@ import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
 import { getEffectivePrice, isOnSale } from '@/lib/pricing';
 import { grossMargin, markup } from '@/lib/cost';
+import DiscountBadge, { discountWarning } from '@/components/admin/DiscountBadge';
 
 function formatDateKey(date: Date): string {
   const year = date.getFullYear();
@@ -185,6 +186,9 @@ function ProductDetailView() {
                 </span>
               ) : null}
             </p>
+            <div className="mt-1">
+              <DiscountBadge product={localProduct} showReason />
+            </div>
             {isAdmin && (
             <p className="text-xs sm:text-sm mt-0.5">
               {marginNow === null ? (
@@ -286,6 +290,9 @@ function ProductDetailView() {
                   reason: Number(e.target.value) > 0 ? '' : f.reason,
                 }))}
               />
+              {discountWarning(localProduct, Number(sellForm.price)) && (
+                <p className="mt-1 text-xs text-amber-700">{discountWarning(localProduct, Number(sellForm.price))}</p>
+              )}
             </div>
             {sellForm.price !== '' && !(Number(sellForm.price) > 0) && (
               <div className="flex-1 min-w-0 sm:min-w-[160px]">

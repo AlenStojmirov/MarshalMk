@@ -27,6 +27,7 @@ import {
   X,
 } from 'lucide-react';
 import Link from 'next/link';
+import DiscountBadge, { discountWarning } from '@/components/admin/DiscountBadge';
 import { useTranslation } from '@/lib/i18n';
 
 interface SaleCartItem {
@@ -204,7 +205,10 @@ function RecordSaleModal({
                     <div key={product.id}>
                       {product.sizes && product.sizes.length > 0 ? (
                         <div className="bg-white rounded-lg p-2">
-                          <div className="font-medium text-gray-900 mb-1">{product.name}</div>
+                          <div className="font-medium text-gray-900 mb-1 flex flex-wrap items-center gap-2">
+                            {product.name}
+                            <DiscountBadge product={product} />
+                          </div>
                           <div className="flex flex-wrap gap-1">
                             {product.sizes.map(size => (
                               <button
@@ -225,7 +229,10 @@ function RecordSaleModal({
                           onClick={() => addProduct(product)}
                           className="w-full text-left px-3 py-2 rounded-lg hover:bg-white flex justify-between items-center"
                         >
-                          <span className="font-medium text-gray-900">{product.name}</span>
+                          <span className="font-medium text-gray-900 flex flex-wrap items-center gap-2">
+                            {product.name}
+                            <DiscountBadge product={product} />
+                          </span>
                           <span className="text-sm text-gray-500">
                             {product.price.toFixed(2)} ден. ({product.stock} {t('inStoreSales.inStock')})
                           </span>
@@ -264,6 +271,7 @@ function RecordSaleModal({
                         {item.size && (
                           <span className="ml-2 text-sm text-gray-500">({item.size})</span>
                         )}
+                        <span className="ml-2"><DiscountBadge product={item.product} /></span>
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
                         <label className="text-gray-500">{t('inStoreSales.unitPrice')}</label>
@@ -282,6 +290,9 @@ function RecordSaleModal({
                           </span>
                         )}
                       </div>
+                      {discountWarning(item.product, item.price) && (
+                        <p className="mt-1 text-xs text-amber-700">{discountWarning(item.product, item.price)}</p>
+                      )}
                       {!(item.price > 0) && (
                         <select
                           value={item.reason ?? ''}

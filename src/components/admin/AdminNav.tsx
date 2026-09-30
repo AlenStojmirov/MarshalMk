@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import {
-  AlertTriangle, CalendarDays, Camera, Clock, Coins, Database, Gauge, Grid2x2, Package,
+  AlertTriangle, BadgePercent, CalendarDays, Camera, Clock, Coins, Database, Gauge, Grid2x2, Package,
   Megaphone, PackagePlus, Receipt, Ruler, Shirt, ShoppingBag, Truck, UserCog, Users, Wallet, type LucideIcon,
 } from 'lucide-react';
 
@@ -46,6 +46,7 @@ const GROUPS: NavGroup[] = [
     title: 'Стока и сезона',
     tone: 'text-rose-700',
     items: [
+      { href: '/admin/discounts', label: 'Попусти по правилото', hint: 'кој смее попуст', icon: BadgePercent },
       { href: '/admin/season', label: 'Сезонски календар', hint: 'што да се намали сега', icon: CalendarDays },
       { href: '/admin/aging', label: 'Стареење', hint: 'стока што стои', icon: Clock },
       { href: '/admin/velocity', label: 'Sell-through и темпо', hint: 'што се продава', icon: Gauge },

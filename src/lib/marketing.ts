@@ -17,10 +17,11 @@
  */
 
 import type { Product, ProductAttributes } from '@/types';
-import { phaseOf, monthOf, suggestedMarkdown, NON_MERCHANDISE, type Month, type SeasonPhase } from './seasons';
+import { phaseOf, monthOf, NON_MERCHANDISE, type Month, type SeasonPhase } from './seasons';
 import { velocityOf, type VelocityMetrics } from './velocity';
 import { photoCount, sizesOnShelf } from './catalog-gaps';
 import { getEffectivePrice, isOnSale, getPercentOff } from './pricing';
+import { discountVerdict } from './discount-rule';
 import { templateOf } from './attributes';
 import { SHIPPING_CONFIG } from '@/config/shipping';
 
@@ -46,7 +47,7 @@ export const LAST_PIECES_MAX = 1;
 export const COMBO_TARGET = SHIPPING_CONFIG.freeShippingThreshold;
 /** How many combinations to offer at once — a week's worth, not a catalogue. */
 export const COMBO_LIMIT = 8;
-/** First step of the ageing ladder (/admin/aging) for dead stock with no season to lean on. */
+/** First step of the ladder (/admin/aging) for dead stock and pre-season leftovers (D-027). */
 export const DEAD_MARKDOWN = 20;
 
 export type BucketKey = 'season' | 'selling' | 'lastPieces' | 'combos' | 'clearance' | 'new';
@@ -176,7 +177,6 @@ const BOTTOMS = new Set(['jeans', 'pants', 'cargoTrousers', 'shortsJeans']);
 /** Phases in which a product sells at its own price. */
 const SELLING_PHASES: SeasonPhase[] = ['preseason', 'inseason', 'always'];
 /** Phases in which the ladder calls for a markdown. */
-const MARKDOWN_PHASES: SeasonPhase[] = ['late', 'endofseason', 'offseason'];
 
 export function isLive(p: Product): boolean {
   return p.isVisible !== false && sizesOnShelf(p.sizes).length > 0;
@@ -187,28 +187,23 @@ export function marketingLabel(p: Product): string {
 }
 
 /**
- * May a post talk about a discount on this product?
+ * May a post talk about a discount on this product? (D-022, narrowed by D-027)
  *
- * Yes when the season calendar calls for a markdown (D-010), or when the model
- * is dead — a year on the shelf without a sale has had its season. Everything
- * else is posted on its own merits; if it is on sale anyway, the post shows the
- * price the site shows (never a price the customer will not find) but does not
- * make the discount the message, and the owner sees it in the A1 list.
+ * The owner's rule (D-027) decides, the same one the till and /admin/discounts
+ * use: a post makes the discount its message only for dead stock and for last
+ * year's leftovers in their pre-season. Stock out of season waits for its
+ * pre-season, when its buyer comes back. A model with one or two sizes may be
+ * discounted at the till, but that is a conversation, not a post. Anything on
+ * sale that the rule does not allow is posted at the site's price (never a
+ * price the customer will not find), without the discount as the message, and
+ * the owner sees it in the A1 list.
  */
-export function discountRule(p: Product, phase: SeasonPhase, m: VelocityMetrics, month: Month): DiscountRule {
-  const onSale = isOnSale(p);
-  if (MARKDOWN_PHASES.includes(phase)) {
-    return { allowed: true, ladderPct: suggestedMarkdown(phase, month), saleOutOfSeason: false, reason: 'сезоната ѝ заврши' };
+export function discountRule(p: Product, now: number): DiscountRule {
+  const v = discountVerdict(p, now);
+  if (v.kind === 'dead' || v.kind === 'preseason') {
+    return { allowed: true, ladderPct: DEAD_MARKDOWN, saleOutOfSeason: false, reason: v.reason };
   }
-  if (m.klass === 'dead') {
-    return { allowed: true, ladderPct: DEAD_MARKDOWN, saleOutOfSeason: false, reason: 'година без продажба' };
-  }
-  return {
-    allowed: false,
-    ladderPct: null,
-    saleOutOfSeason: onSale,
-    reason: phase === 'always' ? 'целогодишна стока' : 'во сезона',
-  };
+  return { allowed: false, ladderPct: null, saleOutOfSeason: isOnSale(p) && !v.allowed, reason: v.reason };
 }
 
 export function toCandidate(
@@ -223,7 +218,7 @@ export function toCandidate(
   const shelf = sizesOnShelf(p.sizes).map((s) => ({ size: s.size, quantity: Number(s.quantity) }));
   const since = p.firstReceivedAt ?? p.createdAt;
   const ageDays = since ? (now - new Date(since).getTime()) / DAY : Infinity;
-  const discount = discountRule(p, phase, metrics, month);
+  const discount = discountRule(p, now);
   const isNew = ageDays <= NEW_DAYS;
   const lastSizes = shelf.filter((s) => s.quantity <= LAST_PIECES_MAX).map((s) => s.size);
 

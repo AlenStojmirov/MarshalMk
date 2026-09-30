@@ -9,6 +9,7 @@ import { useProducts, createProduct } from '@/hooks/useProducts';
 import { getOrders } from '@/lib/orders';
 import { getEffectivePrice, isOnSale } from '@/lib/pricing';
 import { getProductDisplayName } from '@/lib/product-display';
+import DiscountBadge from '@/components/admin/DiscountBadge';
 import { ROLE_LABEL } from '@/lib/roles';
 import { Product, ProductFormData } from '@/types';
 import ProductForm, { saveProductEdit } from '@/components/admin/ProductForm';
@@ -268,6 +269,7 @@ function StockRow({ product: p, onEdit }: { product: Product; onEdit: () => void
         {isOnSale(p) && (
           <p className="text-[11px] text-slate-400 line-through tabular-nums">{Math.round(p.price)} ден.</p>
         )}
+        <div className="mt-1"><DiscountBadge product={p} /></div>
       </div>
 
       <button

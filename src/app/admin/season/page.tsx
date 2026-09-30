@@ -259,6 +259,12 @@ function SeasonView() {
           јуни, а тие дванаесет месеци капитал не се гледаат никаде на другите страни.
         </p>
 
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <strong>Правило од 2026-09-29 (D-027):</strong> остатоците надвор од сезона не се намалуваат сега, туку
+          во пред-сезоната на својата сезона. Попуст сега само на модели со 1–2 големини и на мртва стока.{' '}
+          <Link href="/admin/discounts" className="underline font-medium">Попусти по правилото</Link>.
+        </div>
+
         <div className="mb-6 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-slate-500 shrink-0" />
           <p className="text-sm text-slate-700">
