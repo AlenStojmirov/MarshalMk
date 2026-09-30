@@ -11,7 +11,8 @@
  * over one order: model, sizes, pieces, price, ranked, cut off at the budget.
  *
  * The budget comes from open-to-buy (D-023): what the next thirty days will
- * sell at cost, less whatever the shelf is above the 600.000 target, split by
+ * sell at cost, less whatever the shelf is above target (or plus a third of what
+ * it is below, D-028), split by
  * group. A line has to fit the whole budget and its group's share of it — a
  * proven jacket is still not bought while jackets hold more than their share.
  * The owner can type another amount; the page says when the number is theirs.
@@ -195,7 +196,8 @@ function ReorderView() {
                 <strong>{fmt(STOCK_TARGET_COST)}</strong> ({otb.overTarget > 0
                   ? <>над за <strong>{fmt(otb.overTarget)}</strong></>
                   : <>под за <strong>{fmt(-otb.overTarget)}</strong></>}).{' '}
-                Што ќе се продаде се докупува, во групите под својот дел од целта.{' '}
+                Што ќе се продаде се докупува, во групите под својот дел од целта
+                {otb.overTarget < 0 && <>, а разликата до целта по малку: {fmt(otb.fillThisMonth)} овој месец</>}.{' '}
                 <Link href="/admin/capital" className="underline font-medium">Каде и зошто</Link>.
               </p>
             </div>

@@ -1,15 +1,16 @@
 'use client';
 
 /**
- * Where the next purchase money should go (D-023).
+ * Where the next purchase money should go (D-023, D-028).
  *
  * Three answers, in the order they are needed:
  *
  *  1. **Zero.** What a month has to sell to cover its costs, at the margin the
  *     shop actually makes — and how far the last twelve months were from it.
- *  2. **How much.** The shop keeps 600.000 den. of stock at cost. What the next
- *     thirty days sell is replaced, less whatever the shelf is above target.
- *  3. **Where.** Each group's share of the 600.000 follows what it sells in the
+ *  2. **How much.** The shop keeps STOCK_TARGET_COST of stock at cost. What the
+ *     next thirty days sell is replaced, less whatever the shelf is above target,
+ *     or plus a third of what it is below.
+ *  3. **Where.** Each group's share of the target follows what it sells in the
  *     coming half year; the money goes to the groups below their share.
  *
  * The arithmetic is in `src/lib/open-to-buy.ts`, shared with the reorder plan
@@ -23,7 +24,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { Expense, expensesForPeriod, getExpenses, periodOf } from '@/lib/expenses';
 import { knownOpex } from '@/lib/break-even';
 import {
-  OTB_HORIZON_DAYS, SHARE_WINDOW_DAYS, STOCK_TARGET_COST, openToBuy,
+  OTB_HORIZON_DAYS, SHARE_WINDOW_DAYS, STOCK_TARGET_COST, TARGET_FILL_MONTHS, openToBuy,
 } from '@/lib/open-to-buy';
 import { ArrowLeft, Coins, PackagePlus, Scale, Target } from 'lucide-react';
 
@@ -138,13 +139,18 @@ function CapitalView() {
               <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Смее да се купи</p>
               <p className={`text-lg font-bold tabular-nums ${otb.budget > 0 ? 'text-green-700' : 'text-amber-700'}`}>{fmt(otb.budget)}</p>
               <p className="text-[11px] text-slate-500">
-                {fmt(otb.expectedCogs)} {otb.overTarget > 0 ? '−' : '+'} {fmt(Math.abs(otb.overTarget))}
+                {otb.overTarget > 0
+                  ? `${fmt(otb.expectedCogs)} − ${fmt(otb.overTarget)}`
+                  : `${fmt(otb.expectedCogs)} + ${fmt(otb.fillThisMonth)} (дел од ${fmt(-otb.overTarget)} што фали)`}
               </p>
             </div>
           </div>
           <p className="text-xs text-slate-600">
             {otb.budget > 0
-              ? <>Толку купено ја враќа залихата на {fmt(otb.target)} по продажбите на следниот месец.</>
+              ? otb.overTarget > 0
+                ? <>Толку купено ја враќа залихата на {fmt(otb.target)} по продажбите на следниот месец.</>
+                : <>Толку купено ја приближува залихата кон {fmt(otb.target)}: разликата се пополнува за{' '}
+                    {TARGET_FILL_MONTHS} месеци, не одеднаш, за новата стока прво да покаже дека се продава.</>
               : <>Залихата е толку над целта што продажбите на следниот месец не ја враќаат под неа — овој месец не се купува, се продава.</>}{' '}
             Докажаните модели за дополнување, со овој буџет веќе поставен, се во{' '}
             <Link href="/admin/reorder" className="underline font-medium">Планот за набавка</Link>.

@@ -1,21 +1,28 @@
 /**
- * Open-to-buy: how much may be spent on stock, and in which groups (D-023).
+ * Open-to-buy: how much may be spent on stock, and in which groups (D-023, D-028).
  *
  * The owner set the terms on 2026-09-28:
  *
- *  - **The shop keeps 600.000 den. of stock at cost.** That is the target, not a
- *    ceiling to fall under: stock that sells is replaced, so the shelf stays full.
+ *  - **The shop keeps 720.000 den. of stock at cost** (600.000 until 2026-09-29,
+ *    raised with the owner's own money for November–January, D-028). That is the
+ *    target, not a ceiling to fall under: stock that sells is replaced, so the
+ *    shelf stays full.
  *  - **Costs of about 65.000 den. a month have to be earned as gross profit.**
  *    At a markup of 100% (a 500-den. piece sold for 1.000) that is 130.000 den.
  *    of sales. At the markup the shop actually achieves it is `opex / margin`.
  *
  * So the monthly budget is the classic retail open-to-buy: what the next thirty
  * days will take off the shelf, at cost, plus whatever the shop is below its
- * target (or minus what it is above). The next thirty days are read from the
+ * target (or minus what it is above). Below target, only a third of the
+ * shortfall is released a month (TARGET_FILL_MONTHS): raised to 720.000 the
+ * shelf was 86.000 short, and the whole of it on top of a month's sales would
+ * have been 148.000 to spend in October — before a single new piece had shown
+ * it sells. Above target the excess is subtracted at once, as before: money
+ * already on the shelf is not spent twice. The next thirty days are read from the
  * same thirty days a year ago — sales here move with the season, and a yearly
  * average would buy jackets in June.
  *
- * The 600.000 is split between the groups in proportion to what each sold, at
+ * The target is split between the groups in proportion to what each sold, at
  * cost, in the coming six months a year ago. Six, not twelve: a yearly share
  * would hold 78.000 den. of T-shirts through the winter and give knitwear a
  * third of what it sells from October to March. Six is also not three: the
@@ -27,7 +34,7 @@
  *
  * This replaced a gate that allowed 2,5 months of cost of goods and demanded a
  * turnover of 2× before any purchase — a ceiling of about 125.000 den., which a
- * shop that means to hold 600.000 can never meet, so it always answered zero.
+ * shop that means to hold 600.000 or more can never meet, so it always answered zero.
  *
  * Used by /admin/capital, /admin/reorder and the dashboard, so the three can
  * never disagree about the number.
@@ -38,8 +45,22 @@ import { NON_MERCHANDISE } from './seasons';
 
 const DAY = 86_400_000;
 
-/** The owner's stock target, at cost (2026-09-28). */
-export const STOCK_TARGET_COST = 600_000;
+/** The owner's stock target, at cost: 600.000 on 2026-09-28, 720.000 from 2026-09-29 (D-028). */
+export const STOCK_TARGET_COST = 720_000;
+
+/**
+ * Below target, the shortfall is closed over this many months, not in one
+ * (D-028). Each month's purchase is then small enough to be judged by what it
+ * sold before the next one is placed.
+ */
+export const TARGET_FILL_MONTHS = 3;
+
+/**
+ * What the distance from target changes in one month's budget: all of an
+ * excess (it is subtracted), a TARGET_FILL_MONTHS-th of a shortfall (added).
+ * `over` is stock − target, positive above target.
+ */
+export const overThisMonth = (over: number) => (over >= 0 ? over : over / TARGET_FILL_MONTHS);
 
 /** Monthly operating costs when none are entered for the month — the owner's estimate. */
 export const OPEX_FALLBACK = 65_000;
@@ -103,6 +124,8 @@ export interface OpenToBuy {
   target: number;
   /** stockCost − target. Positive: above target. */
   overTarget: number;
+  /** Below target: the part of the shortfall this month's budget fills. Zero above it. */
+  fillThisMonth: number;
 
   cogs12: number;
   revenue12: number;
@@ -226,7 +249,7 @@ export function openToBuy(products: Product[], opts: OpenToBuyOptions = {}): Ope
   const monthlyRevenue = revenue12 / 12;
 
   const overTarget = stockCost - target;
-  const budget = Math.max(0, expectedCogs - overTarget);
+  let budget = Math.max(0, expectedCogs - overThisMonth(overTarget));
 
   for (const g of groups) {
     const units12 = soldUnits12.get(g.name) ?? 0;
@@ -235,18 +258,22 @@ export function openToBuy(products: Product[], opts: OpenToBuyOptions = {}): Ope
     g.monthsOfSupply = g.cogs12 > 0 ? g.cost / (g.cogs12 / 12) : Infinity;
     g.target = target * shareOf(g);
     g.overTarget = g.cost - g.target;
-    g.need = Math.max(0, g.expectedCogs - g.overTarget);
+    g.need = Math.max(0, g.expectedCogs - overThisMonth(g.overTarget));
   }
 
-  // The budget follows the need. It can never exceed the total need: groups
-  // above target only subtract from the budget, never from the need.
+  // The budget follows the need, and never exceeds it. Groups above target
+  // subtract their whole excess from their own need, but only a third of it
+  // from the shop's shortfall — without the cap the difference would be money
+  // no group is short of.
   const totalNeed = groups.reduce((a, g) => a + g.need, 0);
+  budget = Math.min(budget, totalNeed);
+  const fillThisMonth = Math.max(0, budget - expectedCogs);
   for (const g of groups) g.buy = totalNeed > 0 ? (budget * g.need) / totalNeed : 0;
 
   groups.sort((a, b) => b.buy - a.buy || a.overTarget - b.overTarget);
 
   return {
-    stockCost, target, overTarget,
+    stockCost, target, overTarget, fillThisMonth,
     cogs12, revenue12, gross12,
     monthlyRevenue, monthlyGross: gross12 / 12,
     markupMultiple, grossMargin,
