@@ -60,7 +60,77 @@ export const TARGET_FILL_MONTHS = 3;
  * excess (it is subtracted), a TARGET_FILL_MONTHS-th of a shortfall (added).
  * `over` is stock − target, positive above target.
  */
-export const overThisMonth = (over: number) => (over >= 0 ? over : over / TARGET_FILL_MONTHS);
+export const overThisMonth = (over: number, held = false) =>
+  over >= 0 ? over : held ? 0 : over / TARGET_FILL_MONTHS;
+
+/**
+ * The stop rule for the new money (D-028, Task 11.4). The fill toward the
+ * target goes on only while what it bought sells: a model that arrived from
+ * FILL_FROM on and has been on the shelf STOP_CHECK_DAYS is judged, and when at
+ * least STOP_MIN_MODELS are judged and together they have sold less than
+ * STOP_SELL_THROUGH of what came in, the next third is held. What sells is
+ * still replaced — only the fill stops.
+ *
+ * Measured on new models, by `first_received_at`, which a product added in the
+ * admin gets on the day it is entered. A restock of an existing model is
+ * entered as a count and leaves no arrival behind (D-015), so it is not judged.
+ */
+const unitsOf = (p: Product) =>
+  (p.sizes ?? []).reduce((a, s) => a + Math.max(0, Number(s.quantity) || 0), 0);
+
+export const FILL_FROM = '2026-10-01';
+export const STOP_CHECK_DAYS = 45;
+export const STOP_SELL_THROUGH = 1 / 3;
+export const STOP_MIN_MODELS = 3;
+
+export interface NewStockModel {
+  id: string;
+  name: string;
+  category: string;
+  ageDays: number;
+  sold: number;
+  onHand: number;
+  /** sold ÷ (sold + on hand). */
+  sellThrough: number;
+  /** On the shelf long enough to be judged. */
+  judged: boolean;
+}
+
+export interface NewStockCheck {
+  models: NewStockModel[];
+  judged: number;
+  /** Over the judged models; null when none are. */
+  sellThrough: number | null;
+  /** The fill is held this month. */
+  held: boolean;
+}
+
+export function newStockCheck(products: Product[], now: number = Date.now()): NewStockCheck {
+  const from = Date.parse(FILL_FROM);
+  const models: NewStockModel[] = [];
+  for (const p of products) {
+    if (NON_MERCHANDISE.has(p.category) || !p.firstReceivedAt || p.firstReceivedEstimated) continue;
+    const arrived = new Date(p.firstReceivedAt).getTime();
+    if (!(arrived >= from)) continue;
+    const sold = (p.sold ?? []).filter(
+      (s) => (Number(s.price) || 0) > 0 && Date.parse(String(s.soldDate)) >= arrived
+    ).length;
+    const onHand = unitsOf(p);
+    const ageDays = Math.floor((now - arrived) / DAY);
+    models.push({
+      id: p.id, name: p.name, category: p.category, ageDays, sold, onHand,
+      sellThrough: sold + onHand > 0 ? sold / (sold + onHand) : 0,
+      judged: ageDays >= STOP_CHECK_DAYS,
+    });
+  }
+  const judged = models.filter((m) => m.judged);
+  const sold = judged.reduce((a, m) => a + m.sold, 0);
+  const came = judged.reduce((a, m) => a + m.sold + m.onHand, 0);
+  const sellThrough = came > 0 ? sold / came : null;
+  const held = judged.length >= STOP_MIN_MODELS && sellThrough !== null && sellThrough < STOP_SELL_THROUGH;
+  models.sort((a, b) => Number(b.judged) - Number(a.judged) || a.sellThrough - b.sellThrough);
+  return { models, judged: judged.length, sellThrough, held };
+}
 
 /** Monthly operating costs when none are entered for the month — the owner's estimate. */
 export const OPEX_FALLBACK = 65_000;
@@ -126,6 +196,8 @@ export interface OpenToBuy {
   overTarget: number;
   /** Below target: the part of the shortfall this month's budget fills. Zero above it. */
   fillThisMonth: number;
+  /** The stop rule on what the new money bought. */
+  newStock: NewStockCheck;
 
   cogs12: number;
   revenue12: number;
@@ -169,8 +241,6 @@ export interface OpenToBuyOptions {
   target?: number;
 }
 
-const unitsOf = (p: Product) =>
-  (p.sizes ?? []).reduce((a, s) => a + Math.max(0, Number(s.quantity) || 0), 0);
 
 export function openToBuy(products: Product[], opts: OpenToBuyOptions = {}): OpenToBuy {
   const now = opts.now ?? Date.now();
@@ -249,7 +319,8 @@ export function openToBuy(products: Product[], opts: OpenToBuyOptions = {}): Ope
   const monthlyRevenue = revenue12 / 12;
 
   const overTarget = stockCost - target;
-  let budget = Math.max(0, expectedCogs - overThisMonth(overTarget));
+  const newStock = newStockCheck(products, now);
+  let budget = Math.max(0, expectedCogs - overThisMonth(overTarget, newStock.held));
 
   for (const g of groups) {
     const units12 = soldUnits12.get(g.name) ?? 0;
@@ -258,7 +329,7 @@ export function openToBuy(products: Product[], opts: OpenToBuyOptions = {}): Ope
     g.monthsOfSupply = g.cogs12 > 0 ? g.cost / (g.cogs12 / 12) : Infinity;
     g.target = target * shareOf(g);
     g.overTarget = g.cost - g.target;
-    g.need = Math.max(0, g.expectedCogs - overThisMonth(g.overTarget));
+    g.need = Math.max(0, g.expectedCogs - overThisMonth(g.overTarget, newStock.held));
   }
 
   // The budget follows the need, and never exceeds it. Groups above target
@@ -273,7 +344,7 @@ export function openToBuy(products: Product[], opts: OpenToBuyOptions = {}): Ope
   groups.sort((a, b) => b.buy - a.buy || a.overTarget - b.overTarget);
 
   return {
-    stockCost, target, overTarget, fillThisMonth,
+    stockCost, target, overTarget, fillThisMonth, newStock,
     cogs12, revenue12, gross12,
     monthlyRevenue, monthlyGross: gross12 / 12,
     markupMultiple, grossMargin,

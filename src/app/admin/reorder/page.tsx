@@ -197,7 +197,8 @@ function ReorderView() {
                   ? <>над за <strong>{fmt(otb.overTarget)}</strong></>
                   : <>под за <strong>{fmt(-otb.overTarget)}</strong></>}).{' '}
                 Што ќе се продаде се докупува, во групите под својот дел од целта
-                {otb.overTarget < 0 && <>, а разликата до целта по малку: {fmt(otb.fillThisMonth)} овој месец</>}.{' '}
+                {otb.overTarget < 0 && !otb.newStock.held && <>, а разликата до целта по малку: {fmt(otb.fillThisMonth)} овој месец</>}
+                {otb.newStock.held && <>. <strong className="text-red-700">Пополнувањето до целта е запрено</strong>: новата стока продала под третина за 45 дена</>}.{' '}
                 <Link href="/admin/capital" className="underline font-medium">Каде и зошто</Link>.
               </p>
             </div>

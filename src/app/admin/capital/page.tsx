@@ -24,7 +24,8 @@ import { useProducts } from '@/hooks/useProducts';
 import { Expense, expensesForPeriod, getExpenses, periodOf } from '@/lib/expenses';
 import { knownOpex } from '@/lib/break-even';
 import {
-  OTB_HORIZON_DAYS, SHARE_WINDOW_DAYS, STOCK_TARGET_COST, TARGET_FILL_MONTHS, openToBuy,
+  FILL_FROM, OTB_HORIZON_DAYS, SHARE_WINDOW_DAYS, STOCK_TARGET_COST, STOP_CHECK_DAYS, STOP_MIN_MODELS,
+  STOP_SELL_THROUGH, TARGET_FILL_MONTHS, openToBuy,
 } from '@/lib/open-to-buy';
 import { ArrowLeft, Coins, PackagePlus, Scale, Target } from 'lucide-react';
 
@@ -155,6 +156,59 @@ function CapitalView() {
             Докажаните модели за дополнување, со овој буџет веќе поставен, се во{' '}
             <Link href="/admin/reorder" className="underline font-medium">Планот за набавка</Link>.
           </p>
+        </section>
+
+        {/* 2b · the stop rule on the new money (D-028, 11.4) */}
+        <section className={`rounded-xl border p-5 mb-5 shadow-sm ${otb.newStock.held ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}`}>
+          <h2 className={`font-bold text-sm mb-1 ${otb.newStock.held ? 'text-red-900' : 'text-slate-800'}`}>
+            Правило за стоп: нова стока од {FILL_FROM.split('-').reverse().join('.')}
+            {otb.newStock.held ? ' — пополнувањето е запрено' : ''}
+          </h2>
+          <p className="text-xs text-slate-600 mb-3">
+            Нов модел се суди по {STOP_CHECK_DAYS} дена на полица. Ако барем {STOP_MIN_MODELS} се судени и заедно продале
+            помалку од {Math.round(STOP_SELL_THROUGH * 100)}% од тоа што стигнало, следната третина до целта не се купува;
+            продаденото и понатаму се дополнува. Дополнување на постоечки модел (попис во формата) не остава датум на
+            прием, па не се суди.
+          </p>
+          {otb.newStock.models.length === 0 ? (
+            <p className="text-sm text-slate-500">Уште нема нови модели внесени од {FILL_FROM.split('-').reverse().join('.')}.</p>
+          ) : (
+            <>
+              <p className="text-sm text-slate-700 mb-2">
+                {otb.newStock.models.length} нови модели · судени {otb.newStock.judged}
+                {otb.newStock.sellThrough !== null && <> · продадено <strong>{Math.round(otb.newStock.sellThrough * 100)}%</strong></>}
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-[11px] uppercase tracking-wider text-slate-500">
+                    <tr>
+                      <th className="py-1 text-left">Модел</th>
+                      <th className="py-1 text-right">Дена</th>
+                      <th className="py-1 text-right">Продадено</th>
+                      <th className="py-1 text-right">На полица</th>
+                      <th className="py-1 text-right">%</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {otb.newStock.models.map((m) => (
+                      <tr key={m.id} className={m.judged ? '' : 'text-slate-400'}>
+                        <td className="py-1">
+                          <Link href={`/admin/product/${m.id}`} className="hover:text-blue-700">{m.name}</Link>{' '}
+                          <span className="text-[11px] text-slate-400">{m.category}</span>
+                        </td>
+                        <td className="py-1 text-right tabular-nums">{m.ageDays}</td>
+                        <td className="py-1 text-right tabular-nums">{m.sold}</td>
+                        <td className="py-1 text-right tabular-nums">{m.onHand}</td>
+                        <td className={`py-1 text-right tabular-nums ${m.judged && m.sellThrough < STOP_SELL_THROUGH ? 'text-red-700 font-semibold' : ''}`}>
+                          {Math.round(m.sellThrough * 100)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </section>
 
         {/* 3 · where */}
