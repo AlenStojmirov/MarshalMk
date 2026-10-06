@@ -412,6 +412,7 @@
     "reasonRequired": "A zero price needs a reason"
   },
   "productDetail": {
+    "qrLabels": "QR labels",
     "notFound": "Product not found",
     "backToDashboard": "Back to Dashboard",
     "color": "Color",

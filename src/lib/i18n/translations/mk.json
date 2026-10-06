@@ -412,6 +412,7 @@
     "reasonRequired": "Цена 0 бара причина"
   },
   "productDetail": {
+    "qrLabels": "QR етикети",
     "notFound": "Производот не е пронајден",
     "backToDashboard": "Назад кон панел",
     "color": "Боја",

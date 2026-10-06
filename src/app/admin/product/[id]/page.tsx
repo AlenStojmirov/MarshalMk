@@ -16,6 +16,7 @@ import {
   Package,
   DollarSign,
   Calendar,
+  QrCode as QrCodeIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -401,6 +402,13 @@ function ProductDetailView() {
             {t('productDetail.back')}
           </Link>
           <div className="flex gap-2">
+            <Link
+              href={`/admin/product/labels?ids=${encodeURIComponent(productId)}`}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors text-sm sm:text-base"
+            >
+              <QrCodeIcon className="h-4 w-4" />
+              {t('productDetail.qrLabels')}
+            </Link>
             <button
               onClick={handleDelete}
               className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors text-sm sm:text-base"

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {
   AlertTriangle, BadgePercent, CalendarDays, Camera, Clock, Coins, Database, Gauge, Grid2x2, Package,
-  Megaphone, PackagePlus, Receipt, Ruler, Shirt, ShoppingBag, Truck, UserCog, Users, Wallet, type LucideIcon,
+  Megaphone, PackagePlus, QrCode, Receipt, Ruler, Shirt, ShoppingBag, Truck, UserCog, Users, Wallet, type LucideIcon,
 } from 'lucide-react';
 
 /**
@@ -36,6 +36,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: '/admin/orders', label: 'Online нарачки', hint: 'обработка, исход', icon: Package },
       { href: '/admin/in-store-sales', label: 'Продажба во дуќан', hint: 'внес и историја', icon: ShoppingBag },
+      { href: '/admin/product/labels', label: 'QR етикети', hint: 'скенирај → продажба', icon: QrCode },
       { href: '/admin/sold-out', label: 'Распродадено', hint: 'модели без залиха', icon: AlertTriangle },
       { href: '/admin/publishing', label: 'Објавување', hint: 'што чека фотографија', icon: Camera },
       { href: '/admin/catalog', label: 'Каталог', hint: 'состав, боја, крој', icon: Shirt },
