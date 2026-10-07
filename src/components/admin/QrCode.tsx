@@ -1,5 +1,5 @@
 /**
- * A QR code as inline SVG (Task 11.5), from the encoder in `src/lib/qr.ts`.
+ * A QR code as inline SVG (Task 11.5), via `src/lib/qr.ts` (the `qrcode` package).
  *
  * SVG rather than a canvas or an image: it prints sharp at any label size and
  * needs no network.
@@ -16,7 +16,7 @@ export default function QrCode({ value, size = 96, className = '' }: { value: st
       className={`[&>svg]:w-full [&>svg]:h-full ${className}`}
       style={{ width: size, height: size }}
       aria-label={value}
-      // Built by qr.ts from our own link: geometry only, the text never enters the markup.
+      // Built by qr.ts: geometry only, the text never enters the markup.
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );
