@@ -1,30 +1,27 @@
 'use client';
 
 /**
- * Broken size runs — action A5 in docs/TURNAROUND.md.
+ * Broken size runs, and what to do about them (A5 in docs/TURNAROUND.md,
+ * rewritten for D-029).
  *
- * Open-to-buy is zero (`/admin/capital`) and that is correct: stock sits at
- * roughly twelve months of supply. A5 is the one purchase the plan still
- * allows, and it is allowed precisely because it is not really a purchase — it
- * refills gaps in a size run that is already proven to sell, at a few hundred
- * denars a piece, instead of buying a new model on hope.
+ * The first version of this screen priced "top up only the missing M/L/XL" —
+ * one L and one XL, a few hundred denars a piece. The owner (2026-10-07): that
+ * order does not exist. Suppliers sell a model as a series, S–XXL or 30–38,
+ * one of each, so a broken run is mended only by a whole series, and the
+ * series brings another S and XXL with it.
  *
- * The whole action is one rule applied twice:
+ * So the screen still finds the broken runs, and still splits them by one
+ * question — has the model sold in the last year? — but the two answers are now:
  *
- *   sold in the last year  → top up only the missing M/L/XL
+ *   sold in the last year  → would a whole series sell? (series.ts, the same
+ *                            forecast the reorder plan uses)
+ *                              yes → it is bought through /admin/reorder
+ *                              no  → sell what is left; with one or two sizes
+ *                                    on the shelf the till may discount (D-027)
  *   nothing sold in a year → clear it, do not repair it
  *
- * "Missing" is narrowed once more before it becomes a bill. A size that is gone
- * *and sold in the last year* is measured demand; a size that is gone and never
- * sold is a guess about a customer nobody has met. Both are shown, but only the
- * first is counted by default — 64 of the 75 missing pieces, and 39.231 den.
- * instead of 45.587.
- *
- * Repairing a model that does not sell just buys the same dead stock a second
- * time, which is how a small budget disappears without anything changing. So
- * the screen refuses to put those two lists on the same page as one list: the
- * left-hand decision is "buy", the right-hand decision is "mark down", and they
- * go to different places.
+ * Whether a series that pays is bought *now* is the plan's call — the season
+ * window and the budget decide that there, not here.
  *
  * Only letter sizes are judged. A numeric run (29–34) has no fixed core and a
  * gap in it means something different, so those models are counted out loud and
@@ -40,32 +37,28 @@ import { Product } from '@/types';
 import { getEffectivePrice } from '@/lib/pricing';
 import { grossMargin } from '@/lib/cost';
 import { getProductDisplayName } from '@/lib/product-display';
-import { ArrowLeft, Ban, ClipboardCopy, Ruler, ShoppingBasket } from 'lucide-react';
+import { velocityOf } from '@/lib/velocity';
+import {
+  MIN_SERIES_SELL_THROUGH, SERIES_HORIZON_MONTHS, forecastSeries, seriesContext, seriesLabel,
+} from '@/lib/series';
+import { ArrowLeft, Ban, Ruler, ShoppingBasket } from 'lucide-react';
 
 const DAY = 86_400_000;
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
 const NON_MERCHANDISE = new Set(['vaucer']);
 
-/** The sizes that carry the business. Everything else is a tail size. */
+/** The sizes that carry the business. A run without one of them is broken. */
 const CORE = ['M', 'L', 'XL'];
 /** Any of these makes a model "letter sized" and therefore judgeable here. */
 const LETTER = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
-/** How many pieces a top-up assumes per missing size. One — the point of A5 is
- *  a small, certain spend, not a re-buy. */
-const TOPUP_UNITS_PER_SIZE = 1;
-
 interface Row {
   p: Product;
-  /** Letter sizes currently on the shelf, with quantities. */
+  /** Sizes currently on the shelf, with quantities. */
   inStock: Map<string, number>;
-  missing: string[];
-  /** Missing and sold within the year — measured demand. */
-  provenMissing: string[];
-  /** Missing and never sold — a guess, priced separately. */
-  guessMissing: string[];
+  /** The model's series (series.ts). */
+  series: string[];
   unitCost: number;
-  unitPrice: number;
   /** No core size at all — the middle of the run is gone, only edges remain. */
   edgesOnly: boolean;
   units: number;
@@ -73,6 +66,12 @@ interface Row {
   sold365: number;
   soldBySize: Map<string, number>;
   margin: number | null;
+  /** One new series: pieces, cost, and what is expected to sell within the horizon. */
+  seriesPieces: number;
+  seriesCost: number;
+  expected: number;
+  sellThrough: number;
+  worth: boolean;
 }
 
 // XXL and 2XL are one size (9.8).
@@ -81,9 +80,6 @@ const normSize = canonicalSize;
 function SizesView() {
   const { products, loading } = useProducts();
   const [tab, setTab] = useState<'topup' | 'clear'>('topup');
-  const [picked, setPicked] = useState<Set<string>>(new Set());
-  const [includeGuess, setIncludeGuess] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // Frozen per mount: ages and windows do not need to tick, and reading the
   // clock during render makes the render impure.
@@ -93,6 +89,7 @@ function SizesView() {
     let liveLetterModels = 0;
     let numericSkipped = 0;
     let complete = 0;
+    const ctx = seriesContext(products);
 
     const broken: Row[] = [];
 
@@ -117,8 +114,7 @@ function SizesView() {
       }
       liveLetterModels += 1;
 
-      const missing = CORE.filter((c) => !inStock.has(c));
-      if (missing.length === 0) {
+      if (CORE.every((c) => inStock.has(c))) {
         complete += 1;
         continue;
       }
@@ -134,36 +130,35 @@ function SizesView() {
         soldBySize.set(key, (soldBySize.get(key) ?? 0) + 1);
       }
 
-      const cost = p.purchasePrice ?? 0;
+      const unitCost = p.purchasePrice ?? 0;
+      const f = forecastSeries(p, velocityOf(p, now), ctx, now, SERIES_HORIZON_MONTHS, 1);
       broken.push({
         p,
         inStock,
-        missing,
-        provenMissing: missing.filter((m) => (soldBySize.get(m) ?? 0) > 0),
-        guessMissing: missing.filter((m) => (soldBySize.get(m) ?? 0) === 0),
-        unitCost: cost,
-        unitPrice: getEffectivePrice(p),
+        series: f.series,
+        unitCost,
         edgesOnly: !CORE.some((c) => inStock.has(c)),
         units,
-        cost: units * cost,
+        cost: units * unitCost,
         sold365,
         soldBySize,
         margin: grossMargin(getEffectivePrice(p), p.purchasePrice),
+        seriesPieces: f.pieces,
+        seriesCost: f.pieces * unitCost,
+        expected: f.expected[0],
+        sellThrough: f.sellThrough[0],
+        worth: f.sellThrough[0] >= MIN_SERIES_SELL_THROUGH,
       });
     }
 
-    // Proven demand first: within the top-up list, the models that sold most
-    // are the ones whose missing size is costing a sale right now.
+    // Proven demand first, the series closest to paying at the top.
     const topup = broken
       .filter((r) => r.sold365 > 0)
-      .sort(
-        (a, b) =>
-          b.sold365 - a.sold365 ||
-          b.provenMissing.length * b.unitPrice - a.provenMissing.length * a.unitPrice
-      );
+      .sort((a, b) => b.sellThrough - a.sellThrough || b.sold365 - a.sold365);
     const clear = broken
       .filter((r) => r.sold365 === 0)
       .sort((a, b) => b.cost - a.cost);
+    const worth = topup.filter((r) => r.worth);
 
     return {
       liveLetterModels,
@@ -172,8 +167,9 @@ function SizesView() {
       broken,
       topup,
       clear,
-      guessPieces: topup.reduce((a, r) => a + r.guessMissing.length, 0),
-      guessCost: topup.reduce((a, r) => a + r.guessMissing.length * TOPUP_UNITS_PER_SIZE * r.unitCost, 0),
+      worth: worth.length,
+      worthCost: worth.reduce((a, r) => a + r.seriesCost, 0),
+      notWorth: topup.length - worth.length,
       clearCost: clear.reduce((a, r) => a + r.cost, 0),
     };
   }, [products, now]);
@@ -186,68 +182,9 @@ function SizesView() {
     );
   }
 
-  // What a row would actually buy under the current basis. Everything money
-  // is spoken about — the totals, the list, the copy — goes through this.
-  const buys = (r: Row) => (includeGuess ? r.missing : r.provenMissing);
-  const rowCost = (r: Row) => buys(r).length * TOPUP_UNITS_PER_SIZE * r.unitCost;
-  const rowRetail = (r: Row) => buys(r).length * TOPUP_UNITS_PER_SIZE * r.unitPrice;
-
-  const topupList = model.topup.filter((r) => buys(r).length > 0);
-  const list = tab === 'topup' ? topupList : model.clear;
-  const chosen = topupList.filter((r) => picked.has(r.p.id));
-  const chosenCost = chosen.reduce((a, r) => a + rowCost(r), 0);
-  const chosenRetail = chosen.reduce((a, r) => a + rowRetail(r), 0);
-  const chosenPieces = chosen.reduce((a, r) => a + buys(r).length, 0);
-  const listCost = topupList.reduce((a, r) => a + rowCost(r), 0);
-  const listRetail = topupList.reduce((a, r) => a + rowRetail(r), 0);
-  const listPieces = topupList.reduce((a, r) => a + buys(r).length, 0);
+  const list = tab === 'topup' ? model.topup : model.clear;
   const brokenPct = model.liveLetterModels > 0 ? model.broken.length / model.liveLetterModels : 0;
-
-  const toggle = (id: string) => {
-    setCopied(false);
-    setPicked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const allPicked = topupList.length > 0 && topupList.every((r) => picked.has(r.p.id));
-  const toggleAll = () => {
-    setCopied(false);
-    setPicked(allPicked ? new Set() : new Set(topupList.map((r) => r.p.id)));
-  };
-
-  // The list leaves this screen as text because that is the form it is used in:
-  // read out to a supplier, or carried to the warehouse. A shopping list that
-  // only exists behind a login is not a shopping list.
-  const copyList = async () => {
-    if (chosen.length === 0) return;
-    const lines = chosen.map((r) => {
-      const sold = [...r.soldBySize.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .map(([s, n]) => `${s}×${n}`)
-        .join(' ');
-      return (
-        `${getProductDisplayName(r.p.name, r.p.category, r.p.brand)} [${r.p.id}]` +
-        `\n  земи: ${buys(r).join(', ')}` +
-        `  ·  продадено 12м: ${sold || '—'}` +
-        `  ·  ≈ ${fmt(rowCost(r))} ден.`
-      );
-    });
-    const text =
-      `Дополнување на серии — ${chosen.length} модели, ` +
-      `${chosenPieces} парчиња\n` +
-      `Вкупно набавна: ≈ ${fmt(chosenCost)} ден.  ·  продажна: ≈ ${fmt(chosenRetail)} ден.\n\n` +
-      lines.join('\n\n');
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
-  };
+  const bar = Math.round(MIN_SERIES_SELL_THROUGH * 100);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -257,11 +194,11 @@ function SizesView() {
           Назад на таблата
         </Link>
 
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">Триажа на скршени серии</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">Скршени серии</h1>
         <p className="text-sm text-slate-500 mt-1 mb-6">
           Купувач што не ја наоѓа својата големина е изгубена продажба која никаде не се запишува.
-          Но серија се поправа <strong>само</strong> ако моделот веќе се продава — инаку набавката ја
-          купува истата мртва стока по втор пат.
+          Но големина поединечно не се купува: добавувачот продава <strong>цела серија</strong>, и таа
+          носи уште едно S и XXL. Затоа прашањето е дали цела серија ќе се продаде, а не дали фали L.
         </p>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -273,14 +210,14 @@ function SizesView() {
             </p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Вредни дополнување</p>
-            <p className="text-xl font-bold text-green-700 tabular-nums">{topupList.length}</p>
-            <p className="text-[11px] text-slate-400">{listPieces} парчиња што се продале</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Цела серија се исплатува</p>
+            <p className="text-xl font-bold text-green-700 tabular-nums">{model.worth}</p>
+            <p className="text-[11px] text-slate-400">{fmt(model.worthCost)} ден. за по една серија</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Цена на дополнување</p>
-            <p className="text-xl font-bold text-slate-800 tabular-nums">{fmt(listCost)}</p>
-            <p className="text-[11px] text-slate-400">ден. набавна · враќа ≈ {fmt(listRetail)}</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Не се исплатува серија</p>
+            <p className="text-xl font-bold text-slate-800 tabular-nums">{model.notWorth}</p>
+            <p className="text-[11px] text-slate-400">се продава остатокот (D-027)</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Не се поправаат</p>
@@ -292,13 +229,13 @@ function SizesView() {
         <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 flex gap-2">
           <ShoppingBasket className="h-4 w-4 shrink-0 mt-0.5" />
           <span>
-            Open-to-buy е <strong>нула</strong> додека turnover не помине 2× — ова е единствениот
-            исклучок што планот го дозволува. Затоа сумата е важна: {fmt(listCost)} ден. за цела
-            листа, по {TOPUP_UNITS_PER_SIZE} парче на големина.{' '}
-            <Link href="/admin/capital" className="underline font-medium">
-              Види го буџетот
-            </Link>
-            .
+            Серијата <strong>се исплатува</strong> ако барем {bar}% од неа се очекува да се продаде за{' '}
+            {SERIES_HORIZON_MONTHS} месеци: темпото на моделот, делот на секоја големина и тоа што веќе стои на
+            полица (D-029). Таквата се нарачува преку{' '}
+            <Link href="/admin/reorder" className="underline font-medium">Планот за набавка</Link>, каде
+            одлучуваат и сезоната и буџетот. Ако не се исплатува, остатокот се продава: со една или две
+            големини на полица попустот е дозволен (D-027,{' '}
+            <Link href="/admin/discounts" className="underline font-medium">Попусти</Link>).
           </span>
         </div>
 
@@ -306,44 +243,28 @@ function SizesView() {
           <div className="px-4 py-3 border-b border-slate-200 bg-slate-50/60 flex items-center gap-2">
             <Ruler className="h-4 w-4 text-slate-500" />
             <h2 className="font-bold text-slate-800 text-sm">
-              {tab === 'topup' ? 'Дополни — има докажана продажба' : 'Расчисти — нема ниту една продажба'}
+              {tab === 'topup' ? 'Има продажба — цела серија или продај го остатокот' : 'Расчисти — нема ниту една продажба'}
             </h2>
             <div className="ml-auto flex gap-1.5">
               {(['topup', 'clear'] as const).map((k) => (
                 <button
                   key={k}
-                  onClick={() => { setTab(k); setCopied(false); }}
+                  onClick={() => setTab(k)}
                   className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
                     tab === k ? 'bg-slate-800 text-white' : 'bg-white border border-slate-200 text-slate-600'
                   }`}
                 >
-                  {k === 'topup' ? `Дополни (${model.topup.length})` : `Расчисти (${model.clear.length})`}
+                  {k === 'topup' ? `Има продажба (${model.topup.length})` : `Расчисти (${model.clear.length})`}
                 </button>
               ))}
             </div>
           </div>
 
-          {tab === 'topup' && model.guessPieces > 0 && (
-            <label className="px-4 py-2 flex items-start gap-2 text-xs text-slate-500 bg-slate-50/60 border-b border-slate-100 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={includeGuess}
-                onChange={() => { setIncludeGuess((v) => !v); setCopied(false); }}
-                className="h-3.5 w-3.5 mt-0.5 shrink-0 rounded border-slate-300 accent-slate-700"
-              />
-              <span>
-                Земи ги и {model.guessPieces} големини што <strong>никогаш не се продале</strong> на тој
-                модел (+{fmt(model.guessCost)} ден.). Стандардно се исклучени: празна големина што се
-                продала е измерена побарувачка, празна големина што никогаш не се продала е претпоставка.
-              </span>
-            </label>
-          )}
-
-          {tab === 'clear' ? (
+          {tab === 'clear' && (
             <p className="px-4 py-2 text-xs text-slate-500 bg-red-50/50 border-b border-slate-100 flex items-start gap-1.5">
               <Ban className="h-3.5 w-3.5 shrink-0 mt-px text-red-500" />
               <span>
-                Скршена серија <strong>и</strong> нула продажби. Дополнувањето овде би платило двапати за
+                Скршена серија <strong>и</strong> нула продажби. Нова серија овде би платила двапати за
                 иста грешка — овие одат на намалување.{' '}
                 <Link href="/admin/aging" className="underline font-medium">
                   Отвори расчистување
@@ -351,33 +272,6 @@ function SizesView() {
                 .
               </span>
             </p>
-          ) : (
-            <div className="px-3 sm:px-4 py-3 border-b border-slate-200 flex flex-wrap items-center gap-2">
-              <button
-                onClick={toggleAll}
-                disabled={model.topup.length === 0}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-              >
-                {allPicked ? 'Одзначи ги сите' : `Означи ги сите (${model.topup.length})`}
-              </button>
-              {chosen.length > 0 && (
-                <span className="text-xs text-slate-600">
-                  <strong className="text-slate-800">{chosen.length}</strong> модели ·{' '}
-                  <strong className="text-slate-800 tabular-nums">{chosenPieces}</strong> парчиња · ≈{' '}
-                  <strong className="text-slate-800 tabular-nums">{fmt(chosenCost)}</strong> ден. →
-                  враќа ≈{' '}
-                  <strong className="text-green-700 tabular-nums">{fmt(chosenRetail)}</strong> ден.
-                </span>
-              )}
-              <button
-                onClick={copyList}
-                disabled={chosen.length === 0}
-                className="ml-auto inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-semibold hover:bg-slate-900 disabled:opacity-40"
-              >
-                <ClipboardCopy className="h-3.5 w-3.5" />
-                {copied ? 'Копирано' : 'Копирај ја листата'}
-              </button>
-            </div>
           )}
 
           {list.length === 0 ? (
@@ -389,22 +283,7 @@ function SizesView() {
           ) : (
             <div className="divide-y divide-slate-100">
               {list.slice(0, 80).map((r) => (
-                <div
-                  key={r.p.id}
-                  className={`flex items-start gap-3 px-3 sm:px-4 py-3 ${
-                    picked.has(r.p.id) ? 'bg-green-50/60' : 'hover:bg-slate-50/60'
-                  }`}
-                >
-                  {tab === 'topup' && (
-                    <input
-                      type="checkbox"
-                      checked={picked.has(r.p.id)}
-                      onChange={() => toggle(r.p.id)}
-                      className="h-4 w-4 shrink-0 mt-1 rounded border-slate-300 accent-green-600"
-                      aria-label={`Избери ${r.p.name}`}
-                    />
-                  )}
-
+                <div key={r.p.id} className="flex items-start gap-3 px-3 sm:px-4 py-3 hover:bg-slate-50/60">
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`/admin/product/${r.p.id}`}
@@ -413,16 +292,14 @@ function SizesView() {
                       {getProductDisplayName(r.p.name, r.p.category, r.p.brand)}
                     </Link>
 
-                    {/* The size run itself, in order — a gap you can see beats a
-                        number that describes one. */}
+                    {/* The series itself, in order: what is on the shelf, and the gaps. */}
                     <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                      {CORE.map((c) => {
-                        const qty = r.inStock.get(c);
-                        const willBuy = buys(r).includes(c);
-                        const sold = (r.soldBySize.get(c) ?? 0) > 0;
+                      {r.series.map((size) => {
+                        const qty = r.inStock.get(size);
+                        const sold = (r.soldBySize.get(size) ?? 0) > 0;
                         return (
                           <span
-                            key={c}
+                            key={size}
                             title={
                               qty ? 'на залиха'
                                 : sold ? 'нема залиха, се продавала'
@@ -431,24 +308,16 @@ function SizesView() {
                             className={`px-1.5 py-0.5 rounded text-[11px] font-semibold tabular-nums ${
                               qty
                                 ? 'bg-slate-100 text-slate-700'
-                                : willBuy
+                                : sold
                                   ? 'bg-red-100 text-red-700 border border-dashed border-red-300'
                                   : 'bg-slate-50 text-slate-400 border border-dashed border-slate-200'
                             }`}
                           >
-                            {c}
+                            {size}
                             {qty ? <span className="font-normal text-slate-400"> ·{qty}</span> : ' —'}
                           </span>
                         );
                       })}
-                      {[...r.inStock.entries()]
-                        .filter(([s]) => !CORE.includes(s))
-                        .map(([s, q]) => (
-                          <span key={s} className="px-1.5 py-0.5 rounded text-[11px] bg-slate-50 text-slate-400 tabular-nums">
-                            {s}
-                            <span className="text-slate-300"> ·{q}</span>
-                          </span>
-                        ))}
                       {r.edgesOnly && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
                           само рабни
@@ -465,6 +334,25 @@ function SizesView() {
                           .join('  ')}
                       </p>
                     )}
+
+                    {tab === 'topup' && (
+                      <p className="text-[11px] mt-1">
+                        <span className="text-slate-500">
+                          Нова серија {seriesLabel(r.series)}: {r.seriesPieces} парч. · {fmt(r.seriesCost)} ден. ·
+                          очекувано {r.expected.toFixed(1)} од {r.seriesPieces} за {SERIES_HORIZON_MONTHS} мес.
+                          ({Math.round(r.sellThrough * 100)}%)
+                        </span>{' '}
+                        {r.worth ? (
+                          <Link href="/admin/reorder" className="font-semibold text-green-700 underline">
+                            се исплатува → План за набавка
+                          </Link>
+                        ) : (
+                          <span className="font-semibold text-amber-700">
+                            не се исплатува → продај го остатокот
+                          </span>
+                        )}
+                      </p>
+                    )}
                   </div>
 
                   <div className="text-right w-16 shrink-0 tabular-nums">
@@ -472,12 +360,8 @@ function SizesView() {
                     <p className="text-[11px] text-slate-400">прод. 12м</p>
                   </div>
                   <div className="hidden sm:block text-right w-20 shrink-0 tabular-nums">
-                    <p className="text-sm font-semibold text-slate-800">
-                      {tab === 'topup' ? fmt(rowCost(r)) : fmt(r.cost)}
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      {tab === 'topup' ? 'дополн.' : 'заглавени'}
-                    </p>
+                    <p className="text-sm font-semibold text-slate-800">{fmt(r.cost)}</p>
+                    <p className="text-[11px] text-slate-400">на полица</p>
                   </div>
                   <div className="hidden lg:block text-right w-14 shrink-0 tabular-nums">
                     <p className={`text-sm font-semibold ${
@@ -497,12 +381,11 @@ function SizesView() {
         </div>
 
         <p className="text-[11px] text-slate-400 mt-4">
-          Судат се само живи модели со буквени големини. {model.numericSkipped} модели со бројчени
-          серии (фармерки, панталони) се изоставени — таму нема фиксно јадро, па празнина во серијата
-          значи нешто друго. Цената на дополнување претпоставува {TOPUP_UNITS_PER_SIZE} парче по
-          големина, по последната позната набавна цена — што е претпоставка за цената, не понуда од
-          добавувач. Испразнета големина се брои како побарувачка само ако таа големина се продала
-          во последните 12 месеци.
+          Судат се само живи модели со буквени големини, на кои им фали M, L или XL.{' '}
+          {model.numericSkipped} модели со бројчени серии (фармерки, панталони) се изоставени тука; во
+          Планот за набавка и тие се купуваат во цела серија. Серијата на моделот е онаа што ја имал на
+          полица или продал; ако се премалку големини, вообичаената за категоријата. Цената на серијата е
+          по последната позната набавна цена — претпоставка, не понуда од добавувач.
         </p>
       </div>
     </div>

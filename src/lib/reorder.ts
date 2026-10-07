@@ -1,13 +1,13 @@
 /**
- * The reorder plan (EPIC 4: tasks 4.1–4.3).
+ * The reorder plan (EPIC 4: tasks 4.1–4.3; whole series since Task 11.6).
  *
  * Four screens already answer a piece of this. `/admin/velocity` says *which*
  * models have proven themselves; `/admin/season` says *whether the window is
- * open*; `/admin/sizes` says *which sizes are missing*; `/admin/capital` says
- * *whether there is any money*. None of them says "buy two L and one XL of this
- * shirt, for 1.400 den., and stop at the budget line". Four lists a person has
- * to join in their head is not a plan, and the joining is where the mistake
- * gets made.
+ * open*; `/admin/sizes` says *which runs are broken*; `/admin/capital` says
+ * *whether there is any money*. None of them says "buy one series of this
+ * shirt, S to XXL, for 2.750 den., and stop at the budget line". Four lists a
+ * person has to join in their head is not a plan, and the joining is where the
+ * mistake gets made.
  *
  * Three decisions carry the arithmetic.
  *
@@ -15,100 +15,44 @@
  * that sold five pieces and emptied has a rate of five over the days it
  * actually had stock — using the last ninety days instead would read zero for
  * anything that sold out in the spring, and a zero rate orders nothing, which
- * is precisely backwards. So the window runs from first receipt to the last
- * sale for a sold-out model, and to today for one still on the shelf.
+ * is precisely backwards. (`sellingRate` in series.ts.)
  *
- * **The quantity is capped at the original buy.** Never reorder more in one go
- * than was bought the first time. A model that emptied in three weeks computes
- * a rate that would justify ten pieces, and ten pieces of anything is how a
- * shop with 14 months of stock got 14 months of stock. The cap is the cheapest
- * possible defence against being right about direction and wrong about size.
+ * **A model is bought in whole series (D-029).** Suppliers sell S–XXL or
+ * 30–38, one of each; "only the L and the XL" is not an order. So each series
+ * is judged as a whole: size by size, how much of it would sell within
+ * SERIES_HORIZON_MONTHS, with what is already on the shelf selling first. A
+ * series is bought when at least half of it is expected to go; a second one
+ * only if it clears the same bar on its own. A proven model whose series does
+ * not pay stays on the plan, marked, with the reason — its best sizes sell, the
+ * rest would sit.
  *
- * **The size curve is honoured across the plan, not within a line.** A model
- * has five or six sales, far too few to shape a curve; its category has
- * hundreds, so the category mix is what gets bought against. But most lines are
- * a single piece, and one piece cannot express 28/22/22 — rounding each line on
- * its own hands every one of them to L and the plan comes out 23 L against 2
- * XL, which is how you fix a size gap by digging a new one. So the sizes are
- * apportioned once, across all the lines of a category at the same time, by
- * whichever size is furthest behind its target. Each line still receives whole
- * pieces; it is the plan that carries the curve.
- *
- * The measured curve is L > M > XL > XXL > S, not flat — see
- * `marshal-flat-size-curve` for why that matters here.
+ * **The number of series is capped** at what the model has ever had, and at
+ * MAX_SERIES_PER_MODEL. A model that emptied in three weeks computes a pace
+ * that would justify three series, and that is how a shop with 14 months of
+ * stock got 14 months of stock.
  */
 
 import { Product } from '@/types';
-import { canonicalSize } from './sizes';
 import { markup } from './cost';
 import { groupOf } from './open-to-buy';
 import { Month, monthOf, phaseOf, shouldBuyNow } from './seasons';
 import {
+  MAX_SERIES_PER_MODEL, MIN_SERIES_SELL_THROUGH, SERIES_HORIZON_MONTHS, forecastSeries, seriesContext,
+  seriesWorthBuying,
+} from './series';
+import {
   RESTOCK_RECENCY_DAYS, VelocityMetrics, isDecidable, velocityOf,
 } from './velocity';
-
-const DAY = 86_400_000;
-
-/** Months of cover a restock aims for. */
-export const TARGET_COVER_MONTHS = 2;
 
 /**
  * Days from placing an order to having the goods in the shop (Q2, answered
  * 2026-09-25): 7 to 10. The upper end is used — ordering a day early costs
  * nothing, running empty for a day costs the sales of that day.
  *
- * It does not set the quantity: at one to five pieces a model, cover in months
- * is the steadier measure (4.1). It sets the urgency — a model whose shelf will
- * be empty before a reorder could arrive has to be ordered today, not whenever.
+ * It sets the urgency — a model whose shelf will be empty before a reorder
+ * could arrive has to be ordered today, not whenever.
  */
 export const LEAD_TIME_DAYS = 10;
-/** No single model gets more than this in one order, whatever the rate says. */
-export const MAX_UNITS_PER_MODEL = 6;
-/** Shares below this are dropped from a size curve as noise. */
-export const SIZE_SHARE_FLOOR = 0.05;
-
-/**
- * Size tokens that mean something. The `sold[]` data also contains values like
- * `KOLICINA` and `1000ML` — 97% of the accessories "sizes" — which are units of
- * measure that leaked into the field. Splitting an order across those would
- * produce confident nonsense, so a category left with no real sizes is ordered
- * as a single unsized line instead.
- */
-const REAL_SIZE = /^(XS|S|M|L|XL|XXL|2XL|XXXL|3XL|4XL|[2-6]\d)$/;
-
-// XXL and 2XL are one size in the curve (9.8).
-const normSize = canonicalSize;
-
-/** Priced sales per size, per raw category, across all history. */
-export function categorySizeMix(products: Product[]): Map<string, Map<string, number>> {
-  const mix = new Map<string, Map<string, number>>();
-  for (const p of products) {
-    for (const s of p.sold ?? []) {
-      if (!(Number(s.price) > 0)) continue;
-      const key = normSize(s.size);
-      if (!REAL_SIZE.test(key)) continue;
-      const m = mix.get(p.category) ?? new Map<string, number>();
-      m.set(key, (m.get(key) ?? 0) + 1);
-      mix.set(p.category, m);
-    }
-  }
-  return mix;
-}
-
-function normalise(counts: Map<string, number>): Map<string, number> {
-  const total = [...counts.values()].reduce((a, b) => a + b, 0);
-  const out = new Map<string, number>();
-  if (total === 0) return out;
-  for (const [k, v] of counts) {
-    const share = v / total;
-    if (share >= SIZE_SHARE_FLOOR) out.set(k, share);
-  }
-  // Renormalise after dropping the tail so the shares still sum to one.
-  const kept = [...out.values()].reduce((a, b) => a + b, 0);
-  if (kept === 0) return new Map();
-  for (const [k, v] of out) out.set(k, v / kept);
-  return out;
-}
 
 export interface ReorderLine {
   p: Product;
@@ -117,33 +61,46 @@ export interface ReorderLine {
   sellingDays: number;
   /** Units a month across that selling life. */
   rate: number;
-  /** What `TARGET_COVER_MONTHS` of cover would need, before caps. */
+  /** Units the horizon would take at that pace, all sizes together. */
   wanted: number;
-  /** After the caps, minus what is already on the shelf. */
+  /** The model's size series; empty when it is sold by the piece. */
+  series: string[];
+  /** Pieces in one series. */
+  piecesPerSeries: number;
+  /** Series bought: 0 when even one does not pay (`blockedBy: 'series'`). */
+  seriesCount: number;
+  /** Pieces this line buys — or, for a series that does not pay, what one would be. */
   units: number;
-  /** Why the quantity is not simply `wanted`. */
+  /** Why fewer series than the forecast would take. */
   capped: 'original-buy' | 'max-per-model' | null;
   /**
    * The shelf will be empty before a reorder placed today could arrive — or is
    * empty already. Order these first: every day of delay is a day of lost sales.
    */
   urgent: boolean;
+  /** Each size of the series, at the number of series bought. */
   sizes: Array<{ size: string; qty: number }>;
   unitCost: number;
   cost: number;
   /** Revenue if the whole line sells at the list price. */
   revenue: number;
-  /** Gross profit per denar of cost — the ranking metric. */
+  /** Pieces expected to sell within the horizon. */
+  expectedSold: number;
+  /** Of the first series, the share expected to sell within the horizon. */
+  expectedSellThrough: number;
+  /** Gross profit expected within the horizon. */
+  expectedGross: number;
+  /** Markup on cost, as before. */
   gmroi: number | null;
+  /** Expected gross within the horizon per denar spent — the ranking metric. */
   score: number;
-  /** False once the running total has passed the budget. */
+  /** False once the running total has passed the budget, or the series does not pay. */
   withinBudget: boolean;
   /**
-   * Why a line is out: the whole budget is spent, or its group has used its
-   * share of it (open-to-buy, D-023) — the group already holds more than its
-   * part of the stock target.
+   * Why a line is out: the whole budget is spent, its group has used its share
+   * of it (open-to-buy, D-023), or a whole series would not sell (D-029).
    */
-  blockedBy: 'total' | 'group' | null;
+  blockedBy: 'total' | 'group' | 'series' | null;
 }
 
 export interface ReorderOptions {
@@ -156,7 +113,8 @@ export interface ReorderOptions {
    * has to fit what is left of its group's share.
    */
   groupBudgets?: Map<string, number>;
-  coverMonths?: number;
+  /** Months a series is judged over; SERIES_HORIZON_MONTHS by default. */
+  horizonMonths?: number;
 }
 
 export interface ReorderPlan {
@@ -165,11 +123,16 @@ export interface ReorderPlan {
   cost: number;
   units: number;
   revenue: number;
+  /** Of those lines, what is expected within the horizon. */
+  expectedRevenue: number;
+  expectedGross: number;
   /** Cost of the lines the budget cut off. */
   blockedCost: number;
   blockedLines: number;
   /** Of those, the lines cut because their group is at its share. */
   blockedByGroup: number;
+  /** Proven models whose whole series would not sell within the horizon. */
+  notWorthSeries: number;
 }
 
 /**
@@ -191,8 +154,8 @@ export interface ReorderPlan {
 export function planReorder(products: Product[], opts: ReorderOptions = {}): ReorderPlan {
   const now = opts.now ?? Date.now();
   const month = opts.month ?? monthOf(now);
-  const cover = opts.coverMonths ?? TARGET_COVER_MONTHS;
-  const catMix = categorySizeMix(products);
+  const horizon = opts.horizonMonths ?? SERIES_HORIZON_MONTHS;
+  const ctx = seriesContext(products);
 
   const lines: ReorderLine[] = [];
 
@@ -206,61 +169,50 @@ export function planReorder(products: Product[], opts: ReorderOptions = {}): Reo
     if (m.daysSinceLastSale === null || m.daysSinceLastSale > RESTOCK_RECENCY_DAYS) continue;
     if (!shouldBuyNow(phaseOf(p.category, month))) continue;
 
-    // The selling life: from arrival to the last sale for something that has
-    // emptied, to today for something still on the shelf. Floored at a month so
-    // a model that emptied in days cannot produce a runaway rate.
-    const start = p.firstReceivedAt ? p.firstReceivedAt.getTime() : null;
-    const end = m.onHand === 0 && m.daysSinceLastSale !== null
-      ? now - m.daysSinceLastSale * DAY
-      : now;
-    const sellingDays = start === null ? 365 : Math.max(30, (end - start) / DAY);
-    const rate = m.soldEver / (sellingDays / 30);
+    // One more series than the cap, so a cap that binds can be said out loud.
+    const f = forecastSeries(p, m, ctx, now, horizon, MAX_SERIES_PER_MODEL + 1);
+    const everSeries = Math.max(1, Math.round(m.receivedEst / f.pieces));
+    const cap = Math.min(MAX_SERIES_PER_MODEL, everSeries);
+    const free = seriesWorthBuying(f, MAX_SERIES_PER_MODEL + 1);
+    const count = Math.min(free, cap);
+    const capped: ReorderLine['capped'] =
+      free > count ? (everSeries < MAX_SERIES_PER_MODEL ? 'original-buy' : 'max-per-model') : null;
 
-    const wanted = Math.ceil(rate * cover);
-    let units = wanted;
-    let capped: ReorderLine['capped'] = null;
-
-    // Never reorder more in one go than the first buy. Being right about the
-    // direction and wrong about the size is how the shelves filled up.
-    if (units > m.receivedEst) {
-      units = m.receivedEst;
-      capped = 'original-buy';
-    }
-    if (units > MAX_UNITS_PER_MODEL) {
-      units = MAX_UNITS_PER_MODEL;
-      capped = 'max-per-model';
-    }
-
-    units = Math.max(0, units - m.onHand);
-    if (units === 0) continue;
-
+    // A series that does not pay is still priced at one, so the screen can say what it would be.
+    const shown = Math.max(1, count);
+    const units = shown * f.pieces;
     const unitCost = p.purchasePrice ?? 0;
-    const gm = markup(p.price, p.purchasePrice);
-
-    // Days until the shelf is empty at the measured pace.
-    const daysLeft = rate > 0 ? (m.onHand / rate) * 30 : Infinity;
+    const cost = units * unitCost;
+    const expectedSold = f.expected.slice(0, shown).reduce((a, e) => a + e, 0);
+    const expectedGross = expectedSold * (p.price - unitCost);
+    const daysLeft = f.rate > 0 ? (m.onHand / f.rate) * 30 : Infinity;
 
     lines.push({
-      p, m, sellingDays, rate, wanted, units, capped,
+      p, m,
+      sellingDays: f.sellingDays,
+      rate: f.rate,
+      wanted: Math.ceil(f.rate * horizon),
+      series: f.series,
+      piecesPerSeries: f.pieces,
+      seriesCount: count,
+      units,
+      capped,
       urgent: m.onHand === 0 || daysLeft < LEAD_TIME_DAYS,
-      // Filled by apportionSizes once every line is known — a single piece
-      // cannot carry a curve, only the whole plan can.
-      sizes: [],
+      sizes: f.series.map((size) => ({ size, qty: shown })),
       unitCost,
-      cost: units * unitCost,
+      cost,
       revenue: units * p.price,
-      gmroi: gm,
-      // Return per denar tied up, discounted by how reliably the model clears.
-      // Both halves matter: a fat margin that never sells is not a return.
-      score: Math.max(0, gm ?? 0) * Math.max(0, m.sellThrough ?? 0),
-      withinBudget: true,
-      blockedBy: null,
+      expectedSold,
+      expectedSellThrough: f.sellThrough[0],
+      expectedGross,
+      gmroi: markup(p.price, p.purchasePrice),
+      score: cost > 0 ? expectedGross / cost : 0,
+      withinBudget: count > 0,
+      blockedBy: count > 0 ? null : 'series',
     });
   }
 
-  lines.sort((a, b) => b.score - a.score || b.revenue - a.revenue);
-
-  apportionSizes(lines, catMix);
+  lines.sort((a, b) => b.score - a.score || b.expectedGross - a.expectedGross);
 
   // The budget is a hard line, applied down the ranking. Lines past it stay in
   // the result marked `withinBudget: false` rather than being dropped: a plan
@@ -271,6 +223,7 @@ export function planReorder(products: Product[], opts: ReorderOptions = {}): Reo
   let running = 0;
   const spent = new Map<string, number>();
   for (const l of lines) {
+    if (l.blockedBy === 'series') continue;
     const g = groupOf(l.p.category);
     if (budget !== undefined && running + l.cost > budget) {
       l.withinBudget = false;
@@ -286,92 +239,33 @@ export function planReorder(products: Product[], opts: ReorderOptions = {}): Reo
     spent.set(g, (spent.get(g) ?? 0) + l.cost);
   }
 
-  // What fits first, in rank order, then what does not — so the line where the
-  // money runs out is one line on screen, not scattered through the table.
-  lines.sort((a, b) => Number(b.withinBudget) - Number(a.withinBudget));
+  // What fits first, in rank order; then what the money cut off, so the line
+  // where it runs out is one line on screen; then the series that do not pay,
+  // closest to paying first.
+  const rank = (l: ReorderLine) => (l.withinBudget ? 0 : l.blockedBy === 'series' ? 2 : 1);
+  lines.sort((a, b) => rank(a) - rank(b) || (rank(a) === 2 ? b.expectedSellThrough - a.expectedSellThrough : 0));
 
   const inb = lines.filter((l) => l.withinBudget);
-  const out = lines.filter((l) => !l.withinBudget);
+  const cut = lines.filter((l) => l.blockedBy === 'total' || l.blockedBy === 'group');
 
   return {
     lines,
     cost: inb.reduce((a, l) => a + l.cost, 0),
     units: inb.reduce((a, l) => a + l.units, 0),
     revenue: inb.reduce((a, l) => a + l.revenue, 0),
-    blockedCost: out.reduce((a, l) => a + l.cost, 0),
-    blockedLines: out.length,
-    blockedByGroup: out.filter((l) => l.blockedBy === 'group').length,
+    expectedRevenue: inb.reduce((a, l) => a + l.expectedSold * l.p.price, 0),
+    expectedGross: inb.reduce((a, l) => a + l.expectedGross, 0),
+    blockedCost: cut.reduce((a, l) => a + l.cost, 0),
+    blockedLines: cut.length,
+    blockedByGroup: cut.filter((l) => l.blockedBy === 'group').length,
+    notWorthSeries: lines.filter((l) => l.blockedBy === 'series').length,
   };
 }
 
-/**
- * Hand out sizes across the whole plan, one category at a time.
- *
- * Largest deficit wins each piece: for every category the target is its curve
- * times the pieces that category is getting, and each piece goes to the size
- * furthest below its own target. Ties break toward a size the model itself has
- * sold, since that is the only per-model signal thin enough to trust as a
- * tiebreak but not as a curve.
- *
- * Mutates `lines` in rank order, so the highest-ranked models get first pick
- * when a category's pieces do not divide evenly.
- */
-function apportionSizes(
-  lines: ReorderLine[],
-  catMix: Map<string, Map<string, number>>
-): void {
-  const byCat = new Map<string, ReorderLine[]>();
-  for (const l of lines) {
-    const arr = byCat.get(l.p.category) ?? [];
-    arr.push(l);
-    byCat.set(l.p.category, arr);
-  }
-
-  for (const [category, group] of byCat) {
-    const curve = normalise(catMix.get(category) ?? new Map());
-    if (curve.size === 0) continue; // no real sizes — lines stay unsized
-
-    const totalUnits = group.reduce((a, l) => a + l.units, 0);
-    const target = new Map<string, number>();
-    for (const [size, share] of curve) target.set(size, share * totalUnits);
-    const given = new Map<string, number>();
-
-    for (const l of group) {
-      const own = new Set(
-        (l.p.sold ?? [])
-          .filter((s) => Number(s.price) > 0)
-          .map((s) => normSize(s.size))
-      );
-      const picked = new Map<string, number>();
-
-      for (let n = 0; n < l.units; n += 1) {
-        let best: string | null = null;
-        let bestDeficit = -Infinity;
-        for (const size of curve.keys()) {
-          const deficit = (target.get(size) ?? 0) - (given.get(size) ?? 0);
-          const wins =
-            deficit > bestDeficit + 1e-9 ||
-            // Tie: prefer a size this very model has sold before.
-            (Math.abs(deficit - bestDeficit) <= 1e-9 && best !== null &&
-              own.has(size) && !own.has(best));
-          if (wins) {
-            best = size;
-            bestDeficit = deficit;
-          }
-        }
-        if (best === null) break;
-        given.set(best, (given.get(best) ?? 0) + 1);
-        picked.set(best, (picked.get(best) ?? 0) + 1);
-      }
-
-      l.sizes = [...picked.entries()]
-        .sort((a, b) => (curve.get(b[0]) ?? 0) - (curve.get(a[0]) ?? 0))
-        .map(([size, qty]) => ({ size, qty }));
-    }
-  }
-}
-
 export const CAP_LABEL: Record<NonNullable<ReorderLine['capped']>, string> = {
-  'original-buy': 'ограничено на првата набавка',
-  'max-per-model': `ограничено на ${MAX_UNITS_PER_MODEL} парчиња`,
+  'original-buy': 'ограничено на сериите што моделот досега ги имал',
+  'max-per-model': `ограничено на ${MAX_SERIES_PER_MODEL} серии`,
 };
+
+/** Re-exported for the screens that speak about the rule. */
+export { MAX_SERIES_PER_MODEL, MIN_SERIES_SELL_THROUGH, SERIES_HORIZON_MONTHS };

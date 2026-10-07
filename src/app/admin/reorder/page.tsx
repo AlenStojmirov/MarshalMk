@@ -5,10 +5,12 @@
  *
  * Four screens each hold a piece of this answer: `/admin/velocity` knows which
  * models proved themselves, `/admin/season` knows whether the window is open,
- * `/admin/sizes` knows which sizes are missing, `/admin/capital` knows whether
+ * `/admin/sizes` knows which runs are broken, `/admin/capital` knows whether
  * there is any money. Joining four lists in your head is not a plan, and the
  * joining is where the mistake gets made. So this page does the join and hands
- * over one order: model, sizes, pieces, price, ranked, cut off at the budget.
+ * over one order: model, whole series, pieces, price, ranked, cut off at the
+ * budget. A model is bought in whole series (S–XXL, 30–38 …), never by the
+ * size, and only when the series is expected to sell (D-029).
  *
  * The budget comes from open-to-buy (D-023): what the next thirty days will
  * sell at cost, less whatever the shelf is above target (or plus a third of what
@@ -30,8 +32,9 @@ import {
   MONTH_LABEL, NON_MERCHANDISE, PHASE_LABEL, monthAhead, monthOf, phaseOf,
 } from '@/lib/seasons';
 import {
-  CAP_LABEL, LEAD_TIME_DAYS, MAX_UNITS_PER_MODEL, TARGET_COVER_MONTHS, planReorder,
+  CAP_LABEL, LEAD_TIME_DAYS, MAX_SERIES_PER_MODEL, MIN_SERIES_SELL_THROUGH, SERIES_HORIZON_MONTHS, planReorder,
 } from '@/lib/reorder';
+import { seriesLabel } from '@/lib/series';
 import {
   ArrowLeft, Ban, CalendarClock, ClipboardCopy, PackagePlus, ShieldAlert, AlertTriangle,
 } from 'lucide-react';
@@ -68,7 +71,8 @@ function ReorderView() {
   // null follows open-to-buy; a typed amount is the owner's override.
   const [budgetInput, setBudgetInput] = useState<string | null>(null);
   const [byGroup, setByGroup] = useState(true);
-  const [cover, setCover] = useState(TARGET_COVER_MONTHS);
+  // The months a series is judged over (D-029); four by default.
+  const [judge, setJudge] = useState(SERIES_HORIZON_MONTHS);
   const [copied, setCopied] = useState(false);
 
   const [now] = useState(() => Date.now());
@@ -96,8 +100,8 @@ function ReorderView() {
   }, [byGroup, otb, budget]);
 
   const plan = useMemo(
-    () => planReorder(merch, { now, month, budget, groupBudgets, coverMonths: cover }),
-    [merch, now, month, budget, groupBudgets, cover]
+    () => planReorder(merch, { now, month, budget, groupBudgets, horizonMonths: judge }),
+    [merch, now, month, budget, groupBudgets, judge]
   );
 
   if (loading) {
@@ -114,7 +118,7 @@ function ReorderView() {
   // door opening between now and then, not that the control is broken.
   const sameAsToday =
     horizon > 0 &&
-    planReorder(merch, { now, month: today, budget, groupBudgets, coverMonths: cover }).lines.length ===
+    planReorder(merch, { now, month: today, budget, groupBudgets, horizonMonths: judge }).lines.length ===
       plan.lines.length;
 
   // The copied text is split one section per brand, because that is how it
@@ -136,7 +140,7 @@ function ReorderView() {
     if (inBudget.length === 0) return;
     const text =
       `НАБАВКА — ${inBudget.length} модели · ${plan.units} парчиња · ${fmt(plan.cost)} ден.\n` +
-      `Цел: ${cover} месеци покриеност. Враќа ${fmt(plan.revenue)} ден. по продажна.\n` +
+      `Цели серии. Очекувано за ${judge} месеци: ${fmt(plan.expectedRevenue)} ден. по продажна.\n` +
       `${new Date(now).toLocaleDateString('mk-MK')}\n\n` +
       byBrand
         .map((g) =>
@@ -144,12 +148,12 @@ function ReorderView() {
           g.lines.map(
           (l) =>
             `${getProductDisplayName(l.p.name, l.p.category, l.p.brand)} [${l.p.id}]\n` +
-            `  ${l.sizes.length > 0
-              ? l.sizes.map((s) => `${s.size}×${s.qty}`).join('  ')
+            `  ${l.series.length > 0
+              ? `${l.series.join(', ')} × ${l.seriesCount} ${l.seriesCount === 1 ? 'серија' : 'серии'} (${l.units} парч.)`
               : `${l.units} парчиња (без големина)`}` +
             `  ·  ${fmt(l.cost)} ден.` +
-            `\n  досега ${l.m.soldEver}/${l.m.receivedEst} (${pct(l.m.sellThrough)})` +
-            ` · ${l.rate.toFixed(1)} парч./мес` +
+            `\n  очекувано ${l.expectedSold.toFixed(1)} од ${l.units} за ${judge} мес.` +
+            ` · досега ${l.m.soldEver}/${l.m.receivedEst} · ${l.rate.toFixed(1)} парч./мес` +
             (l.capped ? ` · ${CAP_LABEL[l.capped]}` : '') +
             (l.urgent ? ' · ИТНО' : '')
           ).join('\n\n')
@@ -240,15 +244,15 @@ function ReorderView() {
           </label>
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-              Покриеност (месеци)
+              Серијата се суди за (месеци)
             </label>
             <div className="flex gap-1.5">
-              {[1, 2, 3].map((v) => (
+              {[3, 4, 6].map((v) => (
                 <button
                   key={v}
-                  onClick={() => { setCover(v); setCopied(false); }}
+                  onClick={() => { setJudge(v); setCopied(false); }}
                   className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                    cover === v ? 'bg-slate-800 text-white' : 'bg-white border border-slate-200 text-slate-600'
+                    judge === v ? 'bg-slate-800 text-white' : 'bg-white border border-slate-200 text-slate-600'
                   }`}
                 >
                   {v}
@@ -275,8 +279,9 @@ function ReorderView() {
             </div>
           </div>
           <p className="text-[11px] text-slate-400 flex-1 min-w-[200px]">
-            Плитка покриеност е намерна: брза кошула на 2 месеци може да се докупи повторно наскоро,
-            а длабоко купување на еден модел врзува пари што му требаат на друга група.
+            Модел се купува во цела серија. Се купува ако барем {Math.round(MIN_SERIES_SELL_THROUGH * 100)}% од
+            серијата се очекува да се продаде за {judge} месеци. {SERIES_HORIZON_MONTHS} месеци е темпото што го
+            бара залихата: половина за {SERIES_HORIZON_MONTHS}, цела за 8–9.
           </p>
         </div>
 
@@ -320,19 +325,20 @@ function ReorderView() {
             </p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Враќа</p>
-            <p className="text-xl font-bold text-green-700 tabular-nums">{fmt(plan.revenue)}</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Очекувано за {judge} мес.</p>
+            <p className="text-xl font-bold text-green-700 tabular-nums">{fmt(plan.expectedRevenue)}</p>
             <p className="text-[11px] text-slate-400">
-              ден. по продажна · бруто {fmt(plan.revenue - plan.cost)}
+              ден. по продажна · бруто {fmt(plan.expectedGross)} · ако сè се продаде {fmt(plan.revenue)}
             </p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Блокирано</p>
-            <p className={`text-xl font-bold tabular-nums ${plan.blockedLines > 0 ? 'text-amber-700' : 'text-slate-300'}`}>
-              {plan.blockedLines}
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Не влезе</p>
+            <p className={`text-xl font-bold tabular-nums ${plan.blockedLines + plan.notWorthSeries > 0 ? 'text-amber-700' : 'text-slate-300'}`}>
+              {plan.blockedLines + plan.notWorthSeries}
             </p>
             <p className="text-[11px] text-slate-400">
-              {plan.blockedLines > 0 ? `${fmt(plan.blockedCost)} ден. над буџет` : 'сè влезе'}
+              {plan.blockedLines > 0 ? `${plan.blockedLines} над буџет (${fmt(plan.blockedCost)} ден.)` : 'буџетот не сече'}
+              {plan.notWorthSeries > 0 && ` · ${plan.notWorthSeries} серијата не се исплатува`}
             </p>
           </div>
         </div>
@@ -384,7 +390,7 @@ function ReorderView() {
               <table className="w-full min-w-[860px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-100">
-                    {['Модел', 'Фаза', 'Големини', 'Парч.', 'Темпо', 'Досега', 'Markup', 'Набавна', 'Продажна'].map((h, i) => (
+                    {['Модел', 'Фаза', 'Серија', 'Парч.', 'Темпо', 'Досега', 'Markup', 'Набавна', 'Продажна'].map((h, i) => (
                       <th key={h} className={`px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider ${i < 3 ? 'text-left' : 'text-right'}`}>
                         {h}
                       </th>
@@ -393,9 +399,24 @@ function ReorderView() {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {plan.lines.map((l, i) => {
-                    const first = !l.withinBudget && plan.lines[i - 1]?.withinBudget;
+                    const prev = plan.lines[i - 1];
+                    const first = !l.withinBudget && l.blockedBy !== 'series' && prev?.withinBudget;
+                    const firstNotWorth = l.blockedBy === 'series' && prev?.blockedBy !== 'series';
                     return (
                       <Fragment key={l.p.id}>
+                        {firstNotWorth && (
+                          <tr>
+                            <td colSpan={9} className="px-3 py-2 bg-slate-100 border-y border-slate-200">
+                              <p className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
+                                <Ban className="h-3.5 w-3.5" />
+                                Докажани модели каде цела серија не се исплатува ({plan.notWorthSeries}): нивните
+                                најдобри големини се продаваат, но од цела серија за {judge} месеци би се продало
+                                помалку од {Math.round(MIN_SERIES_SELL_THROUGH * 100)}%. Остатокот на полица оди по
+                                D-027 (1–2 големини смеат попуст).
+                              </p>
+                            </td>
+                          </tr>
+                        )}
                         {first && (
                           <tr>
                             <td colSpan={9} className="px-3 py-2 bg-amber-50 border-y border-amber-200">
@@ -427,17 +448,27 @@ function ReorderView() {
                             {PHASE_LABEL[phaseOf(l.p.category, month)]}
                           </td>
                           <td className="px-3 py-2.5">
-                            {l.sizes.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {l.sizes.map((s) => (
-                                  <span key={s.size} className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-semibold tabular-nums">
-                                    {s.size}×{s.qty}
+                            {l.series.length > 0 ? (
+                              <div className="flex flex-wrap items-center gap-1">
+                                {l.series.map((size) => (
+                                  <span key={size} className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-semibold tabular-nums">
+                                    {size}
                                   </span>
                                 ))}
+                                <span className="text-[11px] text-slate-500 ml-0.5">
+                                  {l.seriesCount > 0
+                                    ? `× ${l.seriesCount} ${l.seriesCount === 1 ? 'серија' : 'серии'}`
+                                    : `(${seriesLabel(l.series)})`}
+                                </span>
                               </div>
                             ) : (
-                              <span className="text-[11px] text-slate-400">без големина</span>
+                              <span className="text-[11px] text-slate-400">по парче, без големина</span>
                             )}
+                            <p className={`text-[10px] mt-0.5 ${l.blockedBy === 'series' ? 'text-amber-700' : 'text-slate-500'}`}>
+                              очекувано {l.expectedSold.toFixed(1)} од {l.units} за {judge} мес.
+                              {' '}({pct(l.expectedSellThrough)} од серијата)
+                              {l.blockedBy === 'series' && ` — потребно ≥ ${Math.round(MIN_SERIES_SELL_THROUGH * 100)}%`}
+                            </p>
                             {l.capped && (
                               <p className="text-[10px] text-amber-600 mt-0.5">{CAP_LABEL[l.capped]}</p>
                             )}
@@ -497,12 +528,12 @@ function ReorderView() {
           <p className="text-[11px] text-slate-400 flex items-start gap-1.5">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500" />
             <span>
-              Количината <strong>никогаш не надминува првата набавка</strong>, ниту{' '}
-              {MAX_UNITS_PER_MODEL} парчиња. Модел што се испразнил за три недели пресметува темпо
-              што би оправдало десет парчиња — а десет парчиња од еден модел се пари што ѝ фалат на
-              друга група. Големините доаѓаат од <strong>категоријата</strong>, коригирани од
-              моделот: моделот има пет-шест продажби, категоријата има стотици. Измерената крива е
-              L &gt; M &gt; XL &gt; XXL &gt; S, не рамна.
+              Се купува <strong>цела серија</strong>, како што ја продава добавувачот: серијата што моделот
+              ја имал (најчесто S–XXL, кај фармерките 30–38), или вообичаената за категоријата. За секоја
+              големина се проценува дали новото парче ќе се продаде за {judge} месеци: темпото на
+              моделот, делот на таа големина (продажбите на моделот, коригирани од категоријата) и тоа што
+              веќе стои на полица, а тоа се продава прво. Втора серија само ако и таа сама поминува, и
+              најмногу {MAX_SERIES_PER_MODEL}, никогаш повеќе од колку моделот досега имал (D-029).
             </span>
           </p>
         </div>

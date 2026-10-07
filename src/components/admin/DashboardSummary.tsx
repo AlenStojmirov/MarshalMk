@@ -27,7 +27,7 @@ import { getEffectivePrice, isOnSale } from '@/lib/pricing';
 import { Expense, expensesForPeriod, getExpenses, periodLabel } from '@/lib/expenses';
 import { knownOpex, monthCosts } from '@/lib/break-even';
 import { monthOf, phaseForSeason, seasonOf, suggestedMarkdown } from '@/lib/seasons';
-import { planReorder } from '@/lib/reorder';
+import { SERIES_HORIZON_MONTHS, planReorder } from '@/lib/reorder';
 import { STOCK_TARGET_COST, openToBuy } from '@/lib/open-to-buy';
 import {
   AlertTriangle,
@@ -311,21 +311,21 @@ export default function DashboardSummary({
     }
 
     // Restock: the one alert that points at money coming in rather than money
-    // stuck. Weighted on the gross profit the plan would earn, spread over the
-    // cover it buys, so it is comparable with the monthly figures above.
+    // stuck. Weighted on the gross the plan's whole series are expected to earn
+    // within the horizon they are judged over (D-029), per month, so it is
+    // comparable with the monthly figures above.
     const plan = planReorder(merch, {
       now, month: month12, budget: Math.round(otb.budget), groupBudgets: otb.groupBudget,
     });
     const fitting = plan.lines.filter((l) => l.withinBudget);
     if (fitting.length > 0) {
-      const gross = plan.revenue - plan.cost;
       alerts.push({
         key: 'restock',
-        weight: gross / 6,
+        weight: plan.expectedGross / SERIES_HORIZON_MONTHS,
         icon: PackagePlus,
         tone: 'blue',
-        title: `${fitting.length} модели со докажана побарувачка чекаат дополнување`,
-        detail: `${fmt(plan.cost)} ден. набавна → ${fmt(gross)} ден. бруто, во буџетот од ${fmt(otb.budget)} за 30 дена.`,
+        title: `${fitting.length} модели: цела серија се исплатува за дополнување`,
+        detail: `${fmt(plan.cost)} ден. набавна → ${fmt(plan.expectedGross)} ден. бруто очекувано за ${SERIES_HORIZON_MONTHS} месеци, во буџетот од ${fmt(otb.budget)} за 30 дена.`,
         href: '/admin/reorder',
         action: 'Отвори план',
       });
