@@ -15,8 +15,9 @@
  * The budget comes from open-to-buy (D-023): what the next thirty days will
  * sell at cost, less whatever the shelf is above target (or plus a third of what
  * it is below, D-028), split by
- * group. A line has to fit the whole budget and its group's share of it — a
- * proven jacket is still not bought while jackets hold more than their share.
+ * raw category (D-030). A line has to fit the whole budget and its category's
+ * share of it — a proven jacket is still not bought while jackets hold more
+ * than their share.
  * The owner can type another amount; the page says when the number is theirs.
  *
  * The arithmetic and its guardrails are in `src/lib/reorder.ts`.
@@ -27,7 +28,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import { getProductDisplayName } from '@/lib/product-display';
-import { OTB_HORIZON_DAYS, STOCK_TARGET_COST, groupOf, openToBuy } from '@/lib/open-to-buy';
+import { OTB_HORIZON_DAYS, STOCK_TARGET_COST, openToBuy } from '@/lib/open-to-buy';
 import {
   MONTH_LABEL, NON_MERCHANDISE, PHASE_LABEL, monthAhead, monthOf, phaseOf,
 } from '@/lib/seasons';
@@ -70,7 +71,7 @@ function ReorderView() {
   const { products, loading } = useProducts();
   // null follows open-to-buy; a typed amount is the owner's override.
   const [budgetInput, setBudgetInput] = useState<string | null>(null);
-  const [byGroup, setByGroup] = useState(true);
+  const [byCategory, setByCategory] = useState(true);
   // The months a series is judged over (D-029); four by default.
   const [judge, setJudge] = useState(SERIES_HORIZON_MONTHS);
   const [copied, setCopied] = useState(false);
@@ -91,17 +92,17 @@ function ReorderView() {
   const otb = useMemo(() => openToBuy(merch, { now }), [merch, now]);
   const overridden = budgetInput !== null;
   const budget = overridden ? Math.max(0, Number(budgetInput) || 0) : Math.round(otb.budget);
-  // The group shares are shares of the open-to-buy amount; a typed budget is
-  // scaled onto them, so the split still follows where stock is missing.
-  const groupBudgets = useMemo(() => {
-    if (!byGroup) return undefined;
+  // The category shares are shares of the open-to-buy amount (D-030); a typed
+  // budget is scaled onto them, so the split still follows where stock is missing.
+  const categoryBudgets = useMemo(() => {
+    if (!byCategory) return undefined;
     const scale = otb.budget > 0 ? budget / otb.budget : 0;
-    return new Map([...otb.groupBudget].map(([g, v]) => [g, v * scale] as [string, number]));
-  }, [byGroup, otb, budget]);
+    return new Map([...otb.categoryBudget].map(([c, v]) => [c, v * scale] as [string, number]));
+  }, [byCategory, otb, budget]);
 
   const plan = useMemo(
-    () => planReorder(merch, { now, month, budget, groupBudgets, horizonMonths: judge }),
-    [merch, now, month, budget, groupBudgets, judge]
+    () => planReorder(merch, { now, month, budget, categoryBudgets, horizonMonths: judge }),
+    [merch, now, month, budget, categoryBudgets, judge]
   );
 
   if (loading) {
@@ -118,7 +119,7 @@ function ReorderView() {
   // door opening between now and then, not that the control is broken.
   const sameAsToday =
     horizon > 0 &&
-    planReorder(merch, { now, month: today, budget, groupBudgets, horizonMonths: judge }).lines.length ===
+    planReorder(merch, { now, month: today, budget, categoryBudgets, horizonMonths: judge }).lines.length ===
       plan.lines.length;
 
   // The copied text is split one section per brand, because that is how it
@@ -236,11 +237,11 @@ function ReorderView() {
           <label className="flex items-center gap-2 text-xs text-slate-600 self-center">
             <input
               type="checkbox"
-              checked={byGroup}
-              onChange={(e) => { setByGroup(e.target.checked); setCopied(false); }}
+              checked={byCategory}
+              onChange={(e) => { setByCategory(e.target.checked); setCopied(false); }}
               className="h-4 w-4 rounded border-slate-300"
             />
-            Почитувај го делот на групата
+            Почитувај го делот на категоријата
           </label>
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
@@ -319,7 +320,7 @@ function ReorderView() {
               ден. набавна
               {budget - plan.cost >= 1000 && (
                 // What the proven models do not use is the room for new ones —
-                // /admin/capital says in which groups.
+                // /admin/capital says in which categories.
                 <> · остануваат <Link href="/admin/capital" className="underline">{fmt(budget - plan.cost)} за нови модели</Link></>
               )}
             </p>
@@ -424,8 +425,8 @@ function ReorderView() {
                                 <ShieldAlert className="h-3.5 w-3.5" />
                                 Тука завршува буџетот од {fmt(budget)} ден. Подолу е што не влезе —
                                 прикажано намерно, зашто тивко скратен план го крие јазот.
-                                {plan.blockedByGroup > 0 && (
-                                  <> {plan.blockedByGroup} од нив се во група што веќе го има својот дел од залихата.</>
+                                {plan.blockedByCategory > 0 && (
+                                  <> {plan.blockedByCategory} од нив се во категорија што веќе го има својот дел од залихата.</>
                                 )}
                               </p>
                             </td>
@@ -472,9 +473,9 @@ function ReorderView() {
                             {l.capped && (
                               <p className="text-[10px] text-amber-600 mt-0.5">{CAP_LABEL[l.capped]}</p>
                             )}
-                            {l.blockedBy === 'group' && (
+                            {l.blockedBy === 'category' && (
                               <p className="text-[10px] text-amber-700 mt-0.5">
-                                {groupOf(l.p.category)}: групата е над својот дел од целта
+                                {l.p.category}: категоријата е над својот дел од целта
                               </p>
                             )}
                             {l.urgent && (

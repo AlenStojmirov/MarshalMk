@@ -34,7 +34,6 @@
 
 import { Product } from '@/types';
 import { markup } from './cost';
-import { groupOf } from './open-to-buy';
 import { Month, monthOf, phaseOf, shouldBuyNow } from './seasons';
 import {
   MAX_SERIES_PER_MODEL, MIN_SERIES_SELL_THROUGH, SERIES_HORIZON_MONTHS, forecastSeries, seriesContext,
@@ -97,10 +96,10 @@ export interface ReorderLine {
   /** False once the running total has passed the budget, or the series does not pay. */
   withinBudget: boolean;
   /**
-   * Why a line is out: the whole budget is spent, its group has used its share
-   * of it (open-to-buy, D-023), or a whole series would not sell (D-029).
+   * Why a line is out: the whole budget is spent, its category has used its
+   * share of it (open-to-buy, D-023, D-030), or a whole series would not sell (D-029).
    */
-  blockedBy: 'total' | 'group' | 'series' | null;
+  blockedBy: 'total' | 'category' | 'series' | null;
 }
 
 export interface ReorderOptions {
@@ -109,10 +108,10 @@ export interface ReorderOptions {
   /** Hard ceiling on the plan's cost. Lines past it are excluded, not hidden. */
   budget?: number;
   /**
-   * Budget per group (`groupOf`), from open-to-buy. When given, a line also
-   * has to fit what is left of its group's share.
+   * Budget per raw category, from open-to-buy (D-030). When given, a line also
+   * has to fit what is left of its category's share.
    */
-  groupBudgets?: Map<string, number>;
+  categoryBudgets?: Map<string, number>;
   /** Months a series is judged over; SERIES_HORIZON_MONTHS by default. */
   horizonMonths?: number;
 }
@@ -129,8 +128,8 @@ export interface ReorderPlan {
   /** Cost of the lines the budget cut off. */
   blockedCost: number;
   blockedLines: number;
-  /** Of those, the lines cut because their group is at its share. */
-  blockedByGroup: number;
+  /** Of those, the lines cut because their category is at its share. */
+  blockedByCategory: number;
   /** Proven models whose whole series would not sell within the horizon. */
   notWorthSeries: number;
 }
@@ -219,24 +218,24 @@ export function planReorder(products: Product[], opts: ReorderOptions = {}): Reo
   // that silently omitted what it could not afford would hide the size of the
   // gap between what the shop needs and what it can pay for.
   const budget = opts.budget;
-  const groupBudgets = opts.groupBudgets;
+  const categoryBudgets = opts.categoryBudgets;
   let running = 0;
   const spent = new Map<string, number>();
   for (const l of lines) {
     if (l.blockedBy === 'series') continue;
-    const g = groupOf(l.p.category);
+    const c = l.p.category;
     if (budget !== undefined && running + l.cost > budget) {
       l.withinBudget = false;
       l.blockedBy = 'total';
       continue;
     }
-    if (groupBudgets && (spent.get(g) ?? 0) + l.cost > (groupBudgets.get(g) ?? 0)) {
+    if (categoryBudgets && (spent.get(c) ?? 0) + l.cost > (categoryBudgets.get(c) ?? 0)) {
       l.withinBudget = false;
-      l.blockedBy = 'group';
+      l.blockedBy = 'category';
       continue;
     }
     running += l.cost;
-    spent.set(g, (spent.get(g) ?? 0) + l.cost);
+    spent.set(c, (spent.get(c) ?? 0) + l.cost);
   }
 
   // What fits first, in rank order; then what the money cut off, so the line
@@ -246,7 +245,7 @@ export function planReorder(products: Product[], opts: ReorderOptions = {}): Reo
   lines.sort((a, b) => rank(a) - rank(b) || (rank(a) === 2 ? b.expectedSellThrough - a.expectedSellThrough : 0));
 
   const inb = lines.filter((l) => l.withinBudget);
-  const cut = lines.filter((l) => l.blockedBy === 'total' || l.blockedBy === 'group');
+  const cut = lines.filter((l) => l.blockedBy === 'total' || l.blockedBy === 'category');
 
   return {
     lines,
@@ -257,7 +256,7 @@ export function planReorder(products: Product[], opts: ReorderOptions = {}): Reo
     expectedGross: inb.reduce((a, l) => a + l.expectedGross, 0),
     blockedCost: cut.reduce((a, l) => a + l.cost, 0),
     blockedLines: cut.length,
-    blockedByGroup: cut.filter((l) => l.blockedBy === 'group').length,
+    blockedByCategory: cut.filter((l) => l.blockedBy === 'category').length,
     notWorthSeries: lines.filter((l) => l.blockedBy === 'series').length,
   };
 }

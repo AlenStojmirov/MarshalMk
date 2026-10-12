@@ -315,7 +315,7 @@ export default function DashboardSummary({
     // within the horizon they are judged over (D-029), per month, so it is
     // comparable with the monthly figures above.
     const plan = planReorder(merch, {
-      now, month: month12, budget: Math.round(otb.budget), groupBudgets: otb.groupBudget,
+      now, month: month12, budget: Math.round(otb.budget), categoryBudgets: otb.categoryBudget,
     });
     const fitting = plan.lines.filter((l) => l.withinBudget);
     if (fitting.length > 0) {

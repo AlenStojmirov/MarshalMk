@@ -10,30 +10,49 @@
  *  2. **How much.** The shop keeps STOCK_TARGET_COST of stock at cost. What the
  *     next thirty days sell is replaced, less whatever the shelf is above target,
  *     or plus a third of what it is below.
- *  3. **Where.** Each group's share of the target follows what it sells in the
- *     coming half year; the money goes to the groups below their share.
+ *  3. **Where.** Each category's share of the target follows what it sells in
+ *     the coming half year; the money goes to the categories below their share.
+ *     By raw category, not by group (D-030): inside a group, summer shorts
+ *     would stand in for winter jeans. The groups are headings over them, and a
+ *     share resting on fewer than MIN_SHARE_SALES sales is marked an estimate.
  *
  * The arithmetic is in `src/lib/open-to-buy.ts`, shared with the reorder plan
  * and the dashboard, so the three screens cannot disagree about the number.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
+import { useTranslation } from '@/lib/i18n';
 import { Expense, expensesForPeriod, getExpenses, periodOf } from '@/lib/expenses';
 import { knownOpex } from '@/lib/break-even';
 import {
-  FILL_FROM, OTB_HORIZON_DAYS, SHARE_WINDOW_DAYS, STOCK_TARGET_COST, STOP_CHECK_DAYS, STOP_MIN_MODELS,
-  STOP_SELL_THROUGH, TARGET_FILL_MONTHS, openToBuy,
+  CategoryCapital, FILL_FROM, MIN_SHARE_SALES, OTB_HORIZON_DAYS, SHARE_WINDOW_DAYS, STOCK_TARGET_COST,
+  STOP_CHECK_DAYS, STOP_MIN_MODELS, STOP_SELL_THROUGH, StockLine, TARGET_FILL_MONTHS, openToBuy,
 } from '@/lib/open-to-buy';
+import { phaseOf, shouldBuyNow } from '@/lib/seasons';
 import { ArrowLeft, Coins, PackagePlus, Scale, Target } from 'lucide-react';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
 const signed = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n));
 
+/** A share resting on few sales keeps its own figure, and says what it rests on (D-030). */
+function EstimateTag({ c }: { c: CategoryCapital }) {
+  if (!c.estimate) return null;
+  return (
+    <span
+      className="ml-1.5 inline-block px-1.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold whitespace-nowrap"
+      title={`Делот е од ${c.shareSales} продажби. Под ${MIN_SHARE_SALES} тоа е проценка, не мерење.`}
+    >
+      проценка · {c.shareSales} прод.
+    </span>
+  );
+}
+
 function CapitalView() {
   const { products, loading } = useProducts();
+  const { t } = useTranslation();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [now] = useState(() => Date.now());
 
@@ -60,8 +79,38 @@ function CapitalView() {
   const monthsAtZero = Number.isFinite(otb.breakEvenCogs) && otb.breakEvenCogs > 0
     ? otb.target / otb.breakEvenCogs
     : null;
-  const buying = otb.groups.filter((g) => g.buy > 0);
-  const maxBuy = Math.max(1, ...buying.map((g) => g.buy));
+  const buying = otb.categories.filter((c) => c.buy > 0);
+  const maxBuy = Math.max(1, ...buying.map((c) => c.buy));
+  const label = (category: string) => {
+    const l = t(`categoryNames.${category}`);
+    return l === `categoryNames.${category}` ? category : l;
+  };
+  // The money is a ceiling; the reorder plan buys nothing whose window is shut.
+  const outOfSeason = (c: CategoryCapital) => !shouldBuyNow(phaseOf(c.name));
+
+  const cells = (l: StockLine) => (
+    <>
+      <td className="px-3 py-2 text-right tabular-nums text-slate-700">{fmt(l.cost)}</td>
+      <td className="px-3 py-2 text-right tabular-nums text-slate-500">{fmt(l.target)}</td>
+      <td className={`px-3 py-2 text-right tabular-nums font-medium ${l.overTarget > 0 ? 'text-amber-700' : 'text-green-700'}`}>
+        {signed(l.overTarget)}
+      </td>
+      <td className="px-3 py-2 text-right tabular-nums text-slate-500">{fmt(l.expectedCogs)}</td>
+      <td className="px-3 py-2 text-right tabular-nums font-semibold text-slate-800">
+        {l.buy > 0 ? fmt(l.buy) : '—'}
+      </td>
+      <td className={`px-3 py-2 text-right tabular-nums ${
+        l.gmroi >= 1.3 ? 'text-green-700' : l.gmroi >= 0.9 ? 'text-amber-700' : 'text-red-700'
+      }`}>
+        {l.gmroi.toFixed(2)}
+      </td>
+      <td className={`px-3 py-2 text-right tabular-nums ${
+        l.monthsOfSupply > 18 ? 'text-red-700' : l.monthsOfSupply > 12 ? 'text-amber-700' : 'text-slate-600'
+      }`}>
+        {Number.isFinite(l.monthsOfSupply) ? l.monthsOfSupply.toFixed(1) : '∞'}
+      </td>
+    </>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -211,77 +260,81 @@ function CapitalView() {
           )}
         </section>
 
-        {/* 3 · where */}
+        {/* 3 · where, by raw category (D-030) */}
         <section className="bg-white rounded-xl border border-slate-200 p-4 mb-5 shadow-sm">
           <div className="flex items-center gap-2 mb-3">
             <Coins className="h-4 w-4 text-slate-500" />
-            <h2 className="font-bold text-slate-800 text-sm">Каде: групите под својот дел од целта</h2>
+            <h2 className="font-bold text-slate-800 text-sm">Каде: категориите под својот дел од целта</h2>
           </div>
           {buying.length === 0 ? (
             <p className="text-sm text-slate-500">Нема буџет за поделба овој месец.</p>
           ) : (
-            <div className="space-y-1.5">
-              {buying.map((g) => (
-                <div key={g.name} className="flex items-center gap-3">
-                  <span className="w-36 shrink-0 text-sm text-slate-700 truncate">{g.name}</span>
-                  <div className="flex-1 h-6 bg-slate-100 rounded overflow-hidden">
-                    <div className="h-full bg-green-500" style={{ width: `${(g.buy / maxBuy) * 100}%` }} />
+            <div className="space-y-2">
+              {buying.map((c) => (
+                <div key={c.name} className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-32 sm:w-48 shrink-0 min-w-0">
+                    <p className="text-sm text-slate-700 truncate">
+                      {label(c.name)} <span className="text-[10px] text-slate-400 font-mono">{c.name}</span>
+                    </p>
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      {c.group}
+                      <EstimateTag c={c} />
+                      {outOfSeason(c) && <span className="block text-amber-700">вон сезона: планот не купува сега</span>}
+                    </p>
                   </div>
-                  <span className="w-24 shrink-0 text-right text-sm font-semibold text-slate-800 tabular-nums">
-                    {fmt(g.buy)}
+                  <div className="flex-1 h-6 bg-slate-100 rounded overflow-hidden">
+                    <div className="h-full bg-green-500" style={{ width: `${(c.buy / maxBuy) * 100}%` }} />
+                  </div>
+                  <span className="w-16 sm:w-24 shrink-0 text-right text-sm font-semibold text-slate-800 tabular-nums">
+                    {fmt(c.buy)}
                   </span>
                 </div>
               ))}
             </div>
           )}
           <p className="text-[11px] text-slate-400 mt-3">
-            Делот на секоја група од {fmt(otb.target)} е колку продала (по набавна) во наредните{' '}
-            {Math.round(SHARE_WINDOW_DAYS / 30)} месеци лани — така зимската стока добива место пред зимата.
-            Буџетот оди на групите под својот дел, сразмерно колку им фали.
+            Делот на секоја категорија од {fmt(otb.target)} е колку продала (по набавна) во наредните{' '}
+            {Math.round(SHARE_WINDOW_DAYS / 30)} месеци лани, така зимската стока добива место пред зимата.
+            Буџетот оди на категориите под својот дел, сразмерно колку им фали. Се смета по категорија, не по
+            група: шорцевите на полица не ги заменуваат фармерките во декември. Категорија со под{' '}
+            {MIN_SHARE_SALES} продажби во тој прозорец ја има својата бројка, но таа е <strong>проценка</strong>.
           </p>
         </section>
 
-        {/* detail */}
+        {/* detail: categories under their group headings */}
         <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-200 bg-slate-50/60 flex items-center gap-2">
             <PackagePlus className="h-4 w-4 text-slate-500" />
-            <h2 className="font-bold text-slate-800 text-sm">По група</h2>
+            <h2 className="font-bold text-slate-800 text-sm">По категорија, под својата група</h2>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-sm">
+            <table className="w-full min-w-[860px] text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  {['Група', 'Залиха', 'Дел од целта', 'Над / под', `${OTB_HORIZON_DAYS} дена лани`, 'Купи', 'GMROI', 'Месеци залиха'].map((h, i) => (
+                  {['Категорија', 'Залиха', 'Дел од целта', 'Над / под', `${OTB_HORIZON_DAYS} дена лани`, 'Купи', 'GMROI', 'Месеци залиха'].map((h, i) => (
                     <th key={h} className={`px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'}`}>
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody>
                 {otb.groups.map((g) => (
-                  <tr key={g.name} className="hover:bg-slate-50/60">
-                    <td className="px-3 py-2.5 font-medium text-slate-800">{g.name}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-700">{fmt(g.cost)}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-500">{fmt(g.target)}</td>
-                    <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${g.overTarget > 0 ? 'text-amber-700' : 'text-green-700'}`}>
-                      {signed(g.overTarget)}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-500">{fmt(g.expectedCogs)}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-slate-800">
-                      {g.buy > 0 ? fmt(g.buy) : '—'}
-                    </td>
-                    <td className={`px-3 py-2.5 text-right tabular-nums ${
-                      g.gmroi >= 1.3 ? 'text-green-700' : g.gmroi >= 0.9 ? 'text-amber-700' : 'text-red-700'
-                    }`}>
-                      {g.gmroi.toFixed(2)}
-                    </td>
-                    <td className={`px-3 py-2.5 text-right tabular-nums ${
-                      g.monthsOfSupply > 18 ? 'text-red-700' : g.monthsOfSupply > 12 ? 'text-amber-700' : 'text-slate-600'
-                    }`}>
-                      {Number.isFinite(g.monthsOfSupply) ? g.monthsOfSupply.toFixed(1) : '∞'}
-                    </td>
-                  </tr>
+                  <Fragment key={g.name}>
+                    <tr className="bg-slate-50 border-t border-slate-200 font-semibold">
+                      <td className="px-3 py-2 text-slate-800">{g.name}</td>
+                      {cells(g)}
+                    </tr>
+                    {g.categories.map((c) => (
+                      <tr key={c.name} className="border-t border-slate-50 hover:bg-slate-50/60">
+                        <td className="pl-7 pr-3 py-2 text-slate-700">
+                          {label(c.name)} <span className="text-[10px] text-slate-400 font-mono">{c.name}</span>
+                          <EstimateTag c={c} />
+                        </td>
+                        {cells(c)}
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -290,7 +343,7 @@ function CapitalView() {
 
         <div className="mt-4 text-[11px] text-slate-400 space-y-1">
           <p>
-            <strong>Над целта</strong> значи дека парите за таа група веќе стојат на полица: таа не добива
+            <strong>Над целта</strong> значи дека парите за таа категорија веќе стојат на полица: таа не добива
             набавка додека продажбите не ја спуштат — а ако не се продава, место за неа се прави со попуст
             (<Link href="/admin/season" className="underline">сезона</Link>,{' '}
             <Link href="/admin/aging" className="underline">стареење</Link>).

@@ -1,5 +1,5 @@
 /**
- * Open-to-buy: how much may be spent on stock, and in which groups (D-023, D-028).
+ * Open-to-buy: how much may be spent on stock, and in which categories (D-023, D-028, D-030).
  *
  * The owner set the terms on 2026-09-28:
  *
@@ -22,15 +22,26 @@
  * same thirty days a year ago — sales here move with the season, and a yearly
  * average would buy jackets in June.
  *
- * The target is split between the groups in proportion to what each sold, at
- * cost, in the coming six months a year ago. Six, not twelve: a yearly share
+ * The target is split between the categories in proportion to what each sold,
+ * at cost, in the coming six months a year ago. Six, not twelve: a yearly share
  * would hold 78.000 den. of T-shirts through the winter and give knitwear a
  * third of what it sells from October to March. Six is also not three: the
  * target stock is about nine months of cost of goods, and a three-month window
- * would empty the shelf of whatever sells in spring before spring came. A group
- * above its share gets nothing, however well it sold, because the money it
- * would take is already on its shelf; the budget goes to the groups below their
- * share, in proportion to how far below.
+ * would empty the shelf of whatever sells in spring before spring came. A
+ * category above its share gets nothing, however well it sold, because the
+ * money it would take is already on its shelf; the budget goes to the
+ * categories below their share, in proportion to how far below.
+ *
+ * **By raw category, not by group (D-030).** The split was first made over the
+ * nine reporting groups, and inside a group one category's excess paid for
+ * another's shortfall: 43.716 den. of summer shorts counted as the jeans the
+ * winter would ask for, suits as blazers, turtlenecks as half-zips. The shelf
+ * does not trade like that — a man who came for jeans in December does not
+ * leave with shorts — and the categories have not been merged (Task 2.4), so a
+ * buyer buys by category. The groups stay as headings over the categories.
+ * A category whose share rests on fewer than MIN_SHARE_SALES sales is an
+ * estimate and says so; it keeps its own figure rather than being pooled into
+ * its group, which would hide it again (the owner's call, 2026-10-12).
  *
  * This replaced a gate that allowed 2,5 months of cost of goods and demanded a
  * turnover of 2× before any purchase — a ceiling of about 125.000 den., which a
@@ -138,12 +149,21 @@ export const OPEX_FALLBACK = 65_000;
 /** How far ahead one budget reaches. A month: orders arrive in 7–10 days. */
 export const OTB_HORIZON_DAYS = 30;
 
-/** The window, a year back, that sets each group's share of the target. */
+/** The window, a year back, that sets each category's share of the target. */
 export const SHARE_WINDOW_DAYS = 182;
 
 /**
- * Raw categories folded into the groups a buyer thinks in. Shared with the
- * capital screen and the reorder plan, so a jacket is in the same group on both.
+ * Below this many priced sales in the window that sets its share, a category's
+ * share is a judgement, not a measurement — the same bar as `CONFIDENCE_MIN`
+ * for the seasons. Measured 2026-10-09: jeans 96, shirts 93, blouses 69; vests
+ * 7, blazers 6, cardigans 6, dzemper 3.
+ */
+export const MIN_SHARE_SALES = 20;
+
+/**
+ * Raw categories under the nine headings of the proposed merge (Task 2.4).
+ * Headings only since D-030: the money is split by raw category, and a group's
+ * figures are the sums of its categories.
  */
 export const CATEGORY_GROUPS: Record<string, string> = {
   tShirts: 'Маици & Поло', oversizeTshirts: 'Маици & Поло', polos: 'Маици & Поло',
@@ -158,7 +178,8 @@ export const CATEGORY_GROUPS: Record<string, string> = {
 };
 export const groupOf = (category: string): string => CATEGORY_GROUPS[category] ?? category ?? '—';
 
-export interface GroupCapital {
+/** The figures a category has, and a group sums. */
+export interface StockLine {
   name: string;
   /** Models with stock. */
   models: number;
@@ -171,13 +192,15 @@ export interface GroupCapital {
   cogsAhead: number;
   revenue12: number;
   gross12: number;
+  /** Priced pieces sold in the last twelve months. */
+  sold12: number;
   /** Gross profit per denar of stock. */
   gmroi: number;
   /** Sold ÷ (sold + on hand) over the year — a proxy, receipts were never recorded. */
   sellThrough: number;
   /** Stock ÷ monthly cost of goods. */
   monthsOfSupply: number;
-  /** This group's share of the target. */
+  /** This line's share of the target. */
   target: number;
   /** cost − target: above its share when positive. */
   overTarget: number;
@@ -187,6 +210,20 @@ export interface GroupCapital {
   need: number;
   /** Its part of the budget. */
   buy: number;
+}
+
+/** A raw category — the level the money is split at (D-030). `name` is the raw key. */
+export interface CategoryCapital extends StockLine {
+  group: string;
+  /** Priced pieces behind its share: sold in the share window, or in the year when there is no window yet. */
+  shareSales: number;
+  /** Fewer than MIN_SHARE_SALES behind the share: a judgement, shown as one. */
+  estimate: boolean;
+}
+
+/** A heading over its categories; every figure is their sum. */
+export interface GroupCapital extends StockLine {
+  categories: CategoryCapital[];
 }
 
 export interface OpenToBuy {
@@ -229,9 +266,12 @@ export interface OpenToBuy {
   expectedCogs: number;
   /** What may be spent in the next thirty days. Zero when that is the answer. */
   budget: number;
+  /** Where the money goes, most first. */
+  categories: CategoryCapital[];
+  /** The same categories under their group headings. */
   groups: GroupCapital[];
-  /** Budget per group, for the reorder plan. */
-  groupBudget: Map<string, number>;
+  /** Budget per raw category, for the reorder plan. */
+  categoryBudget: Map<string, number>;
 }
 
 export interface OpenToBuyOptions {
@@ -241,6 +281,26 @@ export interface OpenToBuyOptions {
   target?: number;
 }
 
+
+const emptyLine = (name: string): StockLine => ({
+  name, models: 0, units: 0, cost: 0, cogs12: 0, cogsAhead: 0, revenue12: 0, gross12: 0, sold12: 0,
+  gmroi: 0, sellThrough: 0, monthsOfSupply: 0, target: 0, overTarget: 0,
+  expectedCogs: 0, need: 0, buy: 0,
+});
+
+/** What a group adds up from its categories; the ratios are worked out again from the sums. */
+const SUMMED = [
+  'models', 'units', 'cost', 'cogs12', 'cogsAhead', 'revenue12', 'gross12', 'sold12',
+  'target', 'expectedCogs', 'need', 'buy',
+] as const;
+
+function derive(l: StockLine) {
+  l.gmroi = l.cost > 0 ? l.gross12 / l.cost : 0;
+  l.sellThrough = l.sold12 + l.units > 0 ? l.sold12 / (l.sold12 + l.units) : 0;
+  l.monthsOfSupply = l.cogs12 > 0 ? l.cost / (l.cogs12 / 12) : Infinity;
+}
+
+const mostFirst = (a: StockLine, b: StockLine) => b.buy - a.buy || a.overTarget - b.overTarget;
 
 export function openToBuy(products: Product[], opts: OpenToBuyOptions = {}): OpenToBuy {
   const now = opts.now ?? Date.now();
@@ -252,32 +312,27 @@ export function openToBuy(products: Product[], opts: OpenToBuyOptions = {}): Ope
   const aheadFrom = now - 365 * DAY;
   const aheadTo = aheadFrom + OTB_HORIZON_DAYS * DAY;
 
-  const byGroup = new Map<string, GroupCapital>();
-  const groupFor = (name: string) => {
-    let g = byGroup.get(name);
-    if (!g) {
-      g = {
-        name, models: 0, units: 0, cost: 0, cogs12: 0, cogsAhead: 0, revenue12: 0, gross12: 0,
-        gmroi: 0, sellThrough: 0, monthsOfSupply: 0, target: 0, overTarget: 0,
-        expectedCogs: 0, need: 0, buy: 0,
-      };
-      byGroup.set(name, g);
+  const byCategory = new Map<string, CategoryCapital>();
+  const aheadSales = new Map<string, number>();
+  const categoryFor = (name: string) => {
+    let c = byCategory.get(name);
+    if (!c) {
+      c = { ...emptyLine(name), group: groupOf(name), shareSales: 0, estimate: false };
+      byCategory.set(name, c);
     }
-    return g;
+    return c;
   };
-
-  const soldUnits12 = new Map<string, number>();
 
   for (const p of products) {
     if (NON_MERCHANDISE.has(p.category)) continue;
-    const g = groupFor(groupOf(p.category));
+    const c = categoryFor(p.category);
     const cost = p.purchasePrice;
 
     const units = unitsOf(p);
     if (units > 0) {
-      g.models += 1;
-      g.units += units;
-      if (cost !== undefined) g.cost += units * cost;
+      c.models += 1;
+      c.units += units;
+      if (cost !== undefined) c.cost += units * cost;
     }
 
     for (const s of p.sold ?? []) {
@@ -286,31 +341,34 @@ export function openToBuy(products: Product[], opts: OpenToBuyOptions = {}): Ope
       const t = Date.parse(String(s.soldDate));
       if (!Number.isFinite(t)) continue;
       if (t >= now - 365 * DAY) {
-        g.revenue12 += price;
-        soldUnits12.set(g.name, (soldUnits12.get(g.name) ?? 0) + 1);
+        c.revenue12 += price;
+        c.sold12 += 1;
         if (cost !== undefined) {
-          g.cogs12 += cost;
-          g.gross12 += price - cost;
+          c.cogs12 += cost;
+          c.gross12 += price - cost;
         }
       }
+      if (t >= aheadFrom && t < aheadFrom + SHARE_WINDOW_DAYS * DAY) {
+        aheadSales.set(c.name, (aheadSales.get(c.name) ?? 0) + 1);
+      }
       if (cost !== undefined && t >= aheadFrom) {
-        if (t < aheadTo) g.expectedCogs += cost;
-        if (t < aheadFrom + SHARE_WINDOW_DAYS * DAY) g.cogsAhead += cost;
+        if (t < aheadTo) c.expectedCogs += cost;
+        if (t < aheadFrom + SHARE_WINDOW_DAYS * DAY) c.cogsAhead += cost;
       }
     }
   }
 
-  const groups = [...byGroup.values()].filter((g) => g.units > 0 || g.cogs12 > 0);
-  const stockCost = groups.reduce((a, g) => a + g.cost, 0);
-  const cogs12 = groups.reduce((a, g) => a + g.cogs12, 0);
-  const revenue12 = groups.reduce((a, g) => a + g.revenue12, 0);
+  const categories = [...byCategory.values()].filter((c) => c.units > 0 || c.cogs12 > 0);
+  const stockCost = categories.reduce((a, c) => a + c.cost, 0);
+  const cogs12 = categories.reduce((a, c) => a + c.cogs12, 0);
+  const revenue12 = categories.reduce((a, c) => a + c.revenue12, 0);
   const gross12 = revenue12 - cogs12;
-  const expectedCogs = groups.reduce((a, g) => a + g.expectedCogs, 0);
+  const expectedCogs = categories.reduce((a, c) => a + c.expectedCogs, 0);
   // Without a year of history the coming months cannot be read; fall back to
   // the yearly shares rather than to no shares at all.
-  const aheadTotal = groups.reduce((a, g) => a + g.cogsAhead, 0);
-  const shareOf = (g: GroupCapital) =>
-    aheadTotal > 0 ? g.cogsAhead / aheadTotal : cogs12 > 0 ? g.cogs12 / cogs12 : 0;
+  const aheadTotal = categories.reduce((a, c) => a + c.cogsAhead, 0);
+  const shareOf = (c: CategoryCapital) =>
+    aheadTotal > 0 ? c.cogsAhead / aheadTotal : cogs12 > 0 ? c.cogs12 / cogs12 : 0;
 
   const markupMultiple = cogs12 > 0 ? revenue12 / cogs12 : 0;
   const grossMargin = revenue12 > 0 ? gross12 / revenue12 : 0;
@@ -322,26 +380,43 @@ export function openToBuy(products: Product[], opts: OpenToBuyOptions = {}): Ope
   const newStock = newStockCheck(products, now);
   let budget = Math.max(0, expectedCogs - overThisMonth(overTarget, newStock.held));
 
-  for (const g of groups) {
-    const units12 = soldUnits12.get(g.name) ?? 0;
-    g.gmroi = g.cost > 0 ? g.gross12 / g.cost : 0;
-    g.sellThrough = units12 + g.units > 0 ? units12 / (units12 + g.units) : 0;
-    g.monthsOfSupply = g.cogs12 > 0 ? g.cost / (g.cogs12 / 12) : Infinity;
-    g.target = target * shareOf(g);
-    g.overTarget = g.cost - g.target;
-    g.need = Math.max(0, g.expectedCogs - overThisMonth(g.overTarget, newStock.held));
+  for (const c of categories) {
+    derive(c);
+    c.target = target * shareOf(c);
+    c.overTarget = c.cost - c.target;
+    c.need = Math.max(0, c.expectedCogs - overThisMonth(c.overTarget, newStock.held));
+    c.shareSales = aheadTotal > 0 ? aheadSales.get(c.name) ?? 0 : c.sold12;
+    c.estimate = c.shareSales < MIN_SHARE_SALES;
   }
 
-  // The budget follows the need, and never exceeds it. Groups above target
+  // The budget follows the need, and never exceeds it. Categories above target
   // subtract their whole excess from their own need, but only a third of it
   // from the shop's shortfall — without the cap the difference would be money
-  // no group is short of.
-  const totalNeed = groups.reduce((a, g) => a + g.need, 0);
+  // no category is short of. Measured by group, the cap bit first: one
+  // category's excess cancelled its neighbour's need (D-030).
+  const totalNeed = categories.reduce((a, c) => a + c.need, 0);
   budget = Math.min(budget, totalNeed);
   const fillThisMonth = Math.max(0, budget - expectedCogs);
-  for (const g of groups) g.buy = totalNeed > 0 ? (budget * g.need) / totalNeed : 0;
+  for (const c of categories) c.buy = totalNeed > 0 ? (budget * c.need) / totalNeed : 0;
 
-  groups.sort((a, b) => b.buy - a.buy || a.overTarget - b.overTarget);
+  categories.sort(mostFirst);
+
+  const byGroup = new Map<string, GroupCapital>();
+  for (const c of categories) {
+    let g = byGroup.get(c.group);
+    if (!g) {
+      g = { ...emptyLine(c.group), categories: [] };
+      byGroup.set(c.group, g);
+    }
+    g.categories.push(c);
+    for (const k of SUMMED) g[k] += c[k];
+  }
+  const groups = [...byGroup.values()];
+  for (const g of groups) {
+    derive(g);
+    g.overTarget = g.cost - g.target;
+  }
+  groups.sort(mostFirst);
 
   return {
     stockCost, target, overTarget, fillThisMonth, newStock,
@@ -356,7 +431,8 @@ export function openToBuy(products: Product[], opts: OpenToBuyOptions = {}): Ope
     monthsOfSupply: cogs12 > 0 ? stockCost / (cogs12 / 12) : Infinity,
     expectedCogs,
     budget,
+    categories,
     groups,
-    groupBudget: new Map(groups.map((g) => [g.name, g.buy])),
+    categoryBudget: new Map(categories.map((c) => [c.name, c.buy])),
   };
 }
