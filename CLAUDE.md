@@ -42,6 +42,7 @@ Data scripts (`tsx`, service-role key, see `scripts/SCRIPTS.md`): `baseline`, `l
 | `product_attributes` | EPIC 9, one row per product: `composition` (fibres adding up to 100 — the DB checks), `color`, `fit`, `size_advice`, `details`, `measurements` (cm per size). Back office read/write, no public read yet; kept out of `products` until Task 9.10 (010) |
 | `operating_expenses`, `inventory_snapshots`, `marketing_optout`, `suppliers`, `purchases`, `purchase_lines` | admin only |
 | `loyalty_settings` | EPIC 13, one row of jsonb: every number of the loyalty programme, read over `LOYALTY_DEFAULTS` key by key. Admin only; the server reads it with the service role (014) |
+| `points_ledger`, `points_allocations` | EPIC 13, points as movements: lots (own dates, `remaining`) and debits that take from the lots expiring first; expiry is read, not written. Customer reads own rows, admin all; **every write goes through a `points_*` function** (admin or service role), never the table (015, `src/lib/points.ts`) |
 
 **A column added to `products` must also be added to `products_costed`, and to `products_public` if customers may see it** — views fix their columns when created.
 

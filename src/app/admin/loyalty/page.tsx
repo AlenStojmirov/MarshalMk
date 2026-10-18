@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * The loyalty programme (EPIC 13). Task 13.1: its settings.
+ * The loyalty programme (EPIC 13). Task 13.1: its settings; 13.3: a customer's points.
  *
  * Every number of the programme in one form, each with its default beside it,
  * and a worked example that moves as the numbers do, so a change is seen in
  * denars before it is saved. Admin only: the route is not in any other role's
  * ROLE_PATHS, and migration 014 lets only the admin read or write the row.
  *
- * Coupons (13.4), points corrections (13.3) and the reports (13.12) join this
+ * Coupons (13.4) and the reports (13.12) join this
  * screen in their own tasks.
  */
 
@@ -21,6 +21,7 @@ import {
   LOYALTY_DEFAULTS, LOYALTY_FIELDS, LoyaltySettings, LoyaltySettingsRead, NumericSetting,
   crossFieldErrors, discountBand, earnRatePctFor, fetchLoyaltySettings, fieldError, redeemCapPctFor, saveLoyaltySettings,
 } from '@/lib/loyalty-settings';
+import LoyaltyPointsTab from '@/components/admin/LoyaltyPointsTab';
 import { AlertTriangle, ArrowLeft, Check, Gift, RotateCcw } from 'lucide-react';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
@@ -78,6 +79,7 @@ function LoyaltyView() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [tab, setTab] = useState<'settings' | 'points'>('settings');
   const [savedAt, setSavedAt] = useState<Date | null>(null);
 
   const apply = (r: LoyaltySettingsRead) => {
@@ -159,11 +161,24 @@ function LoyaltyView() {
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 flex items-center gap-2">
           <Gift className="h-7 w-7 text-indigo-600" /> Програма за лојалност
         </h1>
-        <p className="text-sm text-slate-500 mt-1 mb-6">
-          Поени, купони и тркало на среќа, само за нарачки на сајтот со најава (D-032). Сите бројки се менуваат тука.
-          Купоните, корекциите на поени и извештаите доаѓаат во следните задачи.
+        <p className="text-sm text-slate-500 mt-1 mb-4">
+          Поени, купони и тркало на среќа, само за нарачки на сајтот со најава (D-032).
+          Купоните и извештаите доаѓаат во следните задачи.
         </p>
 
+        <div className="flex gap-1 mb-6 border-b border-slate-200">
+          {([['settings', 'Поставки'], ['points', 'Поени на купувач']] as const).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              className={`px-3 py-2 text-sm font-medium -mb-px border-b-2 ${tab === k ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'points' ? <LoyaltyPointsTab settings={read.settings} /> : (<>
         {read.missingTable && (
           <Banner tone="amber">
             Миграцијата <strong>014</strong> уште не е пуштена. Важат стандардните бројки подолу, а зачувување не е можно.
@@ -246,6 +261,7 @@ function LoyaltyView() {
           </span>
           {saveError && <p className="basis-full text-sm text-red-600">{saveError}</p>}
         </div>
+        </>)}
       </div>
     </div>
   );
