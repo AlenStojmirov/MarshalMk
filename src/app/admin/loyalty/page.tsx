@@ -23,6 +23,7 @@ import {
 } from '@/lib/loyalty-settings';
 import LoyaltyCouponsTab from '@/components/admin/LoyaltyCouponsTab';
 import LoyaltyPointsTab from '@/components/admin/LoyaltyPointsTab';
+import LoyaltyOrderSync from '@/components/admin/LoyaltyOrderSync';
 import { AlertTriangle, ArrowLeft, Check, Gift, RotateCcw } from 'lucide-react';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
@@ -184,7 +185,7 @@ function LoyaltyView() {
           ))}
         </div>
 
-        {tab === 'points' ? <LoyaltyPointsTab settings={read.settings} /> : tab === 'coupons' ? <LoyaltyCouponsTab /> : (<>
+        {tab === 'points' ? <><LoyaltyPointsTab settings={read.settings} /><LoyaltyOrderSync /></> : tab === 'coupons' ? <LoyaltyCouponsTab /> : (<>
         {read.missingTable && (
           <Banner tone="amber">
             Миграцијата <strong>014</strong> уште не е пуштена. Важат стандардните бројки подолу, а зачувување не е можно.

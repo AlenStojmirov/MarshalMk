@@ -242,6 +242,16 @@ function OrderCard({
                 // Where the order came from (D-025): the tracked link and/or the checkout answer.
                 <p className="mt-2 text-xs text-pink-700">Извор: {describeSource(order.customer.source)}</p>
               )}
+              {order.customer.userId && (
+                // Placed with an account (13.7): the coupon and points ride on it, and follow
+                // the status and outcome set here (13.8).
+                <p className="mt-2 text-xs text-indigo-700">
+                  Со профил
+                  {order.customer.loyalty?.couponCode && ` · купон ${order.customer.loyalty.couponCode}${order.customer.loyalty.couponDiscount ? ` −${order.customer.loyalty.couponDiscount} ден.` : ''}${order.customer.loyalty.shippingWaived ? ' (бесплатна достава)' : ''}`}
+                  {order.customer.loyalty?.pointsUsed ? ` · платено со ${order.customer.loyalty.pointsUsed} поени` : ''}
+                  {order.customer.loyalty?.pointsEarned ? ` · заработува ${order.customer.loyalty.pointsEarned} поени` : ''}
+                </p>
+              )}
             </div>
 
             {/* Update Status */}

@@ -15,7 +15,7 @@ import { isBackOffice, roleOf } from './roles';
 import { AccountView, CustomerRow, rowToProfile } from './account';
 import { fetchLoyaltySettings } from './loyalty-settings';
 import { issuePersonalCoupon } from './coupons';
-import { creditPoints } from './points';
+import { creditPoints, expiryFor } from './points';
 
 export const CUSTOMERS = 'customers';
 export const CUSTOMER_CONSENTS = 'customer_consents';
@@ -69,6 +69,17 @@ export async function logConsents(userId: string, rows: Array<{ kind: 'rules' | 
 }
 
 /**
+ * Has this account an order that was delivered and paid? Read the way the
+ * order sync reads it (13.8): outcome delivered, or delivered from before
+ * outcomes existed.
+ */
+export async function hasPaidOrder(userId: string): Promise<boolean> {
+  const { data } = await getSupabaseAdmin().from('orders').select('id, status, outcome')
+    .eq('customer->>userId', userId).or('outcome.eq.delivered,and(outcome.is.null,status.eq.delivered)').limit(1);
+  return (data ?? []).length > 0;
+}
+
+/**
  * Once the e-mail is confirmed: the welcome coupon and the sign-up bonus,
  * once; and the bonus for a complete profile, once. Each is claimed in the
  * row first (an update that only succeeds while the date is empty), so two
@@ -81,6 +92,16 @@ export async function settleAccount(user: User, row: CustomerRow): Promise<Custo
   const sb = getSupabaseAdmin();
   const { settings } = await fetchLoyaltySettings(sb);
   let current = row;
+
+  // A bonus waits for the first paid order (13.8); one that comes after it
+  // counts at once, or it would wait for an order that already happened.
+  let paid: boolean | null = null;
+  const bonusDates = async () => {
+    paid ??= await hasPaidOrder(user.id);
+    if (!paid) return {};
+    const now = new Date();
+    return { availableAt: now, expiresAt: expiryFor('bonus', now, settings) };
+  };
 
   const claim = async (column: 'welcome_issued_at' | 'profile_bonus_at') => {
     const { data } = await sb.from(CUSTOMERS).update({ [column]: new Date().toISOString() })
@@ -104,8 +125,8 @@ export async function settleAccount(user: User, row: CustomerRow): Promise<Custo
         if (r.error) problems.push(r.error);
       }
       if (settings.bonusRegistration > 0) {
-        // Pending until the first order is delivered and paid (13.8).
-        const r = await creditPoints(sb, { userId: user.id, kind: 'bonus', points: settings.bonusRegistration, reason: 'бонус за регистрација' });
+        // Pending until the first paid order (13.8), unless there already is one.
+        const r = await creditPoints(sb, { userId: user.id, kind: 'bonus', points: settings.bonusRegistration, reason: 'бонус за регистрација', ...(await bonusDates()) });
         if (r.error) problems.push(r.error);
       }
       if (problems.length) {
@@ -120,7 +141,7 @@ export async function settleAccount(user: User, row: CustomerRow): Promise<Custo
     const claimed = await claim('profile_bonus_at');
     if (claimed) {
       current = claimed;
-      const r = await creditPoints(sb, { userId: user.id, kind: 'bonus', points: settings.bonusProfileComplete, reason: 'бонус за целосен профил' });
+      const r = await creditPoints(sb, { userId: user.id, kind: 'bonus', points: settings.bonusProfileComplete, reason: 'бонус за целосен профил', ...(await bonusDates()) });
       if (r.error) {
         console.error(`[ACCOUNT_PROFILE_BONUS_FAILED] user=${user.id} ${r.error}`);
         await unclaim('profile_bonus_at');

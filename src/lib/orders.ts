@@ -5,6 +5,7 @@ import { rowToOrder, OrderRow } from './db-mappers';
 import { applyOrderToStock, revertOrderFromStock, repriceSoldEntries, StockLine } from './stock';
 import { previewCorrection } from './order-math';
 import { ledgerRemoveOrder, ledgerRepriceOrderLine } from './ledger-ops';
+import { accountFetch } from './account-client';
 
 export { previewCorrection } from './order-math';
 export type { CorrectionPreview, CorrectionLine } from './order-math';
@@ -142,6 +143,25 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
 
   const { error } = await supabase.from(ORDERS_TABLE).update({ status }).eq('id', id);
   if (error) throw error;
+
+  await syncOrderLoyalty(order);
+}
+
+/**
+ * Points and coupon follow the order (Task 13.8). The staff may not touch the
+ * points, so the server brings them in line with the order as it now stands.
+ * A sync, not an event: repeating it is harmless, so a failed one is fixed by
+ * changing the status again or by "Усогласи ги поените" on the loyalty screen.
+ */
+async function syncOrderLoyalty(order: Order): Promise<void> {
+  if (!order.customer?.userId) return;
+  const r = await accountFetch('/api/orders/loyalty', { method: 'POST', body: JSON.stringify({ orderId: order.id }) });
+  if (r.error) {
+    throw new Error(
+      `Статусот е зачуван, но поените на купувачот не се усогласени (${r.error}). ` +
+      'Промени го статусот уште еднаш, или во Лојалност притисни „Усогласи ги поените“.'
+    );
+  }
 }
 
 /**
