@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { Gift, Tag, X } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 import type { PublicBasketQuote } from '@/lib/loyalty';
+import { mkNumber } from '@/lib/mk-format';
 
 /** What /api/cart/quote answers. */
 export interface QuoteResponse {
@@ -26,7 +27,7 @@ export interface QuoteResponse {
   earn: number;
 }
 
-const n = (v: number) => Math.round(v).toLocaleString('mk-MK');
+const n = (v: number) => mkNumber(v);
 
 export default function LoyaltyBox({
   data, couponCode, onCoupon, pointsWanted, onPoints,

@@ -14,6 +14,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { BasketCoupon, CouponKind } from './loyalty';
+import { mkDate, mkDen, mkNumber } from './mk-format';
 
 export const COUPONS = 'coupons';
 export const COUPON_REDEMPTIONS = 'coupon_redemptions';
@@ -181,7 +182,7 @@ export function lookupRefusalText(r: CouponLookupRefusal, startsAt?: Date): stri
   switch (r) {
     case 'not_found': return 'Нема таков купон. Провери го кодот.';
     case 'inactive': return 'Овој купон повеќе не важи.';
-    case 'not_started': return startsAt ? `Купонот важи од ${startsAt.toLocaleDateString('mk-MK')}.` : 'Купонот уште не важи.';
+    case 'not_started': return startsAt ? `Купонот важи од ${mkDate(startsAt)}.` : 'Купонот уште не важи.';
     case 'expired': return 'Купонот истекол.';
     case 'not_yours': return 'Овој купон е личен и не е на твојот профил.';
     case 'used_up': return 'Купонот е веќе искористен колку што смее.';
@@ -190,12 +191,12 @@ export function lookupRefusalText(r: CouponLookupRefusal, startsAt?: Date): stri
   }
 }
 
-const den = (n: number) => `${Math.round(n).toLocaleString('mk-MK')} ден.`;
+const den = mkDen;
 
 /** "−10% · најмногу 500 ден. · кошничка од 1.500 ден." — in the customer's words, without the internal note. */
 export function describeCoupon(c: Pick<Coupon, 'kind' | 'value' | 'maxDiscount' | 'minBasket'>, scope?: string): string {
   const parts = [
-    c.kind === 'percent' ? `−${c.value.toLocaleString('mk-MK')}%` : c.kind === 'fixed' ? `−${den(c.value)}` : 'Бесплатна достава',
+    c.kind === 'percent' ? `−${mkNumber(c.value, 1)}%` : c.kind === 'fixed' ? `−${den(c.value)}` : 'Бесплатна достава',
     c.kind === 'percent' && c.maxDiscount ? `најмногу ${den(c.maxDiscount)}` : null,
     c.minBasket ? `кошничка од ${den(c.minBasket)}` : null,
     scope || null,

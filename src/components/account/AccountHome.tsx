@@ -2,7 +2,9 @@
 
 /**
  * /smetka (Task 13.6): sign-in when signed out, and the customer's own page
- * when signed in. The points, coupons and orders join it in 13.9.
+ * when signed in — the dashboard with points, coupons, orders and the
+ * profile (13.9), its tab kept in the address (`?tab=kuponi`) so a link or an
+ * e-mail can open the right one.
  *
  * Coming back from the confirmation e-mail, Supabase signs the customer in
  * from the link (`?potvrdeno=1`); the first read of the profile then hands
@@ -11,14 +13,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { POLICIES } from '@/config/policies';
 import type { AccountView } from '@/lib/account';
-import { accountFetch, resendConfirmation } from '@/lib/account-client';
+import { accountFetch } from '@/lib/account-client';
 import AccountFrame, { Notice } from './AccountFrame';
 import LoginForm from './LoginForm';
 import ProfileForm from './ProfileForm';
+import CustomerDashboard, { DASHBOARD_TABS, type DashboardTab } from './CustomerDashboard';
 
 function Spinner() {
   return (
@@ -30,12 +32,15 @@ function Spinner() {
 
 export default function AccountHome() {
   const { user, loading, signOut } = useAuth();
-  const confirmedNow = useSearchParams().get('potvrdeno') === '1';
+  const params = useSearchParams();
+  const router = useRouter();
+  const confirmedNow = params.get('potvrdeno') === '1';
+  const asked = params.get('tab');
+  const tab: DashboardTab = DASHBOARD_TABS.some((t) => t.key === asked) ? (asked as DashboardTab) : 'pochetna';
   const userId = user?.id;
   const [view, setView] = useState<AccountView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reads, setReads] = useState(0);
-  const [resent, setResent] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -89,35 +94,14 @@ export default function AccountHome() {
   }
 
   return (
-    <AccountFrame title={`Здраво, ${view.profile.firstName}`} subtitle={view.email}>
-      <div className="space-y-3 mb-6">
-        {confirmedNow && view.emailConfirmed && <Notice tone="green">Е-поштата е потврдена. Добредојде!</Notice>}
-        {!view.emailConfirmed && (
-          <Notice tone="amber">
-            Потврди ја е-поштата: кликни на линкот што ти го пративме. Дотогаш нема поени ни купони.
-            <button
-              type="button"
-              onClick={async () => setResent((await resendConfirmation(view.email)) ?? 'Линкот е пратен повторно.')}
-              className="block mt-1 font-medium underline underline-offset-2"
-            >
-              Прати го линкот повторно
-            </button>
-            {resent && <span className="block mt-1">{resent}</span>}
-          </Notice>
-        )}
-      </div>
-
-      <section className="bg-white rounded-xl border border-stone-200 p-4">
-        <h2 className="font-semibold text-stone-900 mb-3">Мои податоци</h2>
-        <ProfileForm initial={view.profile} requireConsent={false} onSaved={setView} />
-      </section>
-
-      <nav className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-        {Object.values(POLICIES).filter((p) => p.live).map((p) => (
-          <Link key={p.path} href={p.path} className="text-stone-600 underline underline-offset-2">{p.title}</Link>
-        ))}
-      </nav>
-      {logout}
-    </AccountFrame>
+    <CustomerDashboard
+      view={view}
+      userId={user.id}
+      tab={tab}
+      onTab={(t) => router.replace(t === 'pochetna' ? '/smetka' : `/smetka?tab=${t}`, { scroll: false })}
+      confirmedNow={confirmedNow}
+      onSaved={setView}
+      onSignOut={() => signOut()}
+    />
   );
 }

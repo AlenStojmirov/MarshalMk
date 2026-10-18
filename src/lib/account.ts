@@ -12,6 +12,8 @@
  */
 
 import { normalizePhone } from './customers';
+import type { LoyaltySettings } from './loyalty-settings';
+import type { OrderLoyalty, OrderOutcome, OrderStatus } from '@/types';
 
 export const MIN_PASSWORD = 8;
 
@@ -100,6 +102,33 @@ export function rowToProfile(r: CustomerRow): CustomerProfile {
   };
 }
 
+/** The programme's numbers a customer reads (13.9): what "how points work" says. Never a cost or a floor. */
+export interface ProgrammeRules {
+  earnRatePct: number;
+  reducedRatePct: number;
+  discountBandPct: number;
+  pendingDays: number;
+  expiryMonths: number;
+  minPointsToRedeem: number;
+  minOrderForRedeem: number;
+  maxRedeemBasketPct: number;
+  wheelEnabled: boolean;
+}
+
+export function programmeRules(s: LoyaltySettings): ProgrammeRules {
+  return {
+    earnRatePct: s.earnRatePct,
+    reducedRatePct: Math.round(s.earnRatePct * s.reducedRateSharePct) / 100,
+    discountBandPct: s.discountBandPct,
+    pendingDays: s.pendingDays,
+    expiryMonths: s.expiryMonths,
+    minPointsToRedeem: s.minPointsToRedeem,
+    minOrderForRedeem: s.minOrderForRedeem,
+    maxRedeemBasketPct: s.maxRedeemBasketPct,
+    wheelEnabled: s.wheelEnabled,
+  };
+}
+
 /** What /api/account/me answers. */
 export interface AccountView {
   email: string;
@@ -108,4 +137,18 @@ export interface AccountView {
   backOffice: boolean;
   /** null: signed in, but the profile was never made (an account made outside the sign-up form). */
   profile: CustomerProfile | null;
+  rules: ProgrammeRules;
+}
+
+/** One of the customer's own orders, as /api/account/orders hands it out (13.9). */
+export interface CustomerOrder {
+  orderNumber: string;
+  createdAt: string;
+  status: OrderStatus;
+  outcome: OrderOutcome | null;
+  deliveryMethod: 'courier' | 'pickup';
+  items: Array<{ productId: string; productName: string; size: string | null; quantity: number; price: number }>;
+  /** What was collected, delivery included. */
+  total: number;
+  loyalty: OrderLoyalty | null;
 }

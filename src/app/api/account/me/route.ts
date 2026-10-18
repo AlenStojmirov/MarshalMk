@@ -4,6 +4,7 @@ import { isBackOffice, roleOf } from '@/lib/roles';
 import { normalizePhone } from '@/lib/customers';
 import { ProfileInput, validateProfile } from '@/lib/account';
 import { POLICIES } from '@/config/policies';
+import { fetchLoyaltySettings } from '@/lib/loyalty-settings';
 import {
   CUSTOMERS, accountView, ensureCustomerRole, fail, logConsents, readCustomer, requireUser, settleAccount,
 } from '@/lib/account-server';
@@ -29,7 +30,8 @@ export async function GET(req: NextRequest) {
   try {
     let row = await readCustomer(auth.user.id);
     if (row && !isBackOffice(roleOf(auth.user))) row = await settleAccount(auth.user, row);
-    return NextResponse.json(accountView(auth.user, row));
+    const { settings } = await fetchLoyaltySettings(getSupabaseAdmin());
+    return NextResponse.json(accountView(auth.user, row, settings));
   } catch (e) {
     console.error(`[ACCOUNT_READ_FAILED] user=${auth.user.id} ${(e as Error).message}`);
     return fail(500, 'Профилот не може да се прочита во моментов.');
@@ -100,7 +102,8 @@ export async function PATCH(req: NextRequest) {
 
     let fresh = await readCustomer(user.id);
     if (fresh) fresh = await settleAccount(user, fresh);
-    return NextResponse.json(accountView(user, fresh));
+    const { settings } = await fetchLoyaltySettings(sb);
+    return NextResponse.json(accountView(user, fresh, settings));
   } catch (e) {
     console.error(`[ACCOUNT_SAVE_FAILED] user=${user.id} ${(e as Error).message}`);
     return fail(500, 'Профилот не може да се зачува во моментов.');

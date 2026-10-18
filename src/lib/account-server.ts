@@ -12,8 +12,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, type User } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from './supabase-admin';
 import { isBackOffice, roleOf } from './roles';
-import { AccountView, CustomerRow, rowToProfile } from './account';
-import { fetchLoyaltySettings } from './loyalty-settings';
+import { AccountView, CustomerRow, programmeRules, rowToProfile } from './account';
+import { LoyaltySettings, fetchLoyaltySettings } from './loyalty-settings';
 import { issuePersonalCoupon } from './coupons';
 import { creditPoints, expiryFor } from './points';
 
@@ -151,11 +151,12 @@ export async function settleAccount(user: User, row: CustomerRow): Promise<Custo
   return current;
 }
 
-export function accountView(user: User, row: CustomerRow | null): AccountView {
+export function accountView(user: User, row: CustomerRow | null, settings: LoyaltySettings): AccountView {
   return {
     email: user.email ?? '',
     emailConfirmed: !!user.email_confirmed_at,
     backOffice: isBackOffice(roleOf(user)),
     profile: row ? rowToProfile(row) : null,
+    rules: programmeRules(settings),
   };
 }
