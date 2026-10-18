@@ -73,6 +73,7 @@ The role is `app_metadata.role` on the Supabase user, writable only with the ser
 
 - Public pages read through `src/lib/products-server.ts` (server, service-role) or the client hooks `usePublicProducts` / `useProductsByCategory` / `useCategories` (anon → `products_public`). Admin hooks `useProducts` / `useProduct` read `products_costed`. Filtering, facets and pagination are computed in-process. A product shows only if visible **and** some size has `quantity >= 1`.
 - Product URL: `/product/{id}` (`src/app/product/[id]/`). Display name from `getProductDisplayName` (`src/lib/product-display.ts`) → `"{Category} - {name}"`; the supplier brand is never shown.
+- Rules pages (13.5): `/dostava-i-zamena`, `/privatnost`, `/pravila`, in `src/config/policies.ts` (path, title, **version** — change it with the text; sign-up stores the version agreed to — and `live`: footer, sitemap and indexing). Their numbers come from `shipping.ts`, `store.ts` (contacts, exchange periods) and the loyalty settings, never typed into the text.
 - Cart is client-only (`CartContext`, localStorage). Prices that respect a sale: `getEffectivePrice` (`src/lib/pricing.ts`). Shipping and pickup: `src/config/shipping.ts`, `src/config/store.ts`, `priceOrder` in `src/lib/order-math.ts`.
 
 ### Order creation & anti-spam

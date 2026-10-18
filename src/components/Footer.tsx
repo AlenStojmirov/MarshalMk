@@ -2,7 +2,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { MapPin } from 'lucide-react';
 
-import { STORE_ADDRESS, STORE_MAPS_URL } from '@/config/store';
+import { POLICIES } from '@/config/policies';
+import { STORE_ADDRESS, STORE_EMAIL, STORE_FACEBOOK_URL, STORE_INSTAGRAM_URL, STORE_MAPS_URL } from '@/config/store';
 
 export default function Footer() {
 return (
@@ -23,10 +24,10 @@ return (
           {/* Contact — inline on mobile */}
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] sm:text-sm text-gray-400">
             <a
-              href="mailto:marshalvinica@gmail.com"
+              href={`mailto:${STORE_EMAIL}`}
               className="hover:text-white transition-colors duration-200"
             >
-              marshalvinica@gmail.com
+              {STORE_EMAIL}
             </a>
             <span className="text-gray-700">|</span>
             <a
@@ -45,7 +46,7 @@ return (
           {/* Social */}
           <div className="flex items-center gap-3">
             <a
-              href="https://www.facebook.com/profile.php?id=61581250984500"
+              href={STORE_FACEBOOK_URL}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Facebook"
@@ -63,7 +64,7 @@ return (
               </svg>
             </a>
             <a
-              href="https://www.instagram.com/marshalonlinemk"
+              href={STORE_INSTAGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram"
@@ -82,6 +83,15 @@ return (
             </a>
           </div>
         </div>
+
+        {/* Delivery, exchange, privacy (13.5): the pages a buyer paying on delivery looks for first */}
+        <nav className="flex flex-wrap justify-center gap-x-5 gap-y-1 pb-4 text-[11px] sm:text-xs text-gray-400">
+          {Object.values(POLICIES).filter((p) => p.live).map((p) => (
+            <Link key={p.path} href={p.path} className="hover:text-white transition-colors duration-200">
+              {p.title}
+            </Link>
+          ))}
+        </nav>
 
         {/* Copyright — thin divider line */}
         <div className="border-t border-stone-800 py-4 text-center text-[11px] text-gray-500 tracking-wide">
