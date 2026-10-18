@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * The loyalty programme (EPIC 13). Task 13.1: its settings; 13.3: a customer's points.
+ * The loyalty programme (EPIC 13). Task 13.1: its settings; 13.3: a customer's points; 13.4: coupons.
  *
  * Every number of the programme in one form, each with its default beside it,
  * and a worked example that moves as the numbers do, so a change is seen in
  * denars before it is saved. Admin only: the route is not in any other role's
  * ROLE_PATHS, and migration 014 lets only the admin read or write the row.
  *
- * Coupons (13.4) and the reports (13.12) join this
+ * The reports (13.12) join this
  * screen in their own tasks.
  */
 
@@ -21,6 +21,7 @@ import {
   LOYALTY_DEFAULTS, LOYALTY_FIELDS, LoyaltySettings, LoyaltySettingsRead, NumericSetting,
   crossFieldErrors, discountBand, earnRatePctFor, fetchLoyaltySettings, fieldError, redeemCapPctFor, saveLoyaltySettings,
 } from '@/lib/loyalty-settings';
+import LoyaltyCouponsTab from '@/components/admin/LoyaltyCouponsTab';
 import LoyaltyPointsTab from '@/components/admin/LoyaltyPointsTab';
 import { AlertTriangle, ArrowLeft, Check, Gift, RotateCcw } from 'lucide-react';
 
@@ -79,7 +80,7 @@ function LoyaltyView() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'settings' | 'points'>('settings');
+  const [tab, setTab] = useState<'settings' | 'coupons' | 'points'>('settings');
   const [savedAt, setSavedAt] = useState<Date | null>(null);
 
   const apply = (r: LoyaltySettingsRead) => {
@@ -163,11 +164,11 @@ function LoyaltyView() {
         </h1>
         <p className="text-sm text-slate-500 mt-1 mb-4">
           Поени, купони и тркало на среќа, само за нарачки на сајтот со најава (D-032).
-          Купоните и извештаите доаѓаат во следните задачи.
+          Извештаите доаѓаат во задачата 13.12.
         </p>
 
         <div className="flex gap-1 mb-6 border-b border-slate-200">
-          {([['settings', 'Поставки'], ['points', 'Поени на купувач']] as const).map(([k, label]) => (
+          {([['settings', 'Поставки'], ['coupons', 'Купони'], ['points', 'Поени на купувач']] as const).map(([k, label]) => (
             <button
               key={k}
               onClick={() => setTab(k)}
@@ -178,7 +179,7 @@ function LoyaltyView() {
           ))}
         </div>
 
-        {tab === 'points' ? <LoyaltyPointsTab settings={read.settings} /> : (<>
+        {tab === 'points' ? <LoyaltyPointsTab settings={read.settings} /> : tab === 'coupons' ? <LoyaltyCouponsTab /> : (<>
         {read.missingTable && (
           <Banner tone="amber">
             Миграцијата <strong>014</strong> уште не е пуштена. Важат стандардните бројки подолу, а зачувување не е можно.

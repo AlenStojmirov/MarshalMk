@@ -36,6 +36,7 @@ const CHECKS: Array<{ migration: string; label: string; table: string; column: s
   { migration: '013', label: 'резултати по објава (тестови)',     table: 'marketing_plan',     column: 'messages' },
   { migration: '014', label: 'loyalty_settings (поени, тркало)',  table: 'loyalty_settings',   column: 'settings' },
   { migration: '015', label: 'points_ledger (евиденција на поени)', table: 'points_ledger',     column: 'remaining' },
+  { migration: '016', label: 'coupons (купони и користења)',      table: 'coupon_redemptions', column: 'released_at' },
 ];
 
 async function probe(sb: SupabaseClient, table: string, column: string) {

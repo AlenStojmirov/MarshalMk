@@ -43,6 +43,7 @@ Data scripts (`tsx`, service-role key, see `scripts/SCRIPTS.md`): `baseline`, `l
 | `operating_expenses`, `inventory_snapshots`, `marketing_optout`, `suppliers`, `purchases`, `purchase_lines` | admin only |
 | `loyalty_settings` | EPIC 13, one row of jsonb: every number of the loyalty programme, read over `LOYALTY_DEFAULTS` key by key. Admin only; the server reads it with the service role (014) |
 | `points_ledger`, `points_allocations` | EPIC 13, points as movements: lots (own dates, `remaining`) and debits that take from the lots expiring first; expiry is read, not written. Customer reads own rows, admin all; **every write goes through a `points_*` function** (admin or service role), never the table (015, `src/lib/points.ts`) |
+| `coupons`, `coupon_redemptions` | EPIC 13. Whether a coupon may be used is the database's answer (`coupon_lookup`, again under a lock in `coupon_redeem`); one per order; a cancelled order releases its use. Admin creates/edits; a customer reads own personal coupons and own uses — public codes are not listed (016, `src/lib/coupons.ts`) |
 
 **A column added to `products` must also be added to `products_costed`, and to `products_public` if customers may see it** — views fix their columns when created.
 
