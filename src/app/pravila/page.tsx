@@ -3,6 +3,7 @@ import PolicyPage from '@/components/PolicyPage';
 import { POLICIES } from '@/config/policies';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { LOYALTY_DEFAULTS, LoyaltySettings, fetchLoyaltySettings } from '@/lib/loyalty-settings';
+import { WheelPrize, chances, fetchPrizes } from '@/lib/wheel';
 
 /** The numbers come from the owner's settings; a change shows here within five minutes. */
 export const revalidate = 300;
@@ -21,8 +22,12 @@ const den = (v: number) => `${n(v)} ден.`;
 export default async function RulesPage() {
   // Never fails the page: without the settings the agreed defaults apply.
   let s: LoyaltySettings = LOYALTY_DEFAULTS;
+  let prizes: Array<WheelPrize & { chance: number }> = [];
   try {
-    s = (await fetchLoyaltySettings(getSupabaseAdmin())).settings;
+    const sb = getSupabaseAdmin();
+    s = (await fetchLoyaltySettings(sb)).settings;
+    // The chances as published: every prize switched on, before any daily or monthly limit (13.10).
+    if (s.wheelEnabled) prizes = chances((await fetchPrizes(sb)).data.filter((p) => p.active));
   } catch {
     // keep the defaults
   }
@@ -92,9 +97,23 @@ export default async function RulesPage() {
           <ul>
             <li>За да вртиш, ти треба профил со потврдена е-пошта.</li>
             <li>Вртиш еднаш на {n(s.wheelIntervalDays)} дена{s.wheelBonusSpinsPerOrder > 0 ? `, и уште ${n(s.wheelBonusSpinsPerOrder)} пат по секоја испорачана нарачка` : ''}.</li>
-            <li>Секое вртење добива награда.</li>
-            <li>Купоните од тркалото важат {n(s.wheelCouponValidHours)} часа, за кошничка од најмалку {den(s.wheelCouponMinBasket)}, и не се комбинираат со друг купон.</li>
+            <li>Секое вртење добива награда. Резултатот го одредува нашиот сервер пред тркалото да тргне, не твојот уред.</li>
+            <li>Купоните од тркалото важат {n(s.wheelCouponValidHours)} часа{s.wheelCouponMinBasket > 0 ? `, за кошничка од најмалку ${den(s.wheelCouponMinBasket)}` : ''}, и не се комбинираат со друг купон.</li>
+            <li>Поените од тркалото важат {n(s.wheelPointsExpiryDays)} дена.</li>
+            <li>Едно вртење на профил и на телефонски број во истиот период.</li>
           </ul>
+          {prizes.length > 0 && (
+            <>
+              <p><strong>Награди и шанси:</strong></p>
+              <ul>
+                {prizes.map((p) => <li key={p.id}>{p.label}: {n(p.chance)}%</li>)}
+              </ul>
+              <p>
+                Наградата што ќе го достигне својот дневен или месечен лимит привремено не е на тркалото,
+                а шансите на другите награди растат сразмерно.
+              </p>
+            </>
+          )}
         </>
       )}
 

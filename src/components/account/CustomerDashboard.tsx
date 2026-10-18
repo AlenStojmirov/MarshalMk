@@ -24,12 +24,15 @@ import { CustomerCoupon, sortCustomerCoupons } from '@/lib/customer-coupons';
 import { mkDate, mkNumber } from '@/lib/mk-format';
 import { Notice } from './AccountFrame';
 import ProfileForm from './ProfileForm';
+import WheelPanel from '@/components/wheel/WheelPanel';
+import type { WheelState } from '@/lib/wheel';
 
 export const DASHBOARD_TABS = [
   { key: 'pochetna', label: 'Почетна' },
   { key: 'kuponi', label: 'Купони' },
   { key: 'poeni', label: 'Поени' },
   { key: 'naracki', label: 'Нарачки' },
+  { key: 'trkalo', label: 'Тркало' },
   { key: 'profil', label: 'Профил' },
 ] as const;
 export type DashboardTab = (typeof DASHBOARD_TABS)[number]['key'];
@@ -64,7 +67,7 @@ async function readDashboard(userId: string): Promise<DashboardData> {
 }
 
 export default function CustomerDashboard({
-  view, userId, tab, onTab, confirmedNow, onSaved, onSignOut,
+  view, userId, tab: asked, onTab, confirmedNow, onSaved, onSignOut,
 }: {
   view: AccountView;
   userId: string;
@@ -74,6 +77,9 @@ export default function CustomerDashboard({
   onSaved: (v: AccountView) => void;
   onSignOut: () => void;
 }) {
+  // The wheel's tab exists only while the owner has the wheel on (13.10).
+  const wheelOn = view.rules.wheelEnabled;
+  const tab: DashboardTab = asked === 'trkalo' && !wheelOn ? 'pochetna' : asked;
   const [data, setData] = useState<DashboardData | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [resent, setResent] = useState<string | null>(null);
@@ -117,12 +123,12 @@ export default function CustomerDashboard({
         </div>
 
         <nav className="mt-5 -mx-4 px-4 flex gap-1 overflow-x-auto border-b border-stone-200" data-tour="tabs">
-          {DASHBOARD_TABS.map((t) => (
+          {DASHBOARD_TABS.filter((t) => t.key !== 'trkalo' || wheelOn).map((t) => (
             <button
               key={t.key}
               type="button"
               onClick={() => onTab(t.key)}
-              data-tour={t.key === 'naracki' ? 'orders' : undefined}
+              data-tour={t.key === 'naracki' ? 'orders' : t.key === 'trkalo' ? 'wheel' : undefined}
               className={`shrink-0 px-3 py-2.5 text-sm font-medium -mb-px border-b-2 ${tab === t.key ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-500'}`}
             >
               {t.label}
@@ -131,12 +137,14 @@ export default function CustomerDashboard({
         </nav>
 
         <div className="mt-5">
-          {tab !== 'profil' && !data ? (
+          {tab === 'trkalo' ? (
+            <WheelPanel />
+          ) : tab !== 'profil' && !data ? (
             <div className="py-16 flex justify-center">
               <div className="animate-spin h-8 w-8 border-4 border-stone-900 border-t-transparent rounded-full" />
             </div>
           ) : tab === 'pochetna' ? (
-            <Home summary={summary} coupons={coupons} rules={view.rules} onTab={onTab} />
+            <Home summary={summary} coupons={coupons} rules={view.rules} onTab={onTab} wheelOn={wheelOn} />
           ) : tab === 'kuponi' ? (
             <CouponsPanel coupons={coupons} />
           ) : tab === 'poeni' ? (
@@ -168,11 +176,12 @@ export default function CustomerDashboard({
 // ---------------------------------------------------------------------------
 
 function Home({
-  summary, coupons, rules, onTab,
-}: { summary: PointsSummary; coupons: ReturnType<typeof sortCustomerCoupons>; rules: ProgrammeRules; onTab: (t: DashboardTab) => void }) {
+  summary, coupons, rules, onTab, wheelOn,
+}: { summary: PointsSummary; coupons: ReturnType<typeof sortCustomerCoupons>; rules: ProgrammeRules; onTab: (t: DashboardTab) => void; wheelOn: boolean }) {
   const usable = coupons.soon.length + coupons.active.filter((c) => c.state === 'active').length;
   return (
     <div className="space-y-4">
+      {wheelOn && <WheelCard onOpen={() => onTab('trkalo')} />}
       <section className="rounded-2xl bg-stone-900 text-white p-5" data-tour="points">
         <p className="text-sm text-stone-300">Активни поени</p>
         <p className="text-4xl font-bold tabular-nums mt-1">{n(summary.active)}</p>
@@ -222,6 +231,34 @@ function Home({
         <Link href={POLICIES.rules.path} className="inline-block mt-2 text-sm text-stone-600 underline underline-offset-2">Сите правила</Link>
       </section>
     </div>
+  );
+}
+
+/** Whether the wheel can be spun now, or when next (13.10). */
+function WheelCard({ onOpen }: { onOpen: () => void }) {
+  const [state, setState] = useState<WheelState | null>(null);
+  useEffect(() => {
+    let live = true;
+    accountFetch<WheelState>('/api/wheel').then((r) => { if (live && r.data) setState(r.data); });
+    return () => { live = false; };
+  }, []);
+  if (!state?.enabled) return null;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      data-tour="wheel"
+      className={`w-full text-left rounded-2xl p-4 flex items-center gap-3 border ${state.canSpin ? 'bg-amber-50 border-amber-300' : 'bg-white border-stone-200'}`}
+    >
+      <Gift className="h-5 w-5 text-amber-700 shrink-0" />
+      <span className="flex-1">
+        <span className="block font-semibold text-stone-900">Тркало на среќа</span>
+        <span className="block text-sm text-stone-600">
+          {state.canSpin ? 'Можеш да завртиш сега!' : state.nextAt ? `Следно вртење на ${day(state.nextAt)}` : 'Секое вртење добива награда'}
+        </span>
+      </span>
+      <span className="text-stone-400">›</span>
+    </button>
   );
 }
 

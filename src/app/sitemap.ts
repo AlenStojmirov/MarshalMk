@@ -1,11 +1,15 @@
 import { MetadataRoute } from "next";
 import { fetchAllVisibleProducts } from "@/lib/products-server";
 import { POLICIES } from "@/config/policies";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { fetchLoyaltySettings } from "@/lib/loyalty-settings";
 
 const BASE_URL = "https://marshal.mk";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const products = await fetchAllVisibleProducts();
+  // The wheel's page exists only while the owner has it on (13.10).
+  const wheelOn = await fetchLoyaltySettings(getSupabaseAdmin()).then((r) => r.settings.wheelEnabled).catch(() => false);
 
   // Extract unique category slugs from products
   const categorySlugs = [
@@ -43,6 +47,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: "yearly" as const,
         priority: 0.4,
       })),
+    ...(wheelOn ? [{ url: `${BASE_URL}/trkalo`, lastModified: new Date(), changeFrequency: "weekly" as const, priority: 0.5 }] : []),
   ];
 
   // Category pages

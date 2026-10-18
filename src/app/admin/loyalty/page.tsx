@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * The loyalty programme (EPIC 13). Task 13.1: its settings; 13.3: a customer's points; 13.4: coupons.
+ * The loyalty programme (EPIC 13). Task 13.1: its settings; 13.3: a customer's points; 13.4: coupons;
+ * 13.10: the wheel's prizes.
  *
  * Every number of the programme in one form, each with its default beside it,
  * and a worked example that moves as the numbers do, so a change is seen in
@@ -24,6 +25,7 @@ import {
 import LoyaltyCouponsTab from '@/components/admin/LoyaltyCouponsTab';
 import LoyaltyPointsTab from '@/components/admin/LoyaltyPointsTab';
 import LoyaltyOrderSync from '@/components/admin/LoyaltyOrderSync';
+import LoyaltyWheelTab from '@/components/admin/LoyaltyWheelTab';
 import { AlertTriangle, ArrowLeft, Check, Gift, RotateCcw } from 'lucide-react';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
@@ -86,7 +88,7 @@ function LoyaltyView() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'settings' | 'coupons' | 'points'>('settings');
+  const [tab, setTab] = useState<'settings' | 'coupons' | 'points' | 'wheel'>('settings');
   const [savedAt, setSavedAt] = useState<Date | null>(null);
 
   const apply = (r: LoyaltySettingsRead) => {
@@ -174,7 +176,7 @@ function LoyaltyView() {
         </p>
 
         <div className="flex gap-1 mb-6 border-b border-slate-200">
-          {([['settings', 'Поставки'], ['coupons', 'Купони'], ['points', 'Поени на купувач']] as const).map(([k, label]) => (
+          {([['settings', 'Поставки'], ['coupons', 'Купони'], ['points', 'Поени на купувач'], ['wheel', 'Тркало']] as const).map(([k, label]) => (
             <button
               key={k}
               onClick={() => setTab(k)}
@@ -185,7 +187,7 @@ function LoyaltyView() {
           ))}
         </div>
 
-        {tab === 'points' ? <><LoyaltyPointsTab settings={read.settings} /><LoyaltyOrderSync /></> : tab === 'coupons' ? <LoyaltyCouponsTab /> : (<>
+        {tab === 'points' ? <><LoyaltyPointsTab settings={read.settings} /><LoyaltyOrderSync /></> : tab === 'coupons' ? <LoyaltyCouponsTab /> : tab === 'wheel' ? <LoyaltyWheelTab wheelEnabled={read.settings.wheelEnabled} /> : (<>
         {read.missingTable && (
           <Banner tone="amber">
             Миграцијата <strong>014</strong> уште не е пуштена. Важат стандардните бројки подолу, а зачувување не е можно.
@@ -235,7 +237,7 @@ function LoyaltyView() {
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
             Додека е исклучено, тркалото не се гледа никаде на сајтот. Пред вклучување: прашај го сметководителот дали е наградна
-            игра што бара одобрение. Наградите и шансите се поставуваат во задачата 13.10.
+            игра што бара одобрение. Наградите, шансите и лимитите се во картичката „Тркало“.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mt-3">{WHEEL_KEYS.map(field)}</div>
         </section>
