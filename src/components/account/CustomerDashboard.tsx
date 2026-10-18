@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Check, ChevronDown, Clock, Copy, Gift, Package, ShoppingBag, Tag } from 'lucide-react';
+import { Check, ChevronDown, CircleHelp, Clock, Copy, Gift, Package, ShoppingBag, Tag } from 'lucide-react';
 import mk from '@/lib/i18n/translations/mk.json';
 import { supabase } from '@/lib/supabase';
 import { useCart } from '@/context/CartContext';
@@ -26,6 +26,7 @@ import { Notice } from './AccountFrame';
 import ProfileForm from './ProfileForm';
 import WheelPanel from '@/components/wheel/WheelPanel';
 import type { WheelState } from '@/lib/wheel';
+import DashboardTour, { type TourStep } from './DashboardTour';
 
 export const DASHBOARD_TABS = [
   { key: 'pochetna', label: 'Почетна' },
@@ -94,6 +95,18 @@ export default function CustomerDashboard({
     return () => { live = false; };
   }, [userId]);
 
+  // The tour (13.13): once on the first visit, again from "Водич". It runs on
+  // the home tab, where the things it points at are.
+  const [tourAsked, setTourAsked] = useState(false);
+  const [tourDone, setTourDone] = useState(false);
+  const touring = !!data && tab === 'pochetna' && (tourAsked || (!view.profile?.tourSeen && !tourDone));
+  const closeTour = () => {
+    setTourAsked(false);
+    setTourDone(true);
+    if (!view.profile?.tourSeen) accountFetch('/api/account/tour', { method: 'POST', body: '{}' });
+  };
+  const steps = tourSteps(view.rules, wheelOn);
+
   const summary = useMemo(() => summarizePoints(data?.moves ?? [], now, 30), [data, now]);
   const history = useMemo(() => pointsHistory(data?.moves ?? [], now), [data, now]);
   const coupons = useMemo(() => sortCustomerCoupons(data?.coupons ?? [], data?.uses ?? [], now), [data, now]);
@@ -102,8 +115,20 @@ export default function CustomerDashboard({
   return (
     <main className="bg-stone-50 min-h-[70vh]">
       <div className="max-w-lg mx-auto px-4 py-6 sm:py-10">
-        <h1 className="text-2xl font-bold text-stone-900">Здраво, {profile.firstName}</h1>
-        <p className="text-sm text-stone-600">{view.email}</p>
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold text-stone-900">Здраво, {profile.firstName}</h1>
+            <p className="text-sm text-stone-600 truncate">{view.email}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { onTab('pochetna'); setTourAsked(true); }}
+            className="shrink-0 mt-1 inline-flex items-center gap-1 text-sm text-stone-600 border border-stone-300 rounded-full px-3 py-1"
+          >
+            <CircleHelp className="h-4 w-4" /> Водич
+          </button>
+        </div>
+        {touring && <DashboardTour steps={steps} onClose={closeTour} />}
 
         <div className="space-y-3 mt-4">
           {confirmedNow && view.emailConfirmed && <Notice tone="green">Е-поштата е потврдена. Добредојде!</Notice>}
@@ -128,7 +153,7 @@ export default function CustomerDashboard({
               key={t.key}
               type="button"
               onClick={() => onTab(t.key)}
-              data-tour={t.key === 'naracki' ? 'orders' : t.key === 'trkalo' ? 'wheel' : undefined}
+              data-tour={t.key === 'naracki' ? 'orders' : t.key === 'trkalo' ? 'wheel-tab' : undefined}
               className={`shrink-0 px-3 py-2.5 text-sm font-medium -mb-px border-b-2 ${tab === t.key ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-500'}`}
             >
               {t.label}
@@ -169,6 +194,28 @@ export default function CustomerDashboard({
       </div>
     </main>
   );
+}
+
+// ---------------------------------------------------------------------------
+// The tour's steps, in the shop's own numbers (13.13)
+// ---------------------------------------------------------------------------
+
+function tourSteps(rules: ProgrammeRules, wheelOn: boolean): TourStep[] {
+  const steps: Array<TourStep | false> = [
+    { target: 'points', title: 'Твоите поени', body: 'Ова се активните поени. 1 поен = 1 денар попуст на следната нарачка.' },
+    {
+      target: 'pending', title: 'Поени на чекање',
+      body: `Поените од секоја нарачка чекаат ${n(rules.pendingDays)} дена откако е испорачана и платена, па стануваат активни. Потоа важат ${n(rules.expiryMonths)} месеци.`,
+    },
+    { target: 'coupons', title: 'Купони', body: 'Тука се твоите купони. Копирај го кодот или примени го во кошничка со еден клик. Тие што наскоро истекуваат се најгоре.' },
+    wheelOn && { target: 'wheel', title: 'Тркало на среќа', body: 'Секое вртење добива награда, а по секоја испорачана нарачка добиваш уште едно вртење.' },
+    {
+      target: 'how', title: 'Како функционираат поените',
+      body: `За секоја нарачка добиваш ${n(rules.earnRatePct)}% од тоа што го плаќаш. Поените ги трошиш од ${n(rules.minPointsToRedeem)} поени, до ${n(rules.maxRedeemBasketPct)}% од кошничката.`,
+    },
+    { target: 'orders', title: 'Мои нарачки', body: 'Овде ги следиш нарачките и гледаш колку поени ти донесе секоја.' },
+  ];
+  return steps.filter((s): s is TourStep => !!s);
 }
 
 // ---------------------------------------------------------------------------

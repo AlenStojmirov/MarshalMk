@@ -29,6 +29,16 @@ export interface QuoteResponse {
 
 const n = (v: number) => mkNumber(v);
 
+/** The slider's one-time hint (13.13): a per-device nicety, so the browser is enough. */
+const HINT_KEY = 'marshal-hint-points-slider';
+function hintPending(): boolean {
+  try {
+    return typeof window !== 'undefined' && !window.localStorage.getItem(HINT_KEY);
+  } catch {
+    return false;
+  }
+}
+
 export default function LoyaltyBox({
   data, couponCode, onCoupon, pointsWanted, onPoints,
 }: {
@@ -40,6 +50,11 @@ export default function LoyaltyBox({
 }) {
   const { t } = useTranslation();
   const [typed, setTyped] = useState('');
+  const [hint, setHint] = useState(hintPending);
+  const dismissHint = () => {
+    setHint(false);
+    try { window.localStorage.setItem(HINT_KEY, '1'); } catch { /* the hint shows again next time */ }
+  };
 
   if (!data) return null;
 
@@ -113,13 +128,19 @@ export default function LoyaltyBox({
           {sliderMax > 0 ? (
             <>
               <p className="text-gray-700">{t('loyalty.youHave', { points: n(balance), max: n(sliderMax) })}</p>
+              {hint && (
+                <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900 flex items-start gap-2" role="note">
+                  <span className="flex-1">{t('loyalty.sliderHint')}</span>
+                  <button type="button" onClick={dismissHint} className="font-semibold underline underline-offset-2">{t('loyalty.gotIt')}</button>
+                </div>
+              )}
               <input
                 type="range"
                 min={0}
                 max={sliderMax}
                 step={1}
                 value={Math.min(pointsWanted, sliderMax)}
-                onChange={(e) => onPoints(Number(e.target.value))}
+                onChange={(e) => { onPoints(Number(e.target.value)); if (hint) dismissHint(); }}
                 className="w-full mt-2 accent-gray-900"
                 aria-label={t('loyalty.pointsLine')}
               />

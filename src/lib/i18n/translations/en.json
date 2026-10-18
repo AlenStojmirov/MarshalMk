@@ -162,6 +162,8 @@
     "register": "Create account",
     "finishProfile": "Confirm your e-mail and finish your profile to use coupons and points.",
     "toAccount": "Go to your account",
+    "sliderHint": "This is where you choose how many points to use. Move the slider to the right.",
+    "gotIt": "Got it",
     "unavailable": "Some products are no longer available. Remove them from the cart."
   },
   "checkout": {
