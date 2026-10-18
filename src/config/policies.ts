@@ -7,13 +7,13 @@
  * the text, never without it.
  *
  * `live`: linked from the footer and the other pages, in the sitemap, indexed.
- * The points rules stay unlinked and unindexed until there is an account to
- * collect points with — Task 13.6 turns them on.
+ * The points rules were held back until there was an account to collect points
+ * with; Task 13.6 turned them on.
  */
 export const POLICIES = {
   delivery: { path: '/dostava-i-zamena', title: 'Достава, плаќање и замена', version: '2026-10-18', live: true },
   privacy: { path: '/privatnost', title: 'Политика за приватност', version: '2026-10-18', live: true },
-  rules: { path: '/pravila', title: 'Правила за поени и купони', version: '2026-10-18', live: false },
+  rules: { path: '/pravila', title: 'Правила за поени и купони', version: '2026-10-18', live: true },
 } as const;
 
 export type PolicyKey = keyof typeof POLICIES;

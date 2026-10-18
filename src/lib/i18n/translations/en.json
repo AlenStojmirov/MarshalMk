@@ -41,7 +41,8 @@
     "mensShoes": "Shoes",
     "mensClothing": "Clothing",
     "mensAccessories": "Accessories",
-    "sale": "Sale"
+    "sale": "Sale",
+    "account": "My account"
   },
   "home": {
     "welcome": "Welcome to MyStore",

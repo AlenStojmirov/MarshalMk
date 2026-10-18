@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShoppingCart, Menu, X, Package, ChevronDown, Globe } from 'lucide-react';
+import { ShoppingCart, Menu, X, Package, ChevronDown, Globe, UserRound } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation, useLanguage, Language } from '@/lib/i18n';
@@ -162,6 +162,15 @@ export default function Header() {
                 )}
               </div>
 
+              <Link
+                href="/smetka"
+                className="flex items-center text-gray-500 hover:text-black hover:scale-110 active:scale-95 transition-all duration-200"
+                title={t('header.account')}
+                aria-label={t('header.account')}
+              >
+                <UserRound className="h-6 w-6" />
+              </Link>
+
               <button
                 type="button"
                 onClick={openMiniCart}
@@ -187,6 +196,14 @@ export default function Header() {
               >
                 <span className={`fi ${language === 'mk' ? 'fi-mk' : 'fi-gb'} text-lg`}></span>
               </button>
+              <Link
+                href="/smetka"
+                className="text-gray-500 hover:text-black hover:scale-110 active:scale-95 transition-all duration-200"
+                title={t('header.account')}
+                aria-label={t('header.account')}
+              >
+                <UserRound className="h-6 w-6" />
+              </Link>
               <button
                 type="button"
                 onClick={openMiniCart}

@@ -34,7 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.9,
     },
-    // Delivery, exchange, privacy (13.5); the points rules join when accounts do (13.6).
+    // Delivery, exchange, privacy (13.5) and the points rules (13.6).
     ...Object.values(POLICIES)
       .filter((p) => p.live)
       .map((p) => ({

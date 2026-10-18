@@ -58,6 +58,11 @@ export interface LoyaltySettings {
   bonusProfileComplete: number;
   bonusBirthday: number;
 
+  /** A percent coupon given once the e-mail is confirmed (13.6). 0 = no welcome coupon. */
+  welcomeCouponPct: number;
+  welcomeCouponValidDays: number;
+  welcomeCouponMinBasket: number;
+
   /** Off until the owner turns it on. While off the wheel shows nowhere. */
   wheelEnabled: boolean;
   wheelIntervalDays: number;
@@ -88,6 +93,11 @@ export const LOYALTY_DEFAULTS: LoyaltySettings = {
   bonusRegistration: 0,
   bonusProfileComplete: 0,
   bonusBirthday: 0,
+
+  // Not given in the brief: off until the owner sets a value.
+  welcomeCouponPct: 0,
+  welcomeCouponValidDays: 30,
+  welcomeCouponMinBasket: 0,
 
   wheelEnabled: false,
   wheelIntervalDays: 7,
@@ -135,6 +145,10 @@ export const LOYALTY_FIELDS: Record<NumericSetting, SettingField> = {
   bonusRegistration:      { key: 'bonusRegistration', label: 'За регистрација', unit: 'поени', min: 0, max: 10000, step: 1 },
   bonusProfileComplete:   { key: 'bonusProfileComplete', label: 'За цел профил', unit: 'поени', min: 0, max: 10000, step: 1 },
   bonusBirthday:          { key: 'bonusBirthday', label: 'За роденден', unit: 'поени', min: 0, max: 10000, step: 1 },
+
+  welcomeCouponPct:       { key: 'welcomeCouponPct', label: 'Купон за добредојде', unit: '%', min: 0, max: 50, step: 1, hint: '0 = без купон' },
+  welcomeCouponValidDays: { key: 'welcomeCouponValidDays', label: 'Купонот за добредојде важи', unit: 'дена', min: 1, max: 365, step: 1 },
+  welcomeCouponMinBasket: { key: 'welcomeCouponMinBasket', label: 'Купонот за добредојде, најмала кошничка', unit: 'ден.', min: 0, max: 100000, step: 1 },
 
   wheelIntervalDays:      { key: 'wheelIntervalDays', label: 'Едно вртење на секои', unit: 'дена', min: 1, max: 365, step: 1 },
   wheelBonusSpinsPerOrder:{ key: 'wheelBonusSpinsPerOrder', label: 'Бонус по испорачана нарачка', unit: 'вртења', min: 0, max: 5, step: 1 },

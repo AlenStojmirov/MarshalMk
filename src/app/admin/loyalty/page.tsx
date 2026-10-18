@@ -53,6 +53,11 @@ const SECTIONS: Array<{ title: string; note?: string; keys: NumericSetting[] }> 
     note: 'Се доделуваат само со потврдено купување (првата испорачана и платена нарачка). 0 = исклучено.',
     keys: ['bonusRegistration', 'bonusProfileComplete', 'bonusBirthday'],
   },
+  {
+    title: 'Купон за добредојде',
+    note: 'Личен купон во %, еднаш, откако купувачот ќе ја потврди е-поштата. 0 = без купон.',
+    keys: ['welcomeCouponPct', 'welcomeCouponValidDays', 'welcomeCouponMinBasket'],
+  },
 ];
 
 const WHEEL_KEYS: NumericSetting[] = ['wheelIntervalDays', 'wheelBonusSpinsPerOrder', 'wheelCouponValidHours', 'wheelCouponMinBasket'];

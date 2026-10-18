@@ -64,7 +64,8 @@ The role is `app_metadata.role` on the Supabase user, writable only with the ser
 | `admin` | `/admin` — the owner's dashboard, all screens | everything |
 | `staff` | `/admin` — `StaffHome` (stock, new/edit product without cost, sales without totals, orders, `/admin/catalog`) | products and `product_attributes` read/insert/update; orders read/update; ledger insert + three functions (`ledger_refund_one`, `ledger_remove_order`, `ledger_reprice_order_line`) — **never reads the ledger** (rows carry cost) |
 | `marketing` | `/admin/marketing` only (EPIC 10: post preparation, no publishing) | products and `product_attributes` **read only** (`is_marketing()`, 011) — cost empty, no ledger/orders/expenses; sales per product come from `sold[]` |
-| none / unknown / `customer` | blank page | nothing |
+| `customer` | no `/admin` at all; their page is `/smetka` (EPIC 13, D-033) | own `customers` row, own consents, own points and personal coupons, read only — every write through `/api/account` (service role) |
+| none / unknown | blank page | nothing |
 
 - Screen rules: `ROLE_PATHS` in `src/lib/roles.ts` (an allowlist — a new admin page is admin-only until added), enforced by `AdminGate` in `admin/layout.tsx`. **A user without a role gets no access, never staff** — Supabase sign-up is open, and customers with their own accounts (and their own screen, outside `/admin`) are planned.
 - Accounts: `/admin/users` → `/api/admin/users` (service-role, checks the caller is admin). `AuthContext` refreshes the session on load so a changed role applies at once.
@@ -74,6 +75,7 @@ The role is `app_metadata.role` on the Supabase user, writable only with the ser
 - Public pages read through `src/lib/products-server.ts` (server, service-role) or the client hooks `usePublicProducts` / `useProductsByCategory` / `useCategories` (anon → `products_public`). Admin hooks `useProducts` / `useProduct` read `products_costed`. Filtering, facets and pagination are computed in-process. A product shows only if visible **and** some size has `quantity >= 1`.
 - Product URL: `/product/{id}` (`src/app/product/[id]/`). Display name from `getProductDisplayName` (`src/lib/product-display.ts`) → `"{Category} - {name}"`; the supplier brand is never shown.
 - Rules pages (13.5): `/dostava-i-zamena`, `/privatnost`, `/pravila`, in `src/config/policies.ts` (path, title, **version** — change it with the text; sign-up stores the version agreed to — and `live`: footer, sitemap and indexing). Their numbers come from `shipping.ts`, `store.ts` (contacts, exchange periods) and the loyalty settings, never typed into the text.
+- Customer accounts (13.6, D-033): `/smetka` (sign-in, profile), `/smetka/registracija`, `/smetka/zaboravena-lozinka`, `/smetka/nova-lozinka`; `/api/account/register` (the order route's anti-spam layers) and `/api/account/me`. The role `customer` is given only to an account with none — a back-office account is never turned into a customer. One phone, one account (017). Supabase URL and e-mail templates: `docs/SUPABASE-AUTH.md`.
 - Cart is client-only (`CartContext`, localStorage). Prices that respect a sale: `getEffectivePrice` (`src/lib/pricing.ts`). Shipping and pickup: `src/config/shipping.ts`, `src/config/store.ts`, `priceOrder` in `src/lib/order-math.ts`.
 
 ### Order creation & anti-spam
