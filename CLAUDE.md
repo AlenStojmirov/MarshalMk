@@ -41,6 +41,7 @@ Data scripts (`tsx`, service-role key, see `scripts/SCRIPTS.md`): `baseline`, `l
 | `orders` | online orders; `status` is the workflow, `outcome` how it ended (D-014) |
 | `product_attributes` | EPIC 9, one row per product: `composition` (fibres adding up to 100 — the DB checks), `color`, `fit`, `size_advice`, `details`, `measurements` (cm per size). Back office read/write, no public read yet; kept out of `products` until Task 9.10 (010) |
 | `operating_expenses`, `inventory_snapshots`, `marketing_optout`, `suppliers`, `purchases`, `purchase_lines` | admin only |
+| `loyalty_settings` | EPIC 13, one row of jsonb: every number of the loyalty programme, read over `LOYALTY_DEFAULTS` key by key. Admin only; the server reads it with the service role (014) |
 
 **A column added to `products` must also be added to `products_costed`, and to `products_public` if customers may see it** — views fix their columns when created.
 
@@ -78,7 +79,7 @@ Orders are created **only** by `POST /api/orders` (service-role). Layers, in ord
 
 ## Business logic (back office)
 
-Cost and margin `src/lib/cost.ts` (Firebase stores purchase price **×2**; `realPurchasePrice` halves it — D-002), seasons per raw category `src/lib/seasons.ts`, velocity classes `velocity.ts`, reorder plan `reorder.ts` (whole size series, never by the size: `series.ts`, D-029), open-to-buy `open-to-buy.ts` (720.000 den. stock target at cost, break-even = opex ÷ margin, budget = next 30 days' cost of goods − the excess over target, or + a third of the shortfall, split by raw category with the groups only as headings, a share on under 20 sales marked an estimate — D-023, D-028, D-030), markdown ladder `markdown.ts`, customers by normalised phone `customers.ts`, ledger `sales-ledger.ts` / `ledger-ops.ts`, product attributes vocabulary (fibres, colours with Macedonian gender forms, fits, per-category fields and measurements) `attributes.ts`. Thresholds live as named constants in those files — change them there, not inline.
+Cost and margin `src/lib/cost.ts` (Firebase stores purchase price **×2**; `realPurchasePrice` halves it — D-002), seasons per raw category `src/lib/seasons.ts`, velocity classes `velocity.ts`, reorder plan `reorder.ts` (whole size series, never by the size: `series.ts`, D-029), open-to-buy `open-to-buy.ts` (720.000 den. stock target at cost, break-even = opex ÷ margin, budget = next 30 days' cost of goods − the excess over target, or + a third of the shortfall, split by raw category with the groups only as headings, a share on under 20 sales marked an estimate — D-023, D-028, D-030), markdown ladder `markdown.ts`, customers by normalised phone `customers.ts`, ledger `sales-ledger.ts` / `ledger-ops.ts`, product attributes vocabulary (fibres, colours with Macedonian gender forms, fits, per-category fields and measurements) `attributes.ts`, loyalty programme (online only, 1 point = 1 den., discount band measured against the regular price, every discount together at most 50% and never below the floor — D-031, D-032) `loyalty-settings.ts`, its numbers editable at `/admin/loyalty`. Thresholds live as named constants in those files — change them there, not inline.
 
 ## i18n
 

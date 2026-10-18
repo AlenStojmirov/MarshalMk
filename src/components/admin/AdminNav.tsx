@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {
   AlertTriangle, BadgePercent, CalendarDays, Camera, Clock, Coins, Database, Gauge, Grid2x2, Package,
-  Megaphone, PackagePlus, QrCode, Receipt, Ruler, Shirt, ShoppingBag, Truck, UserCog, Users, Wallet, type LucideIcon,
+  Gift, Megaphone, PackagePlus, QrCode, Receipt, Ruler, Shirt, ShoppingBag, Truck, UserCog, Users, Wallet, type LucideIcon,
 } from 'lucide-react';
 
 /**
@@ -71,6 +71,7 @@ const GROUPS: NavGroup[] = [
       { href: '/admin/finance', label: 'Трошоци и резултат', hint: 'месец по месец', icon: Wallet },
       { href: '/admin/expenses', label: 'Без наплата', hint: 'подароци, лично, отпис', icon: Receipt },
       { href: '/admin/customers', label: 'Online купувачи', hint: 'повторни, одбиени', icon: Users },
+      { href: '/admin/loyalty', label: 'Лојалност', hint: 'поени, купони, тркало', icon: Gift },
     ],
   },
   {
