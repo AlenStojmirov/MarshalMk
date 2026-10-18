@@ -15,16 +15,21 @@ interface CartContextType {
   isMiniCartOpen: boolean;
   openMiniCart: () => void;
   closeMiniCart: () => void;
+  /** The coupon the customer applied (13.7); the server decides what it is worth. */
+  couponCode: string;
+  setCouponCode: (code: string) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const CART_STORAGE_KEY = 'ecommerce-cart';
+const COUPON_STORAGE_KEY = 'ecommerce-coupon';
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isMiniCartOpen, setIsMiniCartOpen] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
 
   const openMiniCart = () => setIsMiniCartOpen(true);
   const closeMiniCart = () => setIsMiniCartOpen(false);
@@ -32,6 +37,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Load cart from localStorage on mount
   useEffect(() => {
     const savedCart = localStorage.getItem(CART_STORAGE_KEY);
+    const savedCoupon = localStorage.getItem(COUPON_STORAGE_KEY);
+    if (savedCoupon) setCouponCode(savedCoupon);
     if (savedCart) {
       try {
         setItems(JSON.parse(savedCart));
@@ -48,6 +55,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
     }
   }, [items, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (couponCode) localStorage.setItem(COUPON_STORAGE_KEY, couponCode);
+    else localStorage.removeItem(COUPON_STORAGE_KEY);
+  }, [couponCode, isLoaded]);
 
   const addToCart = (product: Product, quantity: number = 1, selectedSize?: string) => {
     setItems(currentItems => {
@@ -104,8 +117,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  // An order placed with the coupon has used it.
   const clearCart = () => {
     setItems([]);
+    setCouponCode('');
   };
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -127,6 +142,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         isMiniCartOpen,
         openMiniCart,
         closeMiniCart,
+        couponCode,
+        setCouponCode,
       }}
     >
       {children}

@@ -1,0 +1,140 @@
+'use client';
+
+/**
+ * Coupons and points at checkout (Task 13.7). Every number in it comes from
+ * the server's quote; this only asks.
+ *
+ * A member applies a coupon, picks how many points to use on a slider and
+ * sees what the order earns. A guest is told what an account would have
+ * earned on this very basket — the cheapest invitation to sign up there is.
+ */
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { Gift, Tag, X } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
+import type { PublicBasketQuote } from '@/lib/loyalty';
+
+/** What /api/cart/quote answers. */
+export interface QuoteResponse {
+  quote: PublicBasketQuote;
+  unavailable: string[];
+  member: boolean;
+  signedIn: boolean;
+  coupon: { code: string; applied: boolean; message?: string; description?: string } | null;
+  points: { balance: number; maxUsable: number; used: number; message: string | null };
+  earn: number;
+}
+
+const n = (v: number) => Math.round(v).toLocaleString('mk-MK');
+
+export default function LoyaltyBox({
+  data, couponCode, onCoupon, pointsWanted, onPoints,
+}: {
+  data: QuoteResponse | null;
+  couponCode: string;
+  onCoupon: (code: string) => void;
+  pointsWanted: number;
+  onPoints: (points: number) => void;
+}) {
+  const { t } = useTranslation();
+  const [typed, setTyped] = useState('');
+
+  if (!data) return null;
+
+  if (!data.member) {
+    return (
+      <div className="mb-5 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm">
+        <p className="flex items-center gap-2 font-medium text-gray-900"><Gift className="h-4 w-4" /> {t('loyalty.title')}</p>
+        {data.earn > 0 && <p className="mt-1 text-gray-700">{t('loyalty.guestEarn', { points: n(data.earn) })}</p>}
+        {data.signedIn ? (
+          <p className="mt-1 text-gray-600">
+            {t('loyalty.finishProfile')}{' '}
+            <Link href="/smetka" className="underline underline-offset-2">{t('loyalty.toAccount')}</Link>
+          </p>
+        ) : (
+          <p className="mt-1 text-gray-600">
+            {t('loyalty.forMembers')}{' '}
+            <Link href="/smetka" className="underline underline-offset-2">{t('loyalty.signIn')}</Link>
+            {' · '}
+            <Link href="/smetka/registracija" className="underline underline-offset-2">{t('loyalty.register')}</Link>
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  const coupon = data.coupon;
+  const { balance, maxUsable, used, message } = data.points;
+  const sliderMax = Math.max(0, maxUsable);
+
+  return (
+    <div className="mb-5 rounded-lg border border-gray-200 px-4 py-3 text-sm space-y-3">
+      <p className="flex items-center gap-2 font-medium text-gray-900"><Gift className="h-4 w-4" /> {t('loyalty.title')}</p>
+
+      {/* Coupon */}
+      {couponCode ? (
+        <div>
+          <div className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 ${coupon?.applied ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>
+            <Tag className="h-3.5 w-3.5 shrink-0" />
+            <span className="font-mono font-semibold">{couponCode}</span>
+            {coupon?.applied && coupon.description && <span className="text-xs truncate">{coupon.description}</span>}
+            <button type="button" onClick={() => onCoupon('')} className="ml-auto p-0.5" aria-label={t('loyalty.remove')}>
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          {coupon && !coupon.applied && coupon.message && <p className="mt-1 text-xs text-red-600">{coupon.message}</p>}
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <input
+            value={typed}
+            onChange={(e) => setTyped(e.target.value.toUpperCase())}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (typed.trim()) onCoupon(typed.trim()); } }}
+            placeholder={t('loyalty.couponPlaceholder')}
+            aria-label={t('loyalty.couponLabel')}
+            autoCapitalize="characters"
+            className="flex-1 min-w-0 rounded-md border border-gray-300 px-3 py-2 text-base sm:text-sm font-mono"
+          />
+          <button
+            type="button"
+            onClick={() => typed.trim() && onCoupon(typed.trim())}
+            className="px-3 py-2 rounded-md bg-gray-900 text-white text-sm font-medium hover:bg-black"
+          >
+            {t('loyalty.apply')}
+          </button>
+        </div>
+      )}
+
+      {/* Points */}
+      {balance > 0 && (
+        <div>
+          {sliderMax > 0 ? (
+            <>
+              <p className="text-gray-700">{t('loyalty.youHave', { points: n(balance), max: n(sliderMax) })}</p>
+              <input
+                type="range"
+                min={0}
+                max={sliderMax}
+                step={1}
+                value={Math.min(pointsWanted, sliderMax)}
+                onChange={(e) => onPoints(Number(e.target.value))}
+                className="w-full mt-2 accent-gray-900"
+                aria-label={t('loyalty.pointsLine')}
+              />
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>0</span>
+                <span className="font-medium text-gray-900">{t('loyalty.using', { points: n(used) })}</span>
+                <span>{n(sliderMax)}</span>
+              </div>
+            </>
+          ) : (
+            message && <p className="text-xs text-gray-600">{message}</p>
+          )}
+        </div>
+      )}
+
+      {data.earn > 0 && <p className="text-emerald-700">{t('loyalty.willEarn', { points: n(data.earn) })}</p>}
+    </div>
+  );
+}

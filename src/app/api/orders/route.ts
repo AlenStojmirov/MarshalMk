@@ -11,6 +11,10 @@ import {
 } from '@/lib/rate-limit';
 import { SHIPPING_CONFIG } from '@/config/shipping';
 import { priceOrder } from '@/lib/order-math';
+import { quoteServer, userFromRequest } from '@/lib/basket-server';
+import { redeemCoupon, releaseOrderCoupon } from '@/lib/coupons';
+import { cancelOrderPoints, creditPoints, redeemPoints } from '@/lib/points';
+import type { OrderLoyalty } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -169,19 +173,97 @@ export async function POST(request: NextRequest) {
     const orderNumber = generateOrderNumber();
 
     // ── Money, computed server-side ───────────────────────────────────────
-    // Never trust the client for amounts. The gross value is what the customer
-    // agreed to pay for the goods; everything else is derived from it.
-    // The arithmetic lives in lib/order-math so it can be checked without a
-    // database; this route only logs what looks wrong and stores the result.
-    const priced = priceOrder(items, deliveryMethod);
-    const { grossSubtotal, absorbed, shipping, total } = priced;
+    // Never trust the client for amounts (13.7): every price comes from the
+    // database, and the coupon and the points are the server's arithmetic
+    // (quoteServer, the same the checkout showed). The client's subtotal is
+    // only compared and logged. The arithmetic lives in lib/loyalty and
+    // lib/order-math so it can be checked without a database.
+    const couponCode = typeof body.couponCode === 'string' && body.couponCode.trim() ? body.couponCode.trim() : undefined;
+    const pointsWanted = typeof body.pointsUsed === 'number' && body.pointsUsed > 0 ? Math.floor(body.pointsUsed) : 0;
+    const user = await userFromRequest(supabase, request.headers.get('authorization'));
+    const sq = await quoteServer(supabase, {
+      lines: items.map((i) => ({ productId: i.productId, size: i.size ?? null, quantity: Math.max(1, Math.round(Number(i.quantity) || 1)) })),
+      method: deliveryMethod,
+      couponCode,
+      pointsRequested: pointsWanted,
+      user,
+    });
+    if (sq.unavailable.length > 0) {
+      return NextResponse.json(
+        { error: 'Некои производи повеќе не се достапни. Отстрани ги од кошничката.', unavailable: sq.unavailable },
+        { status: 409 }
+      );
+    }
+    if (couponCode && !sq.coupon?.applied) {
+      return NextResponse.json({ error: sq.coupon?.message ?? 'Купонот не важи.', coupon: true }, { status: 409 });
+    }
+    if (pointsWanted > 0 && sq.quote.points.used < pointsWanted) {
+      return NextResponse.json(
+        { error: 'Поените за оваа нарачка се сменија. Провери ја кошничката и пробај повторно.', points: true },
+        { status: 409 }
+      );
+    }
+    const q = sq.quote;
+    const memberId = sq.memberId;
+
+    if (Math.abs(q.goods - subtotal) > 1) {
+      console.warn(`[ORDER_SUBTOTAL_MISMATCH] client=${subtotal} server=${q.goods} ip=${ip}`);
+    }
+
+    // Each line at what is paid for it after the coupon and the points (D-031),
+    // then the courier absorbed into the prices when delivery is free (D-006),
+    // with the delivery decision taken after the coupon, before points (D-032).
+    const pricedLines = items.map((item, i) => {
+      const line = q.lines[i];
+      const product = sq.products.get(item.productId)!.product;
+      return {
+        productId: item.productId,
+        productName: product.name,
+        productImage: item.productImage,
+        price: Math.round((line.toPay / line.quantity) * 100) / 100,
+        originalPrice: product.price,
+        quantity: line.quantity,
+        size: item.size,
+      };
+    });
+    const priced = priceOrder(pricedLines, deliveryMethod, q.shipping);
+    const { absorbed, shipping, total } = priced;
     const orderItems = priced.items;
     const netSubtotal = priced.subtotal;
 
-    if (Math.abs(grossSubtotal - subtotal) > 1) {
-      console.warn(
-        `[ORDER_SUBTOTAL_MISMATCH] client=${subtotal} server=${grossSubtotal} ip=${ip}`
-      );
+    // ── Coupon and points, before anything else is written ────────────────
+    // Recorded against an id chosen here, so a failure further on can undo
+    // them by that id. Each is checked again in the database under a lock: the
+    // last use of a coupon, the last points of a balance, go to one order.
+    const orderId = crypto.randomUUID();
+    const undoLoyalty = async () => {
+      if (!memberId) return;
+      await cancelOrderPoints(supabase, orderId);
+      await releaseOrderCoupon(supabase, orderId);
+    };
+    const loyalty: OrderLoyalty = {};
+    if (memberId && q.coupon?.applied) {
+      const shippingWaived = q.freeShipping === 'coupon' ? SHIPPING_CONFIG.shippingCost : 0;
+      const r = await redeemCoupon(supabase, {
+        code: q.coupon.code, userId: memberId, orderId, orderNumber, discount: q.coupon.discount, shippingWaived,
+      });
+      if (r.refusal || r.error) {
+        console.warn(`[ORDER_COUPON_REFUSED] code=${q.coupon.code} ${r.refusal ?? r.error} ip=${ip}`);
+        return NextResponse.json({ error: 'Купонот повеќе не важи. Отстрани го и пробај повторно.', coupon: true }, { status: 409 });
+      }
+      Object.assign(loyalty, { couponCode: q.coupon.code, couponDiscount: q.coupon.discount, ...(shippingWaived ? { shippingWaived } : {}) });
+    }
+    if (memberId && q.points.used > 0) {
+      const r = await redeemPoints(supabase, memberId, q.points.used, orderId, orderNumber);
+      if (r.error) {
+        await releaseOrderCoupon(supabase, orderId);
+        console.warn(`[ORDER_POINTS_REFUSED] ${r.error} ip=${ip}`);
+        return NextResponse.json(
+          { error: 'Поените за оваа нарачка се сменија. Провери ја кошничката и пробај повторно.', points: true },
+          { status: 409 }
+        );
+      }
+      loyalty.pointsUsed = q.points.used;
     }
 
     if (absorbed > SHIPPING_CONFIG.shippingCost * 1.25) {
@@ -210,6 +292,7 @@ export async function POST(request: NextRequest) {
 
     const reservation = await applyOrderToStock(supabase, stockLines);
     if (!reservation.ok) {
+      await undoLoyalty();
       if (reservation.shortages.length > 0) {
         console.warn(
           `[ORDER_OUT_OF_STOCK] ip=${ip} ${reservation.shortages
@@ -232,7 +315,11 @@ export async function POST(request: NextRequest) {
     }
 
 
+    // Earned on this order: pending until it is delivered and paid (13.8).
+    if (memberId && q.earn > 0) loyalty.pointsEarned = q.earn;
+
     const orderRow = {
+      id: orderId,
       order_number: orderNumber,
       customer: {
         firstName: customer.firstName.trim(),
@@ -247,6 +334,9 @@ export async function POST(request: NextRequest) {
         deliveryMethod,
         // How they found the shop (D-025). Cleaned, never a reason to refuse an order.
         ...(source ? { source } : {}),
+        // The account and the loyalty side (13.7), in `customer` like the two above.
+        ...(memberId ? { userId: memberId } : {}),
+        ...(Object.keys(loyalty).length ? { loyalty } : {}),
       },
       items: orderItems.map((item) => ({
         productId: item.productId,
@@ -268,9 +358,19 @@ export async function POST(request: NextRequest) {
 
     const { error } = await supabase.from('orders').insert(orderRow);
     if (error) {
-      // The order does not exist, so the reservation must not either.
+      // The order does not exist, so the reservation, the coupon use and the
+      // spent points must not either.
       await revertOrderFromStock(supabase, stockLines);
+      await undoLoyalty();
       throw error;
+    }
+
+    // ── Points earned ─────────────────────────────────────────────────────
+    // Pending, without a date, until the order is delivered and paid (13.8).
+    // Not fatal: the order stands, and the owner can add them by hand.
+    if (memberId && q.earn > 0) {
+      const r = await creditPoints(supabase, { userId: memberId, kind: 'earn', points: q.earn, orderId, orderNumber });
+      if (r.error) console.error(`[ORDER_EARN_FAILED] orderNumber=${orderNumber} points=${q.earn} ${r.error}`);
     }
 
     // ── Ledger ────────────────────────────────────────────────────────────
@@ -278,11 +378,7 @@ export async function POST(request: NextRequest) {
     // here is recoverable and deliberately not fatal: `sold[]` already has the
     // sale, so `npm run ledger:sync` closes the gap. Losing the order over a
     // ledger write would be the worse trade.
-    const { data: orderRowBack } = await supabase
-      .from('orders')
-      .select('id')
-      .eq('order_number', orderNumber)
-      .maybeSingle();
+    const orderRowBack = { id: orderId };
 
     const productIds = [...new Set(orderItems.map((i) => i.productId))];
     // Read from products_costed: since migration 008 the cost lives in

@@ -123,6 +123,26 @@ export interface CustomerInfo {
   deliveryMethod?: DeliveryMethod;
   /** Where the order came from: the answer at checkout and the tracked link (D-025). */
   source?: OrderSource;
+  /** The customer account that placed it, when signed in (13.7, D-033). Absent for a guest. */
+  userId?: string;
+  /** Coupon and points on this order (13.7, D-031). Absent when neither was used nor earned. */
+  loyalty?: OrderLoyalty;
+}
+
+/**
+ * The loyalty side of an order, kept in `customer` like the pickup choice
+ * (D-011) and the source (D-025), so no migration stands between the code and
+ * the orders table. Amounts are denars; the item prices already carry them.
+ */
+export interface OrderLoyalty {
+  couponCode?: string;
+  /** What the coupon took off the goods. */
+  couponDiscount?: number;
+  /** Delivery the coupon waived. */
+  shippingWaived?: number;
+  pointsUsed?: number;
+  /** Earned on this order, pending until it is delivered, paid and past the waiting period. */
+  pointsEarned?: number;
 }
 
 export interface OrderItem {

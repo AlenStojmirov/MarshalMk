@@ -144,6 +144,26 @@
     "sortPriceAsc": "Sort by price: low to high",
     "sortPriceDesc": "Sort by price: high to low"
   },
+  "loyalty": {
+    "title": "Coupons and points",
+    "couponLabel": "Coupon",
+    "couponPlaceholder": "Enter code",
+    "apply": "Apply",
+    "remove": "Remove",
+    "couponLine": "Coupon {code}",
+    "couponFreeShipping": "free delivery",
+    "pointsLine": "Points",
+    "youHave": "You have {points} points. You can use up to {max} den on this order.",
+    "using": "Using {points} points",
+    "willEarn": "You will earn {points} points with this order.",
+    "guestEarn": "With an account, this order would earn you {points} points.",
+    "forMembers": "Coupons and points are for orders placed while signed in.",
+    "signIn": "Sign in",
+    "register": "Create account",
+    "finishProfile": "Confirm your e-mail and finish your profile to use coupons and points.",
+    "toAccount": "Go to your account",
+    "unavailable": "Some products are no longer available. Remove them from the cart."
+  },
   "checkout": {
     "title": "Checkout",
     "backToCart": "Back to Cart",

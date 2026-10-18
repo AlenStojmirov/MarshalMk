@@ -47,12 +47,21 @@ export interface OrderPricing<T extends PricedLine> {
  */
 export function priceOrder<T extends PricedLine>(
   lines: T[],
-  method: DeliveryMethod
+  method: DeliveryMethod,
+  /**
+   * The delivery charge when it was already decided elsewhere. With the loyalty
+   * programme the threshold is measured after the coupon and before the points
+   * (D-032), so lines priced after points must not decide it again. Pickup
+   * stays free whatever is passed.
+   */
+  decidedShipping?: number
 ): OrderPricing<T> {
   const grossSubtotal = round2(
     lines.reduce((sum, l) => sum + Number(l.price) * Number(l.quantity), 0)
   );
-  const customerShipping = customerShippingFor(method, grossSubtotal);
+  const customerShipping = method === 'pickup'
+    ? 0
+    : decidedShipping ?? customerShippingFor(method, grossSubtotal);
 
   let items = lines;
   let absorbed = 0;

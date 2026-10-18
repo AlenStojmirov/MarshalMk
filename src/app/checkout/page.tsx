@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -13,6 +13,10 @@ import { STORE_ADDRESS, STORE_MAPS_URL } from '@/config/store';
 import FreeShippingProgress from '@/components/FreeShippingProgress';
 import { getEffectivePrice, isOnSale, getPercentOff } from '@/lib/pricing';
 import { ATTRIBUTION_KEY, HEARD_FROM, HEARD_LABEL, isFresh, type HeardFrom, type OrderSource } from '@/lib/attribution';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { accountFetch } from '@/lib/account-client';
+import LoyaltyBox, { type QuoteResponse } from '@/components/checkout/LoyaltyBox';
 
 /** The tracked link this visitor arrived by, if it is recent enough to explain the order (D-025). */
 function storedSource(): OrderSource | null {
@@ -27,7 +31,8 @@ function storedSource(): OrderSource | null {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, totalPrice, clearCart, couponCode, setCouponCode } = useCart();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [honeypot, setHoneypot] = useState('');
@@ -53,7 +58,37 @@ export default function CheckoutPage() {
   // Optional: "how did you hear about us?" — never required, never blocks an order.
   const [heard, setHeard] = useState<HeardFrom | ''>('');
   const isPickup = deliveryMethod === 'pickup';
-  const shippingNow = customerShippingFor(deliveryMethod, totalPrice);
+
+  // ── The server's numbers (13.7) ─────────────────────────────────────────
+  // Prices, coupon, points and delivery as the order will book them. Asked
+  // again whenever the cart, the delivery, the coupon or the slider moves; the
+  // local sums below are only the fallback while the first answer is on its way.
+  const [pointsWanted, setPointsWanted] = useState(0);
+  const [quote, setQuote] = useState<QuoteResponse | null>(null);
+  const [quoteReads, setQuoteReads] = useState(0);
+  const userId = user?.id;
+  const cartKey = JSON.stringify(items.map((i) => [i.product.id, i.selectedSize ?? null, i.quantity]));
+  useEffect(() => {
+    if (cartKey === '[]') return;
+    let live = true;
+    const timer = setTimeout(async () => {
+      const r = await accountFetch<QuoteResponse>('/api/cart/quote', {
+        method: 'POST',
+        body: JSON.stringify({
+          items: (JSON.parse(cartKey) as Array<[string, string | null, number]>).map(([productId, size, quantity]) => ({ productId, size, quantity })),
+          deliveryMethod,
+          couponCode: couponCode || undefined,
+          pointsRequested: pointsWanted,
+        }),
+      });
+      if (live && r.data) setQuote(r.data);
+    }, 250);
+    return () => { live = false; clearTimeout(timer); };
+  }, [cartKey, deliveryMethod, couponCode, pointsWanted, userId, quoteReads]);
+
+  const q = quote?.quote;
+  const shippingNow = q ? q.shipping : customerShippingFor(deliveryMethod, totalPrice);
+  const totalNow = q ? q.total : totalPrice + shippingNow;
 
   // Order matters — used to determine which error field to scroll to first
   const FIELD_ORDER: (keyof CustomerInfo)[] = [
@@ -150,15 +185,22 @@ export default function CheckoutPage() {
         };
       });
 
+      // Signed in: the server checks the coupon and the points against the account.
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
           customer: formData,
           deliveryMethod,
           source: { ...(storedSource() ?? {}), ...(heard ? { heard } : {}) },
           items: orderItems,
           subtotal: totalPrice,
+          ...(quote?.coupon?.applied ? { couponCode } : {}),
+          ...(quote?.points.used ? { pointsUsed: quote.points.used } : {}),
           website: honeypot,
           _t: formLoadedAt.current,
         }),
@@ -167,6 +209,8 @@ export default function CheckoutPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        // A coupon or points that changed since the summary: show the fresh numbers.
+        if (data.coupon || data.points) setQuoteReads((n) => n + 1);
         setError(data.error || t('checkout.orderFailed'));
         requestAnimationFrame(() => {
           errorBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -500,7 +544,21 @@ export default function CheckoutPage() {
                 {t('checkout.orderSummary')}
               </h2>
 
-              <FreeShippingProgress subtotal={totalPrice} className="mb-5" />
+              {!isPickup && <FreeShippingProgress subtotal={q ? q.afterCoupon : totalPrice} className="mb-5" />}
+
+              <LoyaltyBox
+                data={quote}
+                couponCode={couponCode}
+                onCoupon={(code) => { setCouponCode(code); setError(null); }}
+                pointsWanted={pointsWanted}
+                onPoints={setPointsWanted}
+              />
+
+              {quote && quote.unavailable.length > 0 && (
+                <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {t('loyalty.unavailable')}
+                </div>
+              )}
 
               {/* Order Items */}
               <div className="mb-6 max-h-80 sm:max-h-72 overflow-y-auto -mx-2 px-2 scrollbar-thin">
@@ -570,7 +628,7 @@ export default function CheckoutPage() {
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-gray-600">
                   <span>{t('common.subtotal')}</span>
-                  <span>{totalPrice.toFixed(2)} ден.</span>
+                  <span>{(q ? q.goods : totalPrice).toFixed(2)} ден.</span>
                 </div>
                 {(() => {
                   const totalSavings = items.reduce(
@@ -591,19 +649,37 @@ export default function CheckoutPage() {
                     </div>
                   ) : null;
                 })()}
+                {q?.coupon?.applied && q.coupon.discount > 0 && (
+                  <div className="flex justify-between text-emerald-700">
+                    <span>{t('loyalty.couponLine', { code: q.coupon.code })}</span>
+                    <span className="tabular-nums">-{q.coupon.discount.toFixed(2)} ден.</span>
+                  </div>
+                )}
+                {q && q.points.used > 0 && (
+                  <div className="flex justify-between text-emerald-700">
+                    <span>{t('loyalty.pointsLine')}</span>
+                    <span className="tabular-nums">-{q.points.used.toFixed(2)} ден.</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-gray-600">
                   <span className="flex items-center gap-2">
                     {isPickup ? <Store className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
                     {isPickup ? t('checkout.pickupLine') : t('common.shipping')}
                   </span>
                   <span className="text-green-600">
-                    {isPickup ? t('checkout.noShipping') : getShippingLabel(totalPrice, t('common.free'))}
+                    {isPickup
+                      ? t('checkout.noShipping')
+                      : q
+                        ? q.shipping > 0
+                          ? `${q.shipping} ден.`
+                          : q.freeShipping === 'coupon' ? `${t('common.free')} (${t('loyalty.couponFreeShipping')})` : t('common.free')
+                        : getShippingLabel(totalPrice, t('common.free'))}
                   </span>
                 </div>
                 <hr />
                 <div className="flex justify-between text-lg font-bold text-gray-900">
                   <span>{t('common.total')}</span>
-                  <span>{(totalPrice + shippingNow).toFixed(2)} ден.</span>
+                  <span>{totalNow.toFixed(2)} ден.</span>
                 </div>
               </div>
 
