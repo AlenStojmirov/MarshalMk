@@ -28,6 +28,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import { getProductDisplayName } from '@/lib/product-display';
+import { brandOf } from '@/lib/brands';
 import { OTB_HORIZON_DAYS, STOCK_TARGET_COST, openToBuy } from '@/lib/open-to-buy';
 import {
   MONTH_LABEL, NON_MERCHANDISE, PHASE_LABEL, monthAhead, monthOf, phaseOf,
@@ -62,10 +63,8 @@ const HORIZONS = [0, 6, 13, 21];
  * product has a brand — it is even the prefix of its id — and in a shop this
  * size one brand comes from one supplier. So brand is the grouping that works
  * today without anyone entering anything. Admin-only: the customer-facing site
- * still hides brands behind their codes.
+ * still hides brands behind their codes. (`brandOf`, lib/brands.ts.)
  */
-const brandOf = (p: { brand?: string; id: string }) =>
-  (p.brand && p.brand.trim()) || p.id.split('-')[0];
 
 function ReorderView() {
   const { products, loading } = useProducts();

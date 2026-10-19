@@ -14,6 +14,7 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
+import { brandOf, brandsOf } from '@/lib/brands';
 
 function ProductFilter({
   filter,
@@ -110,9 +111,7 @@ function SoldOutView() {
   }, [products]);
 
   // Get unique brands and categories for filter
-  const brands = useMemo(() => {
-    return [...new Set(soldOutProducts.map(p => p.brand).filter(Boolean))] as string[];
-  }, [soldOutProducts]);
+  const brands = useMemo(() => brandsOf(soldOutProducts), [soldOutProducts]);
 
   const categories = useMemo(() => {
     return [...new Set(soldOutProducts.map(p => p.category).filter(Boolean))];
@@ -121,7 +120,7 @@ function SoldOutView() {
   // Apply filters
   const filteredProducts = useMemo(() => {
     return soldOutProducts.filter(p => {
-      if (filter.brand && p.brand !== filter.brand) return false;
+      if (filter.brand && brandOf(p) !== filter.brand) return false;
       if (filter.category && p.category !== filter.category) return false;
       if (filter.search) {
         const search = filter.search.toLowerCase();

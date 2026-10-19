@@ -145,11 +145,14 @@ export function useProduct(id: string) {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Bumped by refetch() — after an edit, so the page shows what was saved.
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        setLoading(true);
+        // Only the first read blanks the page; a refetch keeps it on screen.
+        if (version === 0) setLoading(true);
         const read = (table: string) => supabase.from(table).select('*').eq('id', id).maybeSingle();
         const [first, imageMap] = await Promise.all([read(COSTED_PRODUCTS), fetchImageMap()]);
         const { data, error: dbError } = isMissingRelation(first.error) ? await read('products') : first;
@@ -172,9 +175,9 @@ export function useProduct(id: string) {
     if (id) {
       fetchProduct();
     }
-  }, [id]);
+  }, [id, version]);
 
-  return { product, loading, error };
+  return { product, loading, error, refetch: () => setVersion((v) => v + 1) };
 }
 
 /** Products in one category, for the storefront (related products). */

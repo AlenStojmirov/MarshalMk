@@ -29,6 +29,7 @@ import { catalogGaps, sizesOnShelf, workTier, TIER_LABEL, type CatalogGaps, type
 import { COMPOSITION_PRESETS, formatComposition } from '@/lib/attributes';
 import { NON_MERCHANDISE } from '@/lib/seasons';
 import { getEffectivePrice } from '@/lib/pricing';
+import { brandOf, brandsOf } from '@/lib/brands';
 import {
   ColorSelect, CompositionEditor, FitSelect, SizeAdviceButtons,
 } from '@/components/admin/AttributeFields';
@@ -77,6 +78,7 @@ export default function CatalogPage() {
 
   const [tier, setTier] = useState<'all' | WorkTier>('all');
   const [category, setCategory] = useState('all');
+  const [brand, setBrand] = useState('all');
   const [gap, setGap] = useState<'all' | Gap>('all');
   const [query, setQuery] = useState('');
   const [shown, setShown] = useState(PAGE);
@@ -113,21 +115,26 @@ export default function CatalogPage() {
     () => [...new Set(entries.map((e) => e.p.category))].sort(),
     [entries],
   );
+  const brands = useMemo(() => brandsOf(entries.map((e) => e.p)), [entries]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return entries.filter((e) =>
       (tier === 'all' || e.tier === tier)
       && (category === 'all' || e.p.category === category)
+      && (brand === 'all' || brandOf(e.p) === brand)
       && (gap === 'all' || hasGap(e.gaps, gap))
       && (!q || e.p.name.toLowerCase().includes(q) || e.p.id.toLowerCase().includes(q)));
-  }, [entries, tier, category, gap, query]);
+  }, [entries, tier, category, brand, gap, query]);
 
   const counts = useMemo(() => {
-    const base = entries.filter((e) => (tier === 'all' || e.tier === tier) && (category === 'all' || e.p.category === category));
+    const base = entries.filter((e) =>
+      (tier === 'all' || e.tier === tier)
+      && (category === 'all' || e.p.category === category)
+      && (brand === 'all' || brandOf(e.p) === brand));
     const c = Object.fromEntries((Object.keys(GAP_LABEL) as Gap[]).map((g) => [g, base.filter((e) => hasGap(e.gaps, g)).length])) as Record<Gap, number>;
     return { ...c, total: base.length, ready: base.filter((e) => e.gaps.ready).length };
-  }, [entries, tier, category]);
+  }, [entries, tier, category, brand]);
 
   const save = async (productId: string, patch: AttributesPatch) => {
     setRowState((s) => ({ ...s, [productId]: { saving: true } }));
@@ -217,6 +224,10 @@ export default function CatalogPage() {
           <select value={category} onChange={(e) => { setCategory(e.target.value); setShown(PAGE); }} className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
             <option value="all">Сите категории</option>
             {categories.map((c) => <option key={c} value={c}>{categoryLabel(c)}</option>)}
+          </select>
+          <select value={brand} onChange={(e) => { setBrand(e.target.value); setShown(PAGE); }} className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+            <option value="all">Сите брендови</option>
+            {brands.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
           <input
             value={query}

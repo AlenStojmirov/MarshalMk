@@ -6,7 +6,7 @@ import StaffHome from '@/components/admin/StaffHome';
 import MarketingRedirect from '@/components/admin/MarketingRedirect';
 import { useProducts, createProduct, updateProduct, deleteProduct } from '@/hooks/useProducts';
 import { Product, ProductFormData } from '@/types';
-import { Plus, Edit2, Trash2, LogOut, Tag, Eye, EyeOff, Search, Filter } from 'lucide-react';
+import { Plus, Edit2, Trash2, LogOut, Tag, Eye, EyeOff, Search, Filter, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
@@ -15,6 +15,7 @@ import AdminNav from '@/components/admin/AdminNav';
 import ProductForm, { marginToneClass, saveProductEdit } from '@/components/admin/ProductForm';
 import { getEffectivePrice, getPercentOff, isOnSale } from '@/lib/pricing';
 import { grossMargin, markup, MARGIN_LOW, MARGIN_WATCH } from '@/lib/cost';
+import { brandOf, brandsOf } from '@/lib/brands';
 
 function LoginForm() {
   const { t } = useTranslation();
@@ -142,6 +143,7 @@ function AdminDashboard() {
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
   const [filterName, setFilterName] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [filterBrand, setFilterBrand] = useState('');
   const [filterStock, setFilterStock] = useState<'all' | 'in-stock' | 'out-of-stock'>('all');
   const [filterFeatured, setFilterFeatured] = useState<'all' | 'yes' | 'no'>('all');
   const [filterVisible, setFilterVisible] = useState<'all' | 'yes' | 'no'>('all');
@@ -152,10 +154,12 @@ function AdminDashboard() {
   const [bulkResult, setBulkResult] = useState<{ done: number; failed: number } | null>(null);
 
   const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean))).sort();
+  const brands = brandsOf(products);
 
   const filteredProducts = products.filter(product => {
     if (filterName && !product.name.toLowerCase().includes(filterName.toLowerCase())) return false;
     if (filterCategory && product.category !== filterCategory) return false;
+    if (filterBrand && brandOf(product) !== filterBrand) return false;
     if (filterStock === 'in-stock' && product.stock <= 0) return false;
     if (filterStock === 'out-of-stock' && product.stock > 0) return false;
     if (filterFeatured === 'yes' && !product.featured) return false;
@@ -217,12 +221,13 @@ function AdminDashboard() {
   }, [products]);
 
   const hasActiveFilters =
-    filterName || filterCategory || filterStock !== 'all' || filterFeatured !== 'all' ||
+    filterName || filterCategory || filterBrand || filterStock !== 'all' || filterFeatured !== 'all' ||
     filterVisible !== 'all' || filterMargin !== 'all' || sortBy !== 'newest';
 
   const clearFilters = () => {
     setFilterName('');
     setFilterCategory('');
+    setFilterBrand('');
     setFilterStock('all');
     setFilterFeatured('all');
     setFilterVisible('all');
@@ -485,7 +490,7 @@ function AdminDashboard() {
               </button>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
             <div className="relative col-span-2 sm:col-span-1">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
               <input
@@ -504,6 +509,16 @@ function AdminDashboard() {
               <option value="">{t('admin.category')}: All</option>
               {categories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <select
+              value={filterBrand}
+              onChange={(e) => setFilterBrand(e.target.value)}
+              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">{t('admin.brand')}: {t('admin.filterAll')}</option>
+              {brands.map(b => (
+                <option key={b} value={b}>{b}</option>
               ))}
             </select>
             <select
@@ -654,8 +669,12 @@ function AdminDashboard() {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <Link href={`/product/${product.id}`} className="font-semibold text-slate-800 hover:text-blue-600 transition-colors text-sm sm:text-base truncate block max-w-[120px] sm:max-w-none">{product.name}</Link>
-                          <span className="text-xs text-slate-400 sm:hidden">{product.category}</span>
+                          {/* The back-office page, as in every other admin table; the shop's page is under the actions. */}
+                          <Link href={`/admin/product/${product.id}`} className="font-semibold text-slate-800 hover:text-blue-600 transition-colors text-sm sm:text-base truncate block max-w-[120px] sm:max-w-none">{product.name}</Link>
+                          <span className="text-xs text-slate-400">
+                            {brandOf(product)}
+                            <span className="sm:hidden"> · {product.category}</span>
+                          </span>
                         </div>
                       </div>
                     </td>
@@ -731,6 +750,15 @@ function AdminDashboard() {
                         >
                           <Edit2 className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
+                        <a
+                          href={`/product/${product.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title={t('admin.viewOnSite')}
+                        >
+                          <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </a>
                         <button
                           onClick={() => handleDelete(product)}
                           className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
