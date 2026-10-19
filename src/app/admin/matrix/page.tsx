@@ -66,6 +66,8 @@ import { Product } from '@/types';
 import { getEffectivePrice, isOnSale, getPercentOff } from '@/lib/pricing';
 import { grossMargin, MARGIN_LOW, MARGIN_WATCH } from '@/lib/cost';
 import { getProductDisplayName } from '@/lib/product-display';
+import { brandOf, brandsOf } from '@/lib/brands';
+import BrandFilter from '@/components/admin/BrandFilter';
 import { Expense, expensesForPeriod, getExpenses, periodOf } from '@/lib/expenses';
 import { NON_MERCHANDISE, PHASE_LABEL, monthOf, phaseOf, suggestedMarkdown } from '@/lib/seasons';
 import { VelocityMetrics, isDecidable, velocityOf } from '@/lib/velocity';
@@ -159,6 +161,7 @@ function MatrixView() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [tab, setTab] = useState<Quad>('protect');
   const [onlyDiscounted, setOnlyDiscounted] = useState(false);
+  const [brand, setBrand] = useState('');
 
   const [now] = useState(() => Date.now());
   const month = useMemo(() => monthOf(now), [now]);
@@ -166,6 +169,11 @@ function MatrixView() {
   useEffect(() => {
     getExpenses().then(setExpenses).catch(() => setExpenses([]));
   }, []);
+
+  const brands = useMemo(
+    () => brandsOf(products.filter((p) => !NON_MERCHANDISE.has(p.category))),
+    [products]
+  );
 
   const model = useMemo(() => {
     const entries: Entry[] = [];
@@ -222,6 +230,11 @@ function MatrixView() {
       });
     }
 
+    // Revenue above is the whole shop's: the break-even it feeds is a fact about
+    // the shop, and one brand's sales over the shop's costs would mean nothing.
+    // The quadrants and the list are what a brand narrows.
+    const scoped = brand ? entries.filter((x) => brandOf(x.p) === brand) : entries;
+
     const cells = new Map<Quad, {
       models: number; units: number; cost: number; onSale: number;
       /** Discount given while the window is open — money simply lost. */
@@ -232,7 +245,7 @@ function MatrixView() {
       /** Models cut deeper than the ladder asks. */
       tooDeep: number;
     }>();
-    for (const e of entries) {
+    for (const e of scoped) {
       const c = cells.get(e.quad) ?? {
         models: 0, units: 0, cost: 0, onSale: 0, leak: 0, seasonal: 0,
         seasonalModels: 0, tooDeep: 0,
@@ -260,12 +273,12 @@ function MatrixView() {
     const breakEven = monthlyRevenue > 0 ? opex / monthlyRevenue : null;
 
     return {
-      entries, cells, monthlyRevenue, opex, breakEven,
+      entries: scoped, cells, monthlyRevenue, opex, breakEven,
       opexKnown: e.total > 0,
-      totalCost: entries.reduce((a, x) => a + x.cost, 0),
-      skipped: products.filter((p) => !NON_MERCHANDISE.has(p.category)).length - entries.length,
+      totalCost: scoped.reduce((a, x) => a + x.cost, 0),
+      skipped: products.filter((p) => !NON_MERCHANDISE.has(p.category) && (!brand || brandOf(p) === brand)).length - scoped.length,
     };
-  }, [products, expenses, now, month]);
+  }, [products, expenses, now, month, brand]);
 
   if (loading) {
     return (
@@ -339,6 +352,13 @@ function MatrixView() {
           крстосницата упатството менува знак. Досега попустот се даваше по едно правило („не се
           продава доволно брзо“), а тоа правило е точно во еден квадрант и скапо во друг.
         </p>
+
+        <BrandFilter
+          brands={brands}
+          value={brand}
+          onChange={setBrand}
+          note={(b) => `Квадрантите и листата се само за ${b}. Приходот, трошоците и маржата за нула се на целиот дуќан.`}
+        />
 
         {/* the honest context for reading the columns */}
         <div className="mb-6 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">

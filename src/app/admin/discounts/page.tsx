@@ -22,6 +22,8 @@ import { Product, ProductFormData } from '@/types';
 import { getEffectivePrice, getPercentOff, isOnSale } from '@/lib/pricing';
 import { discountVerdict, DiscountVerdict, DEAD_LADDER, MAX_SIZES_FOR_DISCOUNT } from '@/lib/discount-rule';
 import { getProductDisplayName } from '@/lib/product-display';
+import { brandOf, brandsOf } from '@/lib/brands';
+import BrandFilter from '@/components/admin/BrandFilter';
 import { ArrowLeft, BadgePercent, Ban, Check } from 'lucide-react';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
@@ -40,9 +42,13 @@ function DiscountsView() {
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<{ done: number; failed: number } | null>(null);
+  const [brand, setBrand] = useState('');
+
+  const brands = useMemo(() => brandsOf(products), [products]);
 
   const model = useMemo(() => {
-    const live = products.filter((p) => (p.sizes ?? []).some((s) => (Number(s.quantity) || 0) >= 1));
+    const live = products.filter((p) =>
+      (!brand || brandOf(p) === brand) && (p.sizes ?? []).some((s) => (Number(s.quantity) || 0) >= 1));
     const rows: Row[] = live.filter(isOnSale).map((p) => {
       const v = discountVerdict(p, now);
       const price = getEffectivePrice(p);
@@ -53,7 +59,7 @@ function DiscountsView() {
     let mayCount = 0;
     for (const p of live) if (discountVerdict(p, now).allowed) mayCount++;
     return { live: live.length, remove, keep, mayCount };
-  }, [products, now]);
+  }, [products, now, brand]);
 
   // Everything in "remove" starts selected: that list is the rule, not a suggestion.
   const chosen = selected ?? new Set(model.remove.map((r) => r.p.id));
@@ -115,6 +121,13 @@ function DiscountsView() {
           Мртва стока по скалилото ({DEAD_LADDER.map((s) => `−${s}%`).join(' → ')}), никогаш под подот.
           Останатите остатоци чекаат пред-сезона. Сè друго оди по полна цена (D-027).
         </p>
+
+        {/* Back to "everything in the list selected" for the brand now shown. */}
+        <BrandFilter
+          brands={brands}
+          value={brand}
+          onChange={(b) => { setBrand(b); setSelected(null); setResult(null); }}
+        />
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           {[

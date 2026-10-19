@@ -28,7 +28,8 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import { getProductDisplayName } from '@/lib/product-display';
-import { brandOf } from '@/lib/brands';
+import { brandOf, brandsOf } from '@/lib/brands';
+import BrandFilter from '@/components/admin/BrandFilter';
 import { OTB_HORIZON_DAYS, STOCK_TARGET_COST, openToBuy } from '@/lib/open-to-buy';
 import {
   MONTH_LABEL, NON_MERCHANDISE, PHASE_LABEL, monthAhead, monthOf, phaseOf,
@@ -74,6 +75,7 @@ function ReorderView() {
   // The months a series is judged over (D-029); four by default.
   const [judge, setJudge] = useState(SERIES_HORIZON_MONTHS);
   const [copied, setCopied] = useState(false);
+  const [brand, setBrand] = useState('');
 
   const [now] = useState(() => Date.now());
   // Six weeks is the lead time a pre-season order needs: the goods have to be
@@ -87,6 +89,7 @@ function ReorderView() {
     () => products.filter((p) => !NON_MERCHANDISE.has(p.category)),
     [products]
   );
+  const brands = useMemo(() => brandsOf(merch), [merch]);
 
   const otb = useMemo(() => openToBuy(merch, { now }), [merch, now]);
   const overridden = budgetInput !== null;
@@ -121,12 +124,19 @@ function ReorderView() {
     planReorder(merch, { now, month: today, budget, categoryBudgets, horizonMonths: judge }).lines.length ===
       plan.lines.length;
 
+  // The plan, its budget and where the budget cuts are the whole shop's. A
+  // brand only picks which lines are shown and copied — one supplier's share of
+  // the same plan, not a plan of its own.
+  const ofBrand = (lines: typeof plan.lines) => (brand ? lines.filter((l) => brandOf(l.p) === brand) : lines);
+  const shownLines = ofBrand(plan.lines);
+  const orderLines = ofBrand(inBudget);
+
   // The copied text is split one section per brand, because that is how it
   // gets used: one message to each supplier, not one list to read through.
   // In-budget lines grouped by brand, biggest order first. The ranked table
   // stays the main view — the budget is cut down the ranking, and a grouped
   // table would hide where that cut falls.
-  const byBrand = [...inBudget.reduce((m, l) => {
+  const groupByBrand = (lines: typeof inBudget) => [...lines.reduce((m, l) => {
     const b = brandOf(l.p);
     const g = m.get(b) ?? { brand: b, lines: [] as typeof inBudget, units: 0, cost: 0 };
     g.lines.push(l);
@@ -135,14 +145,19 @@ function ReorderView() {
     return m.set(b, g);
   }, new Map<string, { brand: string; lines: typeof inBudget; units: number; cost: number }>()).values()]
     .sort((a, b) => b.cost - a.cost);
+  const byBrand = groupByBrand(inBudget);
 
   const copyOrder = async () => {
-    if (inBudget.length === 0) return;
+    if (orderLines.length === 0) return;
+    // The same sums as the plan's totals (planReorder), over the lines copied.
+    const units = orderLines.reduce((a, l) => a + l.units, 0);
+    const cost = orderLines.reduce((a, l) => a + l.cost, 0);
+    const expected = orderLines.reduce((a, l) => a + l.expectedSold * l.p.price, 0);
     const text =
-      `НАБАВКА — ${inBudget.length} модели · ${plan.units} парчиња · ${fmt(plan.cost)} ден.\n` +
-      `Цели серии. Очекувано за ${judge} месеци: ${fmt(plan.expectedRevenue)} ден. по продажна.\n` +
+      `НАБАВКА${brand ? ` · ${brand}` : ''} — ${orderLines.length} модели · ${units} парчиња · ${fmt(cost)} ден.\n` +
+      `Цели серии. Очекувано за ${judge} месеци: ${fmt(expected)} ден. по продажна.\n` +
       `${new Date(now).toLocaleDateString('mk-MK')}\n\n` +
-      byBrand
+      groupByBrand(orderLines)
         .map((g) =>
           `━━ ${g.brand.toUpperCase()} — ${g.lines.length} модели · ${g.units} парчиња · ${fmt(g.cost)} ден.\n\n` +
           g.lines.map(
@@ -181,6 +196,13 @@ function ReorderView() {
           кои големини недостасуваат, и дали воопшто има пари. Спојувањето на четири листи во глава
           не е план, а токму во спојувањето се прави грешката.
         </p>
+
+        <BrandFilter
+          brands={brands}
+          value={brand}
+          onChange={(b) => { setBrand(b); setCopied(false); }}
+          note={(b) => `Планот, буџетот и бројките горе се за целиот дуќан. Табелата и копираната нарачка се само за ${b}.`}
+        />
 
         {/* the gate, first and allowed to say zero */}
         <div className={`mb-6 rounded-xl border px-4 py-3 ${
@@ -359,11 +381,11 @@ function ReorderView() {
               <h2 className="font-bold text-slate-800 text-sm">Нарачка, рангирана по поврат на денар</h2>
               <button
                 onClick={copyOrder}
-                disabled={inBudget.length === 0}
+                disabled={orderLines.length === 0}
                 className="ml-auto inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-semibold hover:bg-slate-900 disabled:opacity-40"
               >
                 <ClipboardCopy className="h-3.5 w-3.5" />
-                {copied ? 'Копирано' : 'Копирај ја нарачката'}
+                {copied ? 'Копирано' : brand ? `Копирај ја нарачката за ${brand}` : 'Копирај ја нарачката'}
               </button>
             </div>
 
@@ -371,21 +393,34 @@ function ReorderView() {
               <div className="px-4 py-3 border-b border-slate-100">
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
                   По бренд · {byBrand.length} {byBrand.length === 1 ? 'нарачка' : 'нарачки'}
+                  <span className="normal-case font-normal tracking-normal text-slate-400"> · клик за само таа нарачка</span>
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {byBrand.map((g) => (
-                    <span
-                      key={g.brand}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-xs text-slate-700 tabular-nums"
-                    >
-                      <strong className="text-slate-900">{g.brand}</strong>
-                      {g.lines.length} мод. · {g.units} парч. · {fmt(g.cost)} ден.
-                    </span>
-                  ))}
+                  {byBrand.map((g) => {
+                    const active = brand === g.brand;
+                    return (
+                      <button
+                        key={g.brand}
+                        type="button"
+                        onClick={() => { setBrand(active ? '' : g.brand); setCopied(false); }}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs tabular-nums transition-colors ${
+                          active ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        <strong className={active ? 'text-white' : 'text-slate-900'}>{g.brand}</strong>
+                        {g.lines.length} мод. · {g.units} парч. · {fmt(g.cost)} ден.
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
+            {shownLines.length === 0 ? (
+              <p className="px-4 py-10 text-center text-sm text-slate-400">
+                {brand} нема ниту еден модел во планот.
+              </p>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-sm">
                 <thead>
@@ -398,9 +433,10 @@ function ReorderView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {plan.lines.map((l, i) => {
-                    const prev = plan.lines[i - 1];
-                    const first = !l.withinBudget && l.blockedBy !== 'series' && prev?.withinBudget;
+                  {shownLines.map((l, i) => {
+                    const prev = shownLines[i - 1];
+                    // Also at the top: a brand whose every line is past the budget still gets the reason.
+                    const first = !l.withinBudget && l.blockedBy !== 'series' && (!prev || prev.withinBudget);
                     const firstNotWorth = l.blockedBy === 'series' && prev?.blockedBy !== 'series';
                     return (
                       <Fragment key={l.p.id}>
@@ -512,6 +548,7 @@ function ReorderView() {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         )}
 
