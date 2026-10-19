@@ -22,6 +22,9 @@ import { CUSTOMERS, clientIp, ensureCustomerRole, fail, logConsents, publicAuthC
 /** Faster than this from opening the form is a script, not a person (as for orders). */
 const MIN_FILL_MS = 3000;
 
+/** Where a sign-up may say it came from, for the reports (13.12). Anything else is dropped. */
+const SIGNUP_SOURCES = ['trkalo'] as const;
+
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 
 export async function POST(req: NextRequest) {
@@ -82,7 +85,14 @@ export async function POST(req: NextRequest) {
   const { data, error } = await publicAuthClient().auth.signUp({
     email: input.email,
     password: input.password,
-    options: { emailRedirectTo: `${origin}/smetka?potvrdeno=1`, data: { first_name: input.firstName } },
+    options: {
+      emailRedirectTo: `${origin}/smetka?potvrdeno=1`,
+      // Kept with the account (user metadata), no column needed: the wheel's report counts it.
+      data: {
+        first_name: input.firstName,
+        ...((SIGNUP_SOURCES as readonly string[]).includes(str(body.from)) ? { signup_source: str(body.from) } : {}),
+      },
+    },
   });
   if (error) {
     const code = (error as { code?: string }).code ?? '';

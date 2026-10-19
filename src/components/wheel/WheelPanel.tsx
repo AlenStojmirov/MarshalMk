@@ -127,7 +127,7 @@ export default function WheelPanel() {
             <p className="font-semibold text-stone-900">Регистрирај се за да завртиш</p>
             <p className="text-sm text-stone-600 mt-1">Секое вртење добива награда, а со профилот собираш и поени со секоја нарачка.</p>
             <div className="mt-3 flex gap-2">
-              <Link href="/smetka/registracija" className="flex-1 rounded-lg bg-stone-900 text-white py-2.5 text-sm font-semibold">Регистрирај се</Link>
+              <Link href="/smetka/registracija?od=trkalo" className="flex-1 rounded-lg bg-stone-900 text-white py-2.5 text-sm font-semibold">Регистрирај се</Link>
               <Link href="/smetka" className="flex-1 rounded-lg border border-stone-300 py-2.5 text-sm">Најави се</Link>
             </div>
           </div>

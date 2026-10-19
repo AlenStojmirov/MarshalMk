@@ -8,6 +8,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, MailCheck } from 'lucide-react';
 import { CONSENT, POLICIES } from '@/config/policies';
 import { FieldErrors, MIN_PASSWORD, RegistrationInput, validateRegistration } from '@/lib/account';
@@ -15,6 +16,8 @@ import { accountFetch, resendConfirmation } from '@/lib/account-client';
 import AccountFrame, { Field, Notice, buttonCls, inputCls } from './AccountFrame';
 
 export default function RegisterForm() {
+  // Where the visitor came to sign up from, for the reports (13.12): `?od=trkalo` from the wheel.
+  const from = useSearchParams().get('od');
   const [form, setForm] = useState<RegistrationInput>({
     email: '', password: '', firstName: '', lastName: '', phone: '', birthDate: '', marketing: false, consent: false,
   });
@@ -41,7 +44,7 @@ export default function RegisterForm() {
     setBusy(true);
     const r = await accountFetch<{ ok: boolean; email: string }>('/api/account/register', {
       method: 'POST',
-      body: JSON.stringify({ ...form, website, _t: openedAt }),
+      body: JSON.stringify({ ...form, website, _t: openedAt, ...(from ? { from } : {}) }),
     });
     setBusy(false);
     if (r.error) {

@@ -2,15 +2,15 @@
 
 /**
  * The loyalty programme (EPIC 13). Task 13.1: its settings; 13.3: a customer's points; 13.4: coupons;
- * 13.10: the wheel's prizes.
+ * 13.10: the wheel's prizes; 13.12: the reports.
  *
  * Every number of the programme in one form, each with its default beside it,
  * and a worked example that moves as the numbers do, so a change is seen in
  * denars before it is saved. Admin only: the route is not in any other role's
  * ROLE_PATHS, and migration 014 lets only the admin read or write the row.
  *
- * The reports (13.12) join this
- * screen in their own tasks.
+ * Every tab reads its own data; the reports come from the server, which alone
+ * sees every account.
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -26,6 +26,7 @@ import LoyaltyCouponsTab from '@/components/admin/LoyaltyCouponsTab';
 import LoyaltyPointsTab from '@/components/admin/LoyaltyPointsTab';
 import LoyaltyOrderSync from '@/components/admin/LoyaltyOrderSync';
 import LoyaltyWheelTab from '@/components/admin/LoyaltyWheelTab';
+import LoyaltyReportsTab from '@/components/admin/LoyaltyReportsTab';
 import { AlertTriangle, ArrowLeft, Check, Gift, RotateCcw } from 'lucide-react';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
@@ -88,7 +89,7 @@ function LoyaltyView() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'settings' | 'coupons' | 'points' | 'wheel'>('settings');
+  const [tab, setTab] = useState<'settings' | 'coupons' | 'points' | 'wheel' | 'reports'>('settings');
   const [savedAt, setSavedAt] = useState<Date | null>(null);
 
   const apply = (r: LoyaltySettingsRead) => {
@@ -172,11 +173,11 @@ function LoyaltyView() {
         </h1>
         <p className="text-sm text-slate-500 mt-1 mb-4">
           Поени, купони и тркало на среќа, само за нарачки на сајтот со најава (D-032).
-          Извештаите доаѓаат во задачата 13.12.
+          Сите бројки на програмата се во „Извештаи“.
         </p>
 
         <div className="flex gap-1 mb-6 border-b border-slate-200">
-          {([['settings', 'Поставки'], ['coupons', 'Купони'], ['points', 'Поени на купувач'], ['wheel', 'Тркало']] as const).map(([k, label]) => (
+          {([['settings', 'Поставки'], ['coupons', 'Купони'], ['points', 'Поени на купувач'], ['wheel', 'Тркало'], ['reports', 'Извештаи']] as const).map(([k, label]) => (
             <button
               key={k}
               onClick={() => setTab(k)}
@@ -187,7 +188,7 @@ function LoyaltyView() {
           ))}
         </div>
 
-        {tab === 'points' ? <><LoyaltyPointsTab settings={read.settings} /><LoyaltyOrderSync /></> : tab === 'coupons' ? <LoyaltyCouponsTab /> : tab === 'wheel' ? <LoyaltyWheelTab wheelEnabled={read.settings.wheelEnabled} /> : (<>
+        {tab === 'points' ? <><LoyaltyPointsTab settings={read.settings} /><LoyaltyOrderSync /></> : tab === 'coupons' ? <LoyaltyCouponsTab /> : tab === 'wheel' ? <LoyaltyWheelTab wheelEnabled={read.settings.wheelEnabled} /> : tab === 'reports' ? <LoyaltyReportsTab /> : (<>
         {read.missingTable && (
           <Banner tone="amber">
             Миграцијата <strong>014</strong> уште не е пуштена. Важат стандардните бројки подолу, а зачувување не е можно.
