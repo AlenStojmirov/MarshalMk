@@ -62,6 +62,11 @@ const SECTIONS: Array<{ title: string; note?: string; keys: NumericSetting[] }> 
     note: 'Личен купон во %, еднаш, откако купувачот ќе ја потврди е-поштата. 0 = без купон.',
     keys: ['welcomeCouponPct', 'welcomeCouponValidDays', 'welcomeCouponMinBasket'],
   },
+  {
+    title: 'Роденден и потсетници по е-пошта',
+    note: 'На роденденот: бонус поените (горе) и купонот. Пораката оди само ако купувачот сака понуди; подарокот го добива секако. Потсетниците за поени (30 и 7 дена) се во „Рокови“.',
+    keys: ['birthdayCouponPct', 'birthdayCouponValidDays', 'couponNoticeDays'],
+  },
 ];
 
 const WHEEL_KEYS: NumericSetting[] = ['wheelIntervalDays', 'wheelBonusSpinsPerOrder', 'wheelCouponValidHours', 'wheelCouponMinBasket'];

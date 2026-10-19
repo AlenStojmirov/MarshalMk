@@ -11,6 +11,7 @@ import { accountFetch } from '@/lib/account-client';
 import { mkDate, mkNumber } from '@/lib/mk-format';
 import { SOURCE_LABEL } from '@/lib/coupons';
 import type { LoyaltyReport } from '@/lib/loyalty-report';
+import LoyaltyNotifications from './LoyaltyNotifications';
 
 const n = (v: number) => mkNumber(v);
 const MONTHS = ['јан', 'фев', 'мар', 'апр', 'мај', 'јун', 'јул', 'авг', 'сеп', 'окт', 'ное', 'дек'];
@@ -184,6 +185,7 @@ export default function LoyaltyReportsTab() {
           )}
         </section>
       </div>
+      <LoyaltyNotifications />
       <p className="text-[11px] text-slate-400">Пресметано {mkDate(r.generatedAt)}. <button type="button" onClick={() => { setReport(null); setReads((x) => x + 1); }} className="underline">Освежи</button></p>
     </div>
   );

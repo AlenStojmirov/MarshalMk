@@ -63,6 +63,12 @@ export interface LoyaltySettings {
   welcomeCouponValidDays: number;
   welcomeCouponMinBasket: number;
 
+  /** A percent coupon on the birthday (13.11). 0 = none; the birthday bonus points are separate. */
+  birthdayCouponPct: number;
+  birthdayCouponValidDays: number;
+  /** A personal coupon lapsing within this many days gets one reminder e-mail. */
+  couponNoticeDays: number;
+
   /** Off until the owner turns it on. While off the wheel shows nowhere. */
   wheelEnabled: boolean;
   wheelIntervalDays: number;
@@ -98,6 +104,11 @@ export const LOYALTY_DEFAULTS: LoyaltySettings = {
   welcomeCouponPct: 0,
   welcomeCouponValidDays: 30,
   welcomeCouponMinBasket: 0,
+
+  // Not given in the brief: off until the owner sets a value.
+  birthdayCouponPct: 0,
+  birthdayCouponValidDays: 14,
+  couponNoticeDays: 3,
 
   wheelEnabled: false,
   wheelIntervalDays: 7,
@@ -149,6 +160,10 @@ export const LOYALTY_FIELDS: Record<NumericSetting, SettingField> = {
   welcomeCouponPct:       { key: 'welcomeCouponPct', label: 'Купон за добредојде', unit: '%', min: 0, max: 50, step: 1, hint: '0 = без купон' },
   welcomeCouponValidDays: { key: 'welcomeCouponValidDays', label: 'Купонот за добредојде важи', unit: 'дена', min: 1, max: 365, step: 1 },
   welcomeCouponMinBasket: { key: 'welcomeCouponMinBasket', label: 'Купонот за добредојде, најмала кошничка', unit: 'ден.', min: 0, max: 100000, step: 1 },
+
+  birthdayCouponPct:       { key: 'birthdayCouponPct', label: 'Роденденски купон', unit: '%', min: 0, max: 50, step: 1, hint: '0 = без купон' },
+  birthdayCouponValidDays: { key: 'birthdayCouponValidDays', label: 'Роденденскиот купон важи', unit: 'дена', min: 1, max: 90, step: 1 },
+  couponNoticeDays:        { key: 'couponNoticeDays', label: 'Потсетник за купон пред истек', unit: 'дена', min: 1, max: 30, step: 1, hint: 'купоните од тркалото без потсетник' },
 
   wheelIntervalDays:      { key: 'wheelIntervalDays', label: 'Едно вртење на секои', unit: 'дена', min: 1, max: 365, step: 1 },
   wheelBonusSpinsPerOrder:{ key: 'wheelBonusSpinsPerOrder', label: 'Бонус по испорачана нарачка', unit: 'вртења', min: 0, max: 5, step: 1 },

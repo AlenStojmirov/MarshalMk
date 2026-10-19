@@ -16,6 +16,8 @@ import { AccountView, CustomerRow, programmeRules, rowToProfile } from './accoun
 import { LoyaltySettings, fetchLoyaltySettings } from './loyalty-settings';
 import { issuePersonalCoupon } from './coupons';
 import { creditPoints, expiryFor } from './points';
+import { hasPaidOrder } from './paid-orders';
+import { notifyWelcome } from './notifications-server';
 
 export const CUSTOMERS = 'customers';
 export const CUSTOMER_CONSENTS = 'customer_consents';
@@ -69,17 +71,6 @@ export async function logConsents(userId: string, rows: Array<{ kind: 'rules' | 
 }
 
 /**
- * Has this account an order that was delivered and paid? Read the way the
- * order sync reads it (13.8): outcome delivered, or delivered from before
- * outcomes existed.
- */
-export async function hasPaidOrder(userId: string): Promise<boolean> {
-  const { data } = await getSupabaseAdmin().from('orders').select('id, status, outcome')
-    .eq('customer->>userId', userId).or('outcome.eq.delivered,and(outcome.is.null,status.eq.delivered)').limit(1);
-  return (data ?? []).length > 0;
-}
-
-/**
  * Once the e-mail is confirmed: the welcome coupon and the sign-up bonus,
  * once; and the bonus for a complete profile, once. Each is claimed in the
  * row first (an update that only succeeds while the date is empty), so two
@@ -123,6 +114,15 @@ export async function settleAccount(user: User, row: CustomerRow): Promise<Custo
           prefix: 'DOBREDOJDE', note: 'купон за добредојде',
         });
         if (r.error) problems.push(r.error);
+        else if (r.id && r.code && user.email) {
+          // The welcome e-mail with the code (13.11). Never holds up the page: a
+          // failed one is caught by the daily job.
+          await notifyWelcome(sb, {
+            userId: user.id, email: user.email, firstName: current.first_name, couponId: r.id, couponCode: r.code,
+            pct: settings.welcomeCouponPct, until: new Date(Date.now() + settings.welcomeCouponValidDays * 86_400_000),
+            minBasket: settings.welcomeCouponMinBasket,
+          }).catch((e) => console.error(`[NOTIFY_WELCOME_FAILED] user=${user.id} ${(e as Error).message}`));
+        }
       }
       if (settings.bonusRegistration > 0) {
         // Pending until the first paid order (13.8), unless there already is one.
