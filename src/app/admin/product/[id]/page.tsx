@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useProduct, deleteProduct, updateProduct } from '@/hooks/useProducts';
-import { NonSaleReason, Product } from '@/types';
+import { NonSaleReason, Product, ProductFormData } from '@/types';
+import ProductForm, { saveProductEdit } from '@/components/admin/ProductForm';
 import { recordProductSale, refundProductSale } from '@/hooks/useInStoreSales';
 import { NON_SALE_REASONS } from '@/lib/sales-ledger';
 import {
@@ -37,11 +38,14 @@ function ProductDetailView() {
   const params = useParams();
   const router = useRouter();
   const productId = params.id as string;
-  const { product, loading, error } = useProduct(productId);
+  const { product, loading, error, refetch } = useProduct(productId);
   // Staff never see what a piece cost, nor decide what gets reordered (8.3).
   const { isAdmin } = useAuth();
 
   const [localProduct, setLocalProduct] = useState<Product | null>(null);
+  // The same form as the dashboard's, opened here. "Edit" used to link to
+  // /admin?edit=…, which nothing read: it landed on the list, not the form.
+  const [editing, setEditing] = useState<Product | null>(null);
   const [sellForm, setSellForm] = useState<{ size: string; price: string; reason: NonSaleReason | '' }>(
     { size: '', price: '', reason: '' }
   );
@@ -68,6 +72,21 @@ function ProductDetailView() {
         ? 'Недостасува миграцијата 006. Пушти ја во Supabase SQL Editor.'
         : msg);
     }
+  };
+
+  const handleEditSave = async (data: ProductFormData) => {
+    if (!editing) return;
+    // Quantities are compared against the shelf the form opened on (D-013).
+    const err = await saveProductEdit(editing, data);
+    if (err) {
+      alert(err);
+      return; // keep the form open; nothing else was written either
+    }
+    setEditing(null);
+    // The sell form starts again from the tag price as saved.
+    setSellForm((f) => ({ ...f, price: '' }));
+    refetch();
+    return editing.id;
   };
 
   const handleDelete = async () => {
@@ -416,16 +435,25 @@ function ProductDetailView() {
               <Trash2 className="h-4 w-4" />
               {t('productDetail.delete')}
             </button>
-            <Link
-              href={`/admin?edit=${productId}`}
+            <button
+              onClick={() => setEditing(localProduct)}
               className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base"
             >
               <Edit className="h-4 w-4" />
               {t('productDetail.edit')}
-            </Link>
+            </button>
           </div>
         </div>
       </div>
+
+      {editing && (
+        <ProductForm
+          showCost={isAdmin}
+          product={editing}
+          onSave={handleEditSave}
+          onCancel={() => setEditing(null)}
+        />
+      )}
     </div>
   );
 }

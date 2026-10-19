@@ -37,6 +37,8 @@ import { Product } from '@/types';
 import { getEffectivePrice } from '@/lib/pricing';
 import { grossMargin } from '@/lib/cost';
 import { getProductDisplayName } from '@/lib/product-display';
+import { brandOf, brandsOf } from '@/lib/brands';
+import BrandFilter from '@/components/admin/BrandFilter';
 import { velocityOf } from '@/lib/velocity';
 import {
   MIN_SERIES_SELL_THROUGH, SERIES_HORIZON_MONTHS, forecastSeries, seriesContext, seriesLabel,
@@ -80,21 +82,30 @@ const normSize = canonicalSize;
 function SizesView() {
   const { products, loading } = useProducts();
   const [tab, setTab] = useState<'topup' | 'clear'>('topup');
+  const [brand, setBrand] = useState('');
 
   // Frozen per mount: ages and windows do not need to tick, and reading the
   // clock during render makes the render impure.
   const [now] = useState(() => Date.now());
 
+  const brands = useMemo(
+    () => brandsOf(products.filter((p) => !NON_MERCHANDISE.has(p.category))),
+    [products]
+  );
+
   const model = useMemo(() => {
     let liveLetterModels = 0;
     let numericSkipped = 0;
     let complete = 0;
+    // The usual series and size mix are the category's across the whole shop,
+    // whatever brand is shown: one brand's few sales are not a size curve.
     const ctx = seriesContext(products);
 
     const broken: Row[] = [];
 
     for (const p of products) {
       if (NON_MERCHANDISE.has(p.category)) continue;
+      if (brand && brandOf(p) !== brand) continue;
 
       const sizes = (p.sizes ?? []).filter((s) => Number(s.quantity) >= 1);
       const units = sizes.reduce((a, s) => a + Number(s.quantity), 0);
@@ -172,7 +183,7 @@ function SizesView() {
       notWorth: topup.length - worth.length,
       clearCost: clear.reduce((a, r) => a + r.cost, 0),
     };
-  }, [products, now]);
+  }, [products, now, brand]);
 
   if (loading) {
     return (
@@ -200,6 +211,13 @@ function SizesView() {
           Но големина поединечно не се купува: добавувачот продава <strong>цела серија</strong>, и таа
           носи уште едно S и XXL. Затоа прашањето е дали цела серија ќе се продаде, а не дали фали L.
         </p>
+
+        <BrandFilter
+          brands={brands}
+          value={brand}
+          onChange={setBrand}
+          note={(b) => `Сите бројки се само за ${b}. Серијата и понатаму се проценува по категоријата во целиот дуќан.`}
+        />
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">

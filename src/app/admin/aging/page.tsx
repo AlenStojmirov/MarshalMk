@@ -24,6 +24,8 @@ import { getEffectivePrice, isOnSale } from '@/lib/pricing';
 import { grossMargin } from '@/lib/cost';
 import { priceMarkdown, markdownTotals, FLOOR_PCT } from '@/lib/markdown';
 import { getProductDisplayName } from '@/lib/product-display';
+import { brandOf, brandsOf } from '@/lib/brands';
+import BrandFilter from '@/components/admin/BrandFilter';
 import { AlertTriangle, ArrowLeft, Clock, HelpCircle, Tag } from 'lucide-react';
 
 const DAY = 86_400_000;
@@ -66,14 +68,20 @@ function AgingView() {
   const [pct, setPct] = useState(20);
   const [applying, setApplying] = useState(false);
   const [result, setResult] = useState<{ done: number; clamped: number; failed: number } | null>(null);
+  const [brand, setBrand] = useState('');
 
   // Frozen once per mount rather than read during render: ages do not need to
   // tick, and reading the clock inside a memo makes the render impure.
   const [now] = useState(() => Date.now());
 
+  const brands = useMemo(
+    () => brandsOf(products.filter((p) => !NON_MERCHANDISE.has(p.category))),
+    [products]
+  );
+
   const model = useMemo(() => {
     const entries: Entry[] = products
-      .filter((p) => !NON_MERCHANDISE.has(p.category))
+      .filter((p) => !NON_MERCHANDISE.has(p.category) && (!brand || brandOf(p) === brand))
       .map((p) => {
         const units = (p.sizes ?? []).reduce((a, s) => a + Math.max(0, Number(s.quantity) || 0), 0);
         const price = getEffectivePrice(p);
@@ -126,7 +134,7 @@ function AgingView() {
       clearance,
       estimatedCount: dated.filter((e) => e.estimated).length,
     };
-  }, [products, now]);
+  }, [products, now, brand]);
 
   if (loading) {
     return (
@@ -233,6 +241,13 @@ function AgingView() {
           Возраста сама по себе не е пресуда — бавна стока со добра маржа не прави ништо лошо.
           Стара стока <strong>без ниту една продажба</strong> е пари што застанале.
         </p>
+
+        {/* A selection made under one brand must not ride along, unseen, under another. */}
+        <BrandFilter
+          brands={brands}
+          value={brand}
+          onChange={(b) => { setBrand(b); setSelected(new Set()); setResult(null); }}
+        />
 
         {model.undated.length > 0 && (
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex gap-2">

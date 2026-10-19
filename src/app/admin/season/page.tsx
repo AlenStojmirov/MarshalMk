@@ -22,6 +22,8 @@ import { useProducts, updateProduct } from '@/hooks/useProducts';
 import { Product, ProductFormData } from '@/types';
 import { isOnSale } from '@/lib/pricing';
 import { getProductDisplayName } from '@/lib/product-display';
+import { brandOf, brandsOf } from '@/lib/brands';
+import BrandFilter from '@/components/admin/BrandFilter';
 import { priceMarkdown, markdownTotals, FLOOR_PCT } from '@/lib/markdown';
 import {
   MONTH_LABEL, MONTH_SHORT, PHASE_ACTION, PHASE_LABEL, SEASON_LABEL,
@@ -70,10 +72,16 @@ function SeasonView() {
   const [pct, setPct] = useState<number | null>(null);
   const [applying, setApplying] = useState(false);
   const [result, setResult] = useState<{ done: number; clamped: number; failed: number } | null>(null);
+  const [brand, setBrand] = useState('');
 
   // Frozen per mount. The month does not change while the page is open, and
   // reading the clock during render makes the render impure.
   const [month] = useState(() => monthOf());
+
+  const brands = useMemo(
+    () => brandsOf(products.filter((p) => !NON_MERCHANDISE.has(p.category))),
+    [products]
+  );
 
   const model = useMemo(() => {
     const rows: Row[] = [];
@@ -82,6 +90,7 @@ function SeasonView() {
 
     for (const p of products) {
       if (NON_MERCHANDISE.has(p.category)) continue;
+      if (brand && brandOf(p) !== brand) continue;
 
       const units = (p.sizes ?? []).reduce((a, s) => a + Math.max(0, Number(s.quantity) || 0), 0);
       if (units === 0) continue;
@@ -133,7 +142,7 @@ function SeasonView() {
       totalCost: rows.reduce((a, r) => a + r.cost, 0),
       dueCost: dueList.reduce((a, r) => a + r.cost, 0),
     };
-  }, [products, month]);
+  }, [products, month, brand]);
 
   if (loading) {
     return (
@@ -258,6 +267,13 @@ function SeasonView() {
           тоа има рок. Шорцеви во септември не се стари; три недели се од тоа да не вредат ништо до
           јуни, а тие дванаесет месеци капитал не се гледаат никаде на другите страни.
         </p>
+
+        {/* A selection made under one brand must not ride along, unseen, under another. */}
+        <BrandFilter
+          brands={brands}
+          value={brand}
+          onChange={(b) => { setBrand(b); setSelected(new Set()); setResult(null); }}
+        />
 
         <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <strong>Правило од 2026-09-29 (D-027):</strong> остатоците надвор од сезона не се намалуваат сега, туку

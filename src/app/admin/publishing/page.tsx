@@ -27,6 +27,8 @@ import { Product, ProductFormData } from '@/types';
 import { getEffectivePrice } from '@/lib/pricing';
 import { grossMargin } from '@/lib/cost';
 import { getProductDisplayName } from '@/lib/product-display';
+import { brandOf, brandsOf } from '@/lib/brands';
+import BrandFilter from '@/components/admin/BrandFilter';
 import { useTranslation } from '@/lib/i18n';
 import {
   ArrowLeft,
@@ -86,13 +88,22 @@ function PublishingView() {
   const { products, loading, refetch } = useProducts();
   const [activeGroup, setActiveGroup] = useState<string>('all');
   const [publishing, setPublishing] = useState<string | null>(null);
+  const [brand, setBrand] = useState('');
 
   // Frozen once per mount rather than read during render: ages do not need to
   // tick, and reading the clock inside a memo makes the render impure.
   const [now] = useState(() => Date.now());
 
+  const brands = useMemo(
+    () => brandsOf(products.filter((p) => !NON_MERCHANDISE.has(p.category))),
+    [products]
+  );
+
   const model = useMemo(() => {
     const merch = products.filter((p) => !NON_MERCHANDISE.has(p.category));
+    // The group GMROI below orders the queue and stays the whole shop's; the
+    // models counted and listed are the brand's.
+    const shown = brand ? merch.filter((p) => brandOf(p) === brand) : merch;
 
     const unitsOf = (p: Product) =>
       (p.sizes ?? []).reduce((a, s) => a + Math.max(0, Number(s.quantity) || 0), 0);
@@ -123,7 +134,7 @@ function PublishingView() {
       return st && st.cost > 0 ? st.profit / st.cost : 0;
     };
 
-    const entries: Entry[] = merch
+    const entries: Entry[] = shown
       .filter((p) => p.isVisible === false && unitsOf(p) > 0)
       .map((p) => {
         const units = unitsOf(p);
@@ -156,11 +167,11 @@ function PublishingView() {
       }))
       .sort((a, b) => b.gmroi - a.gmroi);
 
-    const publishedMerch = merch.filter((p) => p.isVisible !== false && unitsOf(p) > 0).length;
+    const publishedMerch = shown.filter((p) => p.isVisible !== false && unitsOf(p) > 0).length;
     const hiddenMerch = entries.length;
 
     return { ready, queue, dead, groups, publishedMerch, hiddenMerch };
-  }, [products, now]);
+  }, [products, now, brand]);
 
   const handlePublish = async (p: Product) => {
     setPublishing(p.id);
@@ -272,6 +283,13 @@ function PublishingView() {
         <p className="text-sm text-slate-500 mt-1 mb-6">
           Стоката е платена и стои на полица. Единственото што ја дели од продажба online е фотографија.
         </p>
+
+        <BrandFilter
+          brands={brands}
+          value={brand}
+          onChange={(b) => { setBrand(b); setActiveGroup('all'); }}
+          note={(b) => `Моделите и бројките се само за ${b}. Групите се подредени како и досега, по поврат во целиот дуќан.`}
+        />
 
         {/* progress */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4 shadow-sm">

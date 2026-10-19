@@ -26,6 +26,8 @@ import { Product } from '@/types';
 import { getEffectivePrice } from '@/lib/pricing';
 import { grossMargin } from '@/lib/cost';
 import { getProductDisplayName } from '@/lib/product-display';
+import { brandOf, brandsOf } from '@/lib/brands';
+import BrandFilter from '@/components/admin/BrandFilter';
 import {
   BUY_WINDOW_LABEL, NON_MERCHANDISE, PHASE_LABEL, monthOf, phaseOf, seasonOf, shouldBuyNow,
 } from '@/lib/seasons';
@@ -64,16 +66,24 @@ function VelocityView() {
   const [tab, setTab] = useState<VelocityClass | 'all'>('soldout');
   const [sort, setSort] = useState<Sort>('sellThrough');
   const [copied, setCopied] = useState(false);
+  // Every number here is per product or a sum of them, so a brand narrows them all.
+  const [brand, setBrand] = useState('');
 
   // One instant for the whole page, and never read during render.
   const [now] = useState(() => Date.now());
   const month = useMemo(() => monthOf(now), [now]);
+
+  const brands = useMemo(
+    () => brandsOf(products.filter((p) => !NON_MERCHANDISE.has(p.category))),
+    [products]
+  );
 
   const model = useMemo(() => {
     const entries: Entry[] = [];
 
     for (const p of products) {
       if (NON_MERCHANDISE.has(p.category)) continue;
+      if (brand && brandOf(p) !== brand) continue;
       const m = velocityOf(p, now, month);
       if (!isDecidable(m)) continue;
       entries.push({
@@ -111,7 +121,7 @@ function VelocityView() {
       onHand,
       undated: entries.filter((e) => e.m.ageDays === null).length,
     };
-  }, [products, now, month]);
+  }, [products, now, month, brand]);
 
   if (loading) {
     return (
@@ -182,7 +192,7 @@ function VelocityView() {
         (b.m.sellThrough ?? 0) - (a.m.sellThrough ?? 0)
     );
     const text =
-      `За дополнување — докажана побарувачка (${ranked.length} модели)\n` +
+      `За дополнување${brand ? ` · ${brand}` : ''} — докажана побарувачка (${ranked.length} модели)\n` +
       `${soldout.length} распродадени, ${ranked.length - soldout.length} се празнат.\n` +
       `Sell-through, останато на полица, темпо на 90 дена:\n\n` +
       ranked
@@ -217,6 +227,8 @@ function VelocityView() {
           за вадење капитал надвор. Ова е единствената страна што покажува <strong>каде капиталот
           треба да се врати внатре</strong>.
         </p>
+
+        <BrandFilter brands={brands} value={brand} onChange={(b) => { setBrand(b); setCopied(false); }} />
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">

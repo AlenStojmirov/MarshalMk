@@ -9,6 +9,7 @@ import { useProducts, createProduct } from '@/hooks/useProducts';
 import { getOrders } from '@/lib/orders';
 import { getEffectivePrice, isOnSale } from '@/lib/pricing';
 import { getProductDisplayName } from '@/lib/product-display';
+import { brandOf, brandsOf } from '@/lib/brands';
 import DiscountBadge from '@/components/admin/DiscountBadge';
 import { ROLE_LABEL } from '@/lib/roles';
 import { Product, ProductFormData } from '@/types';
@@ -41,6 +42,7 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
   const [openOrders, setOpenOrders] = useState<number | null>(null);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
+  const [brand, setBrand] = useState('');
   const [stock, setStock] = useState<StockFilter>('in');
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Product | undefined>();
@@ -55,12 +57,14 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
     () => Array.from(new Set(products.map((p) => p.category).filter(Boolean))).sort(),
     [products]
   );
+  const brands = useMemo(() => brandsOf(products), [products]);
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return products
       .filter((p) => {
         if (category && p.category !== category) return false;
+        if (brand && brandOf(p) !== brand) return false;
         if (stock === 'in' && p.stock <= 0) return false;
         if (stock === 'empty' && p.stock > 0) return false;
         if (!q) return true;
@@ -71,7 +75,7 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
         );
       })
       .slice(0, 200);
-  }, [products, query, category, stock]);
+  }, [products, query, category, brand, stock]);
 
   const handleCreate = async (data: ProductFormData, customId?: string) => {
     const id = await createProduct(data, customId);
@@ -190,6 +194,16 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
             <option value="">Сите категории</option>
             {categories.map((c) => (
               <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
+            className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+          >
+            <option value="">Сите брендови</option>
+            {brands.map((b) => (
+              <option key={b} value={b}>{b}</option>
             ))}
           </select>
           <select
