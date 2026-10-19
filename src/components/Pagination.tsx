@@ -3,6 +3,7 @@
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useTransition, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
 
 interface PaginationProps {
   currentPage: number;
@@ -41,6 +42,7 @@ export default function Pagination({ currentPage, totalPages }: PaginationProps)
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const { t } = useTranslation();
 
   const navigateToPage = useCallback(
     (page: number) => {
@@ -64,17 +66,17 @@ export default function Pagination({ currentPage, totalPages }: PaginationProps)
 
   return (
     <nav
-      aria-label="Pagination"
+      aria-label={t('pagination.label')}
       className={`flex items-center justify-center gap-1 mt-10 ${isPending ? 'opacity-60 pointer-events-none' : ''}`}
     >
       <button
         onClick={() => navigateToPage(currentPage - 1)}
         disabled={currentPage <= 1}
-        aria-label="Previous page"
+        aria-label={t('pagination.previousPage')}
         className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-gray-300 disabled:hover:shadow-sm disabled:active:scale-100 transition-all duration-150"
       >
         <ChevronLeft className="h-4 w-4" />
-        <span className="hidden sm:inline">Previous</span>
+        <span className="hidden sm:inline">{t('pagination.previous')}</span>
       </button>
 
       <div className="flex items-center gap-1">
@@ -106,10 +108,10 @@ export default function Pagination({ currentPage, totalPages }: PaginationProps)
       <button
         onClick={() => navigateToPage(currentPage + 1)}
         disabled={currentPage >= totalPages}
-        aria-label="Next page"
+        aria-label={t('pagination.nextPage')}
         className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 hover:border-gray-400 hover:shadow active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-gray-300 disabled:hover:shadow-sm disabled:active:scale-100 transition-all duration-150"
       >
-        <span className="hidden sm:inline">Next</span>
+        <span className="hidden sm:inline">{t('pagination.next')}</span>
         <ChevronRight className="h-4 w-4" />
       </button>
     </nav>

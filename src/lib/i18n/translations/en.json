@@ -144,6 +144,13 @@
     "sortPriceAsc": "Sort by price: low to high",
     "sortPriceDesc": "Sort by price: high to low"
   },
+  "pagination": {
+    "label": "Pagination",
+    "previous": "Previous",
+    "next": "Next",
+    "previousPage": "Previous page",
+    "nextPage": "Next page"
+  },
   "loyalty": {
     "title": "Coupons and points",
     "couponLabel": "Coupon",
