@@ -8,6 +8,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation, useLanguage, Language } from '@/lib/i18n';
 import { useCategories } from '@/hooks/useProducts';
 import { SHIPPING_CONFIG } from '@/config/shipping';
+import { mkNumber } from '@/lib/mk-format';
 
 export default function Header() {
   const { totalItems, openMiniCart } = useCart();
@@ -320,7 +321,7 @@ export default function Header() {
 
       {/* Top Bar - Below Menu */}
       <div className="bg-stone-900 text-white text-center py-2.5 text-xs uppercase tracking-[0.2em] font-light">
-        {t('header.freeShippingBanner', { amount: SHIPPING_CONFIG.freeShippingThreshold })}
+        {t('header.freeShippingBanner', { amount: mkNumber(SHIPPING_CONFIG.freeShippingThreshold) })}
       </div>
     </header>
   );

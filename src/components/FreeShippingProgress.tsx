@@ -3,6 +3,7 @@
 import { Truck, PartyPopper } from 'lucide-react';
 import { SHIPPING_CONFIG } from '@/config/shipping';
 import { useTranslation } from '@/lib/i18n';
+import { mkNumber } from '@/lib/mk-format';
 
 interface FreeShippingProgressProps {
   subtotal: number;
@@ -50,7 +51,7 @@ export default function FreeShippingProgress({
           ) : (
             <>
               {t('cart.freeShippingRemaining', {
-                amount: remaining.toFixed(0),
+                amount: mkNumber(remaining),
               })}
             </>
           )}
