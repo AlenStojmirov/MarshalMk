@@ -115,6 +115,23 @@
       "exchangeLink": "Exchange terms"
     }
   },
+  "homeScreen": {
+    "title": "Marshal on your home screen",
+    "text": "Open the shop with one tap, like an app.",
+    "add": "Add",
+    "later": "Not now",
+    "close": "Close",
+    "footerLink": "Add to home screen",
+    "android1": "Tap {icon} in the top right (Samsung Internet: ≡ at the bottom).",
+    "android2": "Choose “Add to Home screen” or “Install app”.",
+    "android3": "Confirm with “Add”.",
+    "ios1": "Tap {icon} Share. If you don't see it, tap ⋯ first.",
+    "ios2": "Choose “Add to Home Screen”. Scroll down if it's not there.",
+    "ios3": "Confirm with “Add” in the top right.",
+    "inapp1": "Tap {icon} in the top right.",
+    "inapp2": "Choose “Open in browser”, in Chrome or Safari.",
+    "inapp3": "There, choose “Add to Home Screen” from the browser's menu."
+  },
   "categories": {
     "title": "Categories",
     "noCategories": "No categories found",

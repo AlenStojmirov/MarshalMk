@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/lib/i18n";
 import Header from "@/components/Header";
 import FloatingContactButton from "@/components/FloatingContactButton";
 import AttributionCapture from "@/components/AttributionCapture";
+import HomeScreenGuide from "@/components/HomeScreenGuide";
 import { HOME_SHARE, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from "@/lib/share-preview";
 import Footer from "@/components/Footer";
 import MiniCart from "@/components/MiniCart";
@@ -42,6 +43,13 @@ export const metadata: Metadata = {
   ],
   alternates: {
     canonical: "/",
+  },
+  // Kept on an iPhone's home screen, the shop opens as an app under its own
+  // name (Task 14.1); the icon is src/app/apple-icon.png, the rest manifest.ts.
+  appleWebApp: {
+    capable: true,
+    title: "Маршал",
+    statusBarStyle: "default",
   },
   // What a shared link shows on Facebook, Instagram and Viber (Task 10.8):
   // Macedonian, with the shop's own card. <title> above stays for search (9.7).
@@ -118,6 +126,7 @@ export default function RootLayout({
               <Footer />
               <FloatingContactButton />
               <AttributionCapture />
+              <HomeScreenGuide />
               <MiniCart />
               <Analytics />
             </CartProvider>

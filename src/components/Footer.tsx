@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { MapPin } from 'lucide-react';
 
 import { POLICIES } from '@/config/policies';
+import { HomeScreenGuideLink } from '@/components/HomeScreenGuide';
 import { STORE_ADDRESS, STORE_EMAIL, STORE_FACEBOOK_URL, STORE_INSTAGRAM_URL, STORE_MAPS_URL } from '@/config/store';
 
 export default function Footer() {
@@ -91,6 +92,7 @@ return (
               {p.title}
             </Link>
           ))}
+          <HomeScreenGuideLink className="hover:text-white transition-colors duration-200" />
         </nav>
 
         {/* Copyright — thin divider line */}
