@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { cleanSource } from '@/lib/attribution';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { applyOrderToStock, revertOrderFromStock } from '@/lib/stock';
@@ -14,6 +14,7 @@ import { priceOrder } from '@/lib/order-math';
 import { quoteServer, userFromRequest } from '@/lib/basket-server';
 import { redeemCoupon, releaseOrderCoupon } from '@/lib/coupons';
 import { cancelOrderPoints, creditPoints, redeemPoints } from '@/lib/points';
+import { notifyShopOfOrder } from '@/lib/order-notify-server';
 import type { OrderLoyalty } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -437,6 +438,23 @@ export async function POST(request: NextRequest) {
     console.log(
       `[ORDER_CREATED] orderNumber=${orderNumber} ip=${ip} email=${email} items=${items.length}`
     );
+
+    // ── E-mail to the shop (14.2) ─────────────────────────────────────────
+    // After the response: the customer never waits for it, and a failure is
+    // only logged — the order stands either way.
+    after(async () => {
+      const r = await notifyShopOfOrder(supabase, {
+        orderNumber,
+        customer: orderRow.customer,
+        items: orderRow.items,
+        subtotal: netSubtotal,
+        shipping,
+        total,
+        member: !!memberId,
+      });
+      if (r.failed.length) console.error(`[ORDER_NOTIFY_FAILED] orderNumber=${orderNumber} ${r.failed.join(' | ')}`);
+      else if (r.skipped) console.log(`[ORDER_NOTIFY_SKIPPED] orderNumber=${orderNumber} ${r.skipped}`);
+    });
 
     return NextResponse.json({ orderNumber }, { status: 201 });
   } catch (err) {

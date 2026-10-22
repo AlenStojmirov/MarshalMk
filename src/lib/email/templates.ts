@@ -1,5 +1,6 @@
 /**
- * The customer e-mails, in Macedonian (Task 13.11). Short, one thing each,
+ * The customer e-mails, in Macedonian (Task 13.11), and at the end the one to
+ * the shop for a new order (14.2). Short, one thing each,
  * with a button to the page it is about. Plain HTML with inline styles: mail
  * clients ignore stylesheets.
  *
@@ -9,6 +10,7 @@
  */
 
 import { mkDate, mkDen, mkNumber } from '@/lib/mk-format';
+import type { CustomerInfo, OrderItem } from '@/types';
 
 export const SITE = 'https://marshal.mk';
 
@@ -94,5 +96,94 @@ export function birthdayEmail(a: {
       offerFooter(a.unsubscribe),
     ),
     text: `${hi(a.firstName)}\n\nСреќен роденден од Маршал! Подарок на твојот профил.\n\n${SITE}/smetka\n\nНе сакам понуди: ${a.unsubscribe}`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// To the shop (Task 14.2)
+// ---------------------------------------------------------------------------
+
+/** Everything here was typed by a customer, so it is escaped before it goes into HTML. */
+const esc = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+export interface NewOrderMail {
+  orderNumber: string;
+  customer: Pick<CustomerInfo, 'firstName' | 'lastName' | 'email' | 'phone' | 'address' | 'city' | 'notes' | 'deliveryMethod' | 'loyalty'>;
+  items: Array<Pick<OrderItem, 'productName' | 'quantity' | 'price'> & { size?: string | null }>;
+  subtotal: number;
+  shipping: number;
+  total: number;
+  /** Placed signed in to an account. */
+  member: boolean;
+  /** The "send a test" button: said in the subject and at the top. */
+  test?: boolean;
+}
+
+/**
+ * A new order, to the addresses the owner set in /admin/settings: who, what,
+ * where to, how much to collect, and a button to the orders screen. Item prices
+ * are already after coupon and points (D-031), so those are shown as what they
+ * took, not taken again.
+ */
+export function newOrderEmail(o: NewOrderMail): Rendered {
+  const c = o.customer;
+  const pickup = c.deliveryMethod === 'pickup';
+  const name = `${c.firstName} ${c.lastName}`.trim();
+  const where = pickup ? 'Подигање во продавница' : [c.address, c.city].filter(Boolean).join(', ');
+  const delivery = o.shipping > 0 ? mkDen(o.shipping) : pickup ? 'нема (подигање)' : 'бесплатна';
+  const l = c.loyalty ?? {};
+  const loyaltyParts = [
+    l.couponCode ? `купон ${l.couponCode}${l.couponDiscount ? ` −${mkDen(l.couponDiscount)}` : ''}` : '',
+    l.pointsUsed ? `поени −${mkDen(l.pointsUsed)}` : '',
+  ].filter(Boolean);
+  const units = o.items.reduce((a, i) => a + i.quantity, 0);
+  const prefix = o.test ? '[ПРОБА] ' : '';
+
+  const rows = o.items.map((i) =>
+    `<tr>
+       <td style="padding:6px 0;border-bottom:1px solid #e7e5e4">${esc(i.productName)}${i.size ? `<br><span style="color:#78716c;font-size:13px">Големина ${esc(String(i.size))}</span>` : ''}</td>
+       <td style="padding:6px 0 6px 8px;border-bottom:1px solid #e7e5e4;text-align:right;white-space:nowrap">${i.quantity} × ${mkDen(i.price)}</td>
+     </tr>`).join('');
+
+  const html = layout(
+    `${o.test ? '<p style="background:#fef3c7;border-radius:6px;padding:8px 10px;margin:0 0 12px;font-size:13px">Ова е проба од Админ → Поставки. Нарачката не постои.</p>' : ''}
+     <p style="margin:0 0 4px;font-size:18px;font-weight:bold">Нова нарачка ${esc(o.orderNumber)}</p>
+     <p style="margin:0 0 16px;color:#57534e">${units} ${units === 1 ? 'парче' : 'парчиња'} · за наплата <strong style="color:#1c1917">${mkDen(o.total)}</strong></p>
+     <table style="width:100%;border-collapse:collapse;font-size:14px">${rows}</table>
+     <p style="margin:12px 0 0;font-size:14px">Производи: ${mkDen(o.subtotal)}<br>Достава: ${delivery}<br><strong>За наплата: ${mkDen(o.total)}</strong></p>
+     ${loyaltyParts.length ? `<p style="margin:8px 0 0;font-size:13px;color:#57534e">Веќе одземено од цените: ${esc(loyaltyParts.join(', '))}</p>` : ''}
+     <p style="margin:16px 0 0;font-size:14px">
+       <strong>${esc(name)}</strong>${o.member ? ' · со профил' : ''}<br>
+       <a href="tel:${esc(c.phone)}" style="color:#1c1917">${esc(c.phone)}</a> · <a href="mailto:${esc(c.email)}" style="color:#1c1917">${esc(c.email)}</a><br>
+       ${esc(where)}
+     </p>
+     ${c.notes ? `<p style="margin:8px 0 0;font-size:14px;background:#f5f5f4;border-radius:6px;padding:8px 10px">Забелешка: ${esc(c.notes)}</p>` : ''}`,
+    { label: 'Отвори ги нарачките', href: `${SITE}/admin/orders` },
+    'Известување за нова нарачка на marshal.mk. Адресите се менуваат во Админ → Поставки.',
+  );
+
+  const text = [
+    `${prefix}Нова нарачка ${o.orderNumber}`,
+    '',
+    ...o.items.map((i) => `${i.productName}${i.size ? ` (${i.size})` : ''}: ${i.quantity} × ${mkDen(i.price)}`),
+    '',
+    `Производи: ${mkDen(o.subtotal)}`,
+    `Достава: ${delivery}`,
+    `За наплата: ${mkDen(o.total)}`,
+    ...(loyaltyParts.length ? [`Веќе одземено од цените: ${loyaltyParts.join(', ')}`] : []),
+    '',
+    `${name}${o.member ? ' (со профил)' : ''}`,
+    `${c.phone} · ${c.email}`,
+    where,
+    ...(c.notes ? [`Забелешка: ${c.notes}`] : []),
+    '',
+    `${SITE}/admin/orders`,
+  ].join('\n');
+
+  return {
+    subject: `${prefix}Нова нарачка ${o.orderNumber} · ${mkDen(o.total)} · ${pickup ? 'подигање' : c.city || 'достава'}`,
+    html,
+    text,
   };
 }
