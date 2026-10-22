@@ -89,6 +89,8 @@
     "selectSize": "Please select a size",
     "inStockWithCount": "In Stock ({count} available)",
     "inStockInSize": "In Stock ({count} available in {size})",
+    "lastPieceInSize": "Last piece in {size}",
+    "lastFewInSize": "Last {count} in {size}",
     "outOfStockInSize": "Out of Stock in {size}",
     "totalStock": "Total Stock: {count} items",
     "addedToCart": "Added to Cart!",

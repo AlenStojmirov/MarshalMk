@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { sizeLabel } from '@/lib/sizes';
+import { lastPieces, sizeLabel } from '@/lib/sizes';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Minus, Plus, ShoppingCart } from 'lucide-react';
 import { useProductsByCategory } from '@/hooks/useProducts';
@@ -55,6 +55,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
   const availableStock = hasSizes
     ? selectedSizeData?.quantity || 0
     : product?.stock || 0;
+  const piecesLeft = lastPieces(selectedSizeData?.quantity);
 
   const onSale = !!product.sale?.isActive;
   const percentOff = onSale
@@ -223,7 +224,14 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
             <div className="mb-6">
               {hasSizes ? (
                 selectedSize ? (
-                  availableStock > 0 ? (
+                  piecesLeft !== null ? (
+                    <p className="inline-flex items-center gap-2 text-xs font-medium text-amber-700">
+                      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-amber-600" />
+                      {piecesLeft === 1
+                        ? t('product.lastPieceInSize', { size: sizeLabel(selectedSize, (language === 'en' ? 'en' : 'mk')) })
+                        : t('product.lastFewInSize', { count: piecesLeft.toString(), size: sizeLabel(selectedSize, (language === 'en' ? 'en' : 'mk')) })}
+                    </p>
+                  ) : availableStock > 0 ? (
                     <p className="text-xs text-stone-500">
                       {t('product.inStockInSize', { count: availableStock.toString(), size: sizeLabel(selectedSize, (language === 'en' ? 'en' : 'mk')) })}
                     </p>

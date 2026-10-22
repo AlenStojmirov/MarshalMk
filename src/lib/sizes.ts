@@ -153,3 +153,21 @@ export function groupSizes<T extends string | number>(sizes: T[]): SizeGroup<T>[
   if (numeric.length > 0) groups.push({ type: 'numeric', sizes: sortNumericSizes(numeric) });
   return groups;
 }
+
+/**
+ * Up to how many pieces a size reads "last pieces" on the product page (9.13).
+ * Measured 2026-10-22: of 253 sizes on the site, 205 had one piece and 38 had
+ * two, so the line shows only for the size the customer picked — under every
+ * button it would be on nearly all of them and read as wallpaper.
+ */
+export const LAST_PIECES_MAX = 2;
+
+/**
+ * How many pieces are left when that is few enough to say so, else null.
+ * A quantity that is not a whole number of pieces is unknown, and an unknown
+ * stock is never put into words.
+ */
+export function lastPieces(quantity: unknown): number | null {
+  if (typeof quantity !== 'number' || !Number.isInteger(quantity)) return null;
+  return quantity >= 1 && quantity <= LAST_PIECES_MAX ? quantity : null;
+}

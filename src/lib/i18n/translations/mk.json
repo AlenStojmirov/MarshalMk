@@ -89,6 +89,8 @@
     "selectSize": "Ве молиме изберете големина",
     "inStockWithCount": "На залиха ({count} достапни)",
     "inStockInSize": "На залиха ({count} достапни во {size})",
+    "lastPieceInSize": "Последно парче во {size}",
+    "lastFewInSize": "Последни {count} парчиња во {size}",
     "outOfStockInSize": "Нема на залиха во {size}",
     "totalStock": "Вкупна залиха: {count} парчиња",
     "addedToCart": "Додадено во кошничка!",
