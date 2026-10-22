@@ -6,6 +6,16 @@ import { canonicalSize } from './sizes';
 
 const PRODUCTS_PER_PAGE = 12;
 
+/**
+ * The columns a customer may see — the same list as the `products_public` view
+ * (migration 007). These reads run with the service role and their result is
+ * handed to client components, so whatever is selected here is in the page's
+ * HTML: `select('*')` put every product's `sold[]` (size, price charged, date,
+ * the giveaways at 0) on the product, category, /new and /sale pages.
+ */
+const PUBLIC_COLUMNS =
+  'id, name, description, price, category, image_url, images, stock, sizes, brand, color, featured, is_visible, sale, created_at, updated_at';
+
 function enrichWithLocalImages(product: Product, imageMap: ProductImageMap): Product {
   const localImages = imageMap[product.id];
   if (localImages && localImages.length > 0) {
@@ -39,7 +49,7 @@ export async function fetchPaginatedProducts(
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from('products')
-    .select('*')
+    .select(PUBLIC_COLUMNS)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -139,7 +149,7 @@ export async function getProductById(id: string): Promise<Product | null> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from('products')
-    .select('*')
+    .select(PUBLIC_COLUMNS)
     .eq('id', id)
     .maybeSingle();
 
@@ -154,7 +164,7 @@ export async function fetchAllVisibleProducts(): Promise<Product[]> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from('products')
-    .select('*')
+    .select(PUBLIC_COLUMNS)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
