@@ -100,7 +100,20 @@
     "relatedProducts": "Related Products",
     "askOnInstagram": "Ask about this on Instagram",
     "sale": "Sale",
-    "save": "Save {amount} ден."
+    "save": "Save {amount} ден.",
+    "delivery": {
+      "payTitle": "Cash on delivery",
+      "payText": "Pay in cash when the parcel arrives, no card needed.",
+      "shipTitle": "Delivery {amount}",
+      "shipText": "Free for orders of {amount} or more.",
+      "cartRemaining": "{amount} more in your cart for free delivery.",
+      "cartFree": "Your cart already has free delivery.",
+      "pickupTitle": "Pick up in store",
+      "pickupText": ", no delivery cost.",
+      "exchangeTitle": "Size exchange",
+      "exchangeText": "Report it within {hours} hours of receiving the order.",
+      "exchangeLink": "Exchange terms"
+    }
   },
   "categories": {
     "title": "Categories",

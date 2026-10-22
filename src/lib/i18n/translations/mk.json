@@ -100,7 +100,20 @@
     "relatedProducts": "Слични производи",
     "askOnInstagram": "Прашај на Инстаграм",
     "sale": "Попуст",
-    "save": "Заштеди {amount} ден."
+    "save": "Заштеди {amount} ден.",
+    "delivery": {
+      "payTitle": "Плаќање при достава",
+      "payText": "Плаќаш во готово кога ќе ја примиш пратката, без картичка.",
+      "shipTitle": "Достава {amount}",
+      "shipText": "Бесплатна за нарачка од {amount}",
+      "cartRemaining": "Уште {amount} во кошничката до бесплатна достава.",
+      "cartFree": "Кошничката веќе има бесплатна достава.",
+      "pickupTitle": "Подигање во продавница",
+      "pickupText": ", без трошок за достава.",
+      "exchangeTitle": "Замена на големина",
+      "exchangeText": "Пријави ја во првите {hours} часа од приемот.",
+      "exchangeLink": "Услови за замена"
+    }
   },
   "categories": {
     "title": "Категории",

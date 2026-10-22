@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { useTranslation } from '@/lib/i18n';
 import ProductGrid from '@/components/ProductGrid';
 import ProductImageGallery from '@/components/ProductImageGallery';
+import ProductDeliveryInfo from '@/components/ProductDeliveryInfo';
 import { Product } from '@/types';
 
 function RelatedProducts({ category, excludeId }: { category: string; excludeId: string }) {
@@ -325,6 +326,8 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
               </svg>
               {t('product.askOnInstagram')}
             </a>
+
+            <ProductDeliveryInfo />
           </div>
         </div>
       </div>
