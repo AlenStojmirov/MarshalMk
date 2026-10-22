@@ -193,7 +193,8 @@
     "couponFreeShipping": "free delivery",
     "pointsLine": "Points",
     "youHave": "You have {points} points. You can use up to {max} den on this order.",
-    "using": "Using {points} points",
+    "pointsInput": "Number of points",
+    "pointsUnit": "points",
     "willEarn": "You will earn {points} points with this order.",
     "guestEarn": "With an account, this order would earn you {points} points.",
     "forMembers": "Coupons and points are for orders placed while signed in.",
@@ -201,7 +202,7 @@
     "register": "Create account",
     "finishProfile": "Confirm your e-mail and finish your profile to use coupons and points.",
     "toAccount": "Go to your account",
-    "sliderHint": "This is where you choose how many points to use. Move the slider to the right.",
+    "sliderHint": "This is where you choose how many points to use: move the slider or type the number.",
     "gotIt": "Got it",
     "unavailable": "Some products are no longer available. Remove them from the cart."
   },

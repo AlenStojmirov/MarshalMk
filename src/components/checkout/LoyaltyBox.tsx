@@ -50,6 +50,8 @@ export default function LoyaltyBox({
 }) {
   const { t } = useTranslation();
   const [typed, setTyped] = useState('');
+  // The points field while it is being typed in; null shows the chosen number.
+  const [pointsDraft, setPointsDraft] = useState<string | null>(null);
   const [hint, setHint] = useState(hintPending);
   const dismissHint = () => {
     setHint(false);
@@ -81,8 +83,19 @@ export default function LoyaltyBox({
   }
 
   const coupon = data.coupon;
-  const { balance, maxUsable, used, message } = data.points;
+  const { balance, maxUsable, message } = data.points;
   const sliderMax = Math.max(0, maxUsable);
+
+  // A slider rarely lands on an exact number (13.15), so the number can be typed.
+  // Out of range it becomes the nearest allowed value; empty is 0. The server
+  // checks the limits again (quoteServer), so this is only a convenience.
+  const typePoints = (raw: string) => {
+    const digits = raw.replace(/\D/g, '');
+    const value = digits === '' ? 0 : Math.min(Number(digits), sliderMax);
+    setPointsDraft(digits === '' ? '' : String(value));
+    onPoints(value);
+    if (hint) dismissHint();
+  };
 
   return (
     <div className="mb-5 rounded-lg border border-gray-200 px-4 py-3 text-sm space-y-3">
@@ -140,13 +153,26 @@ export default function LoyaltyBox({
                 max={sliderMax}
                 step={1}
                 value={Math.min(pointsWanted, sliderMax)}
-                onChange={(e) => { onPoints(Number(e.target.value)); if (hint) dismissHint(); }}
+                onChange={(e) => { setPointsDraft(null); onPoints(Number(e.target.value)); if (hint) dismissHint(); }}
                 className="w-full mt-2 accent-gray-900"
                 aria-label={t('loyalty.pointsLine')}
               />
-              <div className="flex justify-between text-xs text-gray-500">
+              <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
                 <span>0</span>
-                <span className="font-medium text-gray-900">{t('loyalty.using', { points: n(used) })}</span>
+                <label className="flex items-center gap-1.5 text-gray-700">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={pointsDraft ?? String(Math.min(pointsWanted, sliderMax))}
+                    onChange={(e) => typePoints(e.target.value)}
+                    onFocus={(e) => e.target.select()}
+                    onBlur={() => setPointsDraft(null)}
+                    aria-label={t('loyalty.pointsInput')}
+                    className="w-20 rounded-md border border-gray-300 px-2 py-1 text-center text-base sm:text-sm font-medium text-gray-900 tabular-nums"
+                  />
+                  {t('loyalty.pointsUnit')}
+                </label>
                 <span>{n(sliderMax)}</span>
               </div>
             </>
