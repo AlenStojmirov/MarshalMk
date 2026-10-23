@@ -28,9 +28,17 @@ const PAD = 6;
 const find = (target: string) => document.querySelector<HTMLElement>(`[data-tour="${target}"]`);
 
 export default function DashboardTour({ steps, onClose }: { steps: TourStep[]; onClose: () => void }) {
-  // Only the steps whose element is on the page now. On the server there is no
-  // page yet, so nothing is shown; the dashboard opens the tour in the browser.
-  const [shown] = useState(() => (typeof document === 'undefined' ? [] : steps.filter((s) => find(s.target))));
+  // Only the steps whose element is on the page, read once the page is drawn. The
+  // tour opens in the same render as the home tab it points at — on a first visit
+  // as the data arrives, from "Водич" on another tab as the tab changes — and while
+  // rendering, that tab is not in the document yet. Read then, only the tabs bar
+  // was there, and the tour began and ended at "Мои нарачки" (13.13b).
+  const [wanted] = useState(steps);
+  const [shown, setShown] = useState<TourStep[]>([]);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setShown(wanted.filter((s) => find(s.target))));
+    return () => cancelAnimationFrame(frame);
+  }, [wanted]);
   const [index, setIndex] = useState(0);
   const [box, setBox] = useState<Box | null>(null);
   const [reduced] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
