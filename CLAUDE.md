@@ -71,7 +71,7 @@ The role is `app_metadata.role` on the Supabase user, writable only with the ser
 | none / unknown | blank page | nothing |
 
 - Screen rules: `ROLE_PATHS` in `src/lib/roles.ts` (an allowlist — a new admin page is admin-only until added), enforced by `AdminGate` in `admin/layout.tsx`. **A user without a role gets no access, never staff** — Supabase sign-up is open, and customers with their own accounts (and their own screen, outside `/admin`) are planned.
-- Accounts: `/admin/users` → `/api/admin/users` (service-role, checks the caller is admin). `AuthContext` refreshes the session on load so a changed role applies at once.
+- Accounts: `/admin/users` → `/api/admin/users` (service-role, checks the caller is admin): create, change role or password, delete — never your own account and never an admin; the cascade takes the account's points, coupons, spins and customer row, orders stay (D-037). `AuthContext` refreshes the session on load so a changed role applies at once.
 
 ## Storefront
 

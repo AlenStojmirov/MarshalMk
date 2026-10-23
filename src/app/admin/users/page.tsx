@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, KeyRound, UserPlus } from 'lucide-react';
+import { ArrowLeft, KeyRound, Trash2, UserPlus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { BACK_OFFICE_ROLES, ROLE_LABEL, Role } from '@/lib/roles';
 
 /**
  * Back-office accounts (Task 8.7): add someone for the warehouse or marketing, change a
- * role, set a new password. Everything goes through /api/admin/users, which
- * holds the service-role key and checks that the caller is the admin.
+ * role, set a new password, delete an account (8.8, D-037). Everything goes through
+ * /api/admin/users, which holds the service-role key and checks that the caller is the admin.
  */
 
 interface Account {
@@ -27,7 +27,7 @@ type Wanted = Role | 'none';
 const ASSIGNABLE: Wanted[] = [...BACK_OFFICE_ROLES, 'none'];
 const WANTED_LABEL: Record<Wanted, string> = { ...ROLE_LABEL, none: 'Без пристап' };
 
-async function call(method: 'GET' | 'POST' | 'PATCH', body?: unknown) {
+async function call(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', body?: unknown) {
   const { data } = await supabase.auth.getSession();
   const res = await fetch('/api/admin/users', {
     method,
@@ -106,6 +106,24 @@ function UsersView() {
     try {
       await call('PATCH', { id: a.id, password });
       setNotice(`Лозинката за ${a.email} е сменета.`);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const remove = async (a: Account) => {
+    const ok = window.confirm(
+      `Да се избрише ${a.email}?\n\n` +
+      'Заминуваат профилот, поените, личните купони, вртењата и согласностите. ' +
+      'Нарачките остануваат. Телефонот може повторно да се регистрира.\n\nОва не може да се врати.'
+    );
+    if (!ok) return;
+    setError(null);
+    setNotice(null);
+    try {
+      await call('DELETE', { id: a.id });
+      setNotice(`Профилот ${a.email} е избришан.`);
+      await load();
     } catch (err) {
       setError((err as Error).message);
     }
@@ -200,6 +218,14 @@ function UsersView() {
                   className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50"
                 >
                   <KeyRound className="h-3.5 w-3.5" /> Лозинка
+                </button>
+                <button
+                  onClick={() => remove(a)}
+                  disabled={a.id === me || a.role === 'admin'}
+                  title={a.id === me ? 'Сопствениот профил не се брише' : a.role === 'admin' ? 'Админ не се брише: прво смени ја улогата' : undefined}
+                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-red-200 text-xs text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:hover:bg-transparent"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Избриши
                 </button>
               </li>
             ))}

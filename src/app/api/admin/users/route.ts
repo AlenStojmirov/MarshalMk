@@ -15,6 +15,7 @@ import { BACK_OFFICE_ROLES, ROLES, Role, roleOf } from '@/lib/roles';
  *   GET    list accounts
  *   POST   { email, password, role }        create one (no confirmation mail)
  *   PATCH  { id, role?, password? }          change role ('none' = no access) or password
+ *   DELETE { id }                            delete an account for good (Task 8.8, D-037)
  */
 
 const MIN_PASSWORD = 8;
@@ -136,6 +137,47 @@ export async function PATCH(req: NextRequest) {
     const { data, error } = await getSupabaseAdmin().auth.admin.updateUserById(target.id, update);
     if (error) return fail(500, error.message);
     return NextResponse.json({ user: view(data.user) });
+  } catch (err) {
+    return fail(500, (err as Error).message);
+  }
+}
+
+/**
+ * Delete an account for good (Task 8.8, D-037): while testing, and when a customer
+ * asks for their profile to go (/privatnost). Everything hanging off the account
+ * goes with it, `on delete cascade` — the customer row, consents, points, personal
+ * coupons and their uses, spins, notices — and the phone is free again. Orders stay:
+ * the account is only noted in them, and they are the shop's records.
+ *
+ * Never your own account, and never an admin: take the role away first, so the shop
+ * cannot be left without one.
+ */
+export async function DELETE(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if ('res' in auth) return auth.res;
+
+  let body: { id?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return fail(400, 'Неисправно барање.');
+  }
+  if (typeof body.id !== 'string' || !body.id) return fail(400, 'Нема корисник.');
+  if (body.id === auth.me.id) return fail(400, 'Не можеш да го избришеш сопствениот профил.');
+
+  try {
+    const users = await allUsers();
+    const target = users.find((u) => u.id === body.id);
+    if (!target) return fail(404, 'Нема таков корисник.');
+    if (roleOf(target) === 'admin') return fail(400, 'Админ не се брише. Прво смени ја улогата.');
+
+    // One statement with its cascade, so a failure leaves nothing half-done. The uses of
+    // the account's own coupons (`on delete restrict` on the coupon, 016) go in the same
+    // cascade before the check — tried in PGlite with 016's tables.
+    const { error } = await getSupabaseAdmin().auth.admin.deleteUser(target.id);
+    if (error) return fail(500, `Профилот не се избриша: ${error.message}`);
+    console.log(`[ADMIN_USER_DELETED] by=${auth.me.email} user=${target.email} role=${roleOf(target) ?? 'none'}`);
+    return NextResponse.json({ deleted: target.id });
   } catch (err) {
     return fail(500, (err as Error).message);
   }
