@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { ShoppingCart, Menu, X, Package, ChevronDown, Globe, UserRound } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useState, useRef, useEffect } from 'react';
@@ -21,6 +22,17 @@ export default function Header() {
   const { language, setLanguage } = useLanguage();
   const categoriesDropdownRef = useRef<HTMLDivElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+
+  // The header outlives the page, and so would an open menu: the account icon or
+  // the logo, tapped with the menu open, went to the page underneath it (14.3).
+  // Any change of page closes it; the icons also close it on their own page.
+  const [menuPath, setMenuPath] = useState(pathname);
+  if (menuPath !== pathname) {
+    setMenuPath(pathname);
+    setMobileMenuOpen(false);
+  }
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -61,7 +73,7 @@ export default function Header() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Logo */}
-            <Link href="/" className="flex-shrink-0">
+            <Link href="/" className="flex-shrink-0" onClick={closeMobileMenu}>
               <Image
                 src="/logo_black.png"
                 alt={t('header.storeName')}
@@ -199,6 +211,7 @@ export default function Header() {
               </button>
               <Link
                 href="/smetka"
+                onClick={closeMobileMenu}
                 className="text-gray-500 hover:text-black hover:scale-110 active:scale-95 transition-all duration-200"
                 title={t('header.account')}
                 aria-label={t('header.account')}
@@ -207,7 +220,10 @@ export default function Header() {
               </Link>
               <button
                 type="button"
-                onClick={openMiniCart}
+                onClick={() => {
+                  closeMobileMenu();
+                  openMiniCart();
+                }}
                 className="relative text-gray-500 hover:text-black hover:scale-110 active:scale-95 transition-all duration-200"
                 title={t('common.cart')}
                 aria-label={t('common.cart')}
