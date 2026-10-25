@@ -26,7 +26,7 @@ import { Notice } from './AccountFrame';
 import ProfileForm from './ProfileForm';
 import WheelPanel from '@/components/wheel/WheelPanel';
 import type { WheelState } from '@/lib/wheel';
-import DashboardTour, { type TourStep } from './DashboardTour';
+import Tour, { type TourStep } from '@/components/Tour';
 
 export const DASHBOARD_TABS = [
   { key: 'pochetna', label: 'Почетна' },
@@ -128,7 +128,7 @@ export default function CustomerDashboard({
             <CircleHelp className="h-4 w-4" /> Водич
           </button>
         </div>
-        {touring && <DashboardTour steps={steps} onClose={closeTour} />}
+        {touring && <Tour steps={steps} onClose={closeTour} />}
 
         <div className="space-y-3 mt-4">
           {confirmedNow && view.emailConfirmed && <Notice tone="green">Е-поштата е потврдена. Добредојде!</Notice>}

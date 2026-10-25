@@ -1,33 +1,50 @@
 'use client';
 
 /**
- * The dashboard tour (Task 13.13): a few steps that light up the real parts of
- * the customer's page — points, the waiting ones, coupons, the wheel, how
- * points work, orders — and say in a sentence what each is.
+ * A guided tour: a few steps, one at a time, over the darkened page. Two use it —
+ * the customer's dashboard (Task 13.13), whose steps light up the real parts of
+ * the page (points, the waiting ones, coupons, the wheel, how points work,
+ * orders), and the home-screen guide (14.4), whose steps point at the browser's
+ * own buttons, which no page can light, and so show a picture of them instead.
  *
  * Built here rather than taken from a package (the owner's network makes new
  * packages hard): the page darkens, the step's element is scrolled into view
  * and left lit, and the explanation sits under it — at the bottom of the
- * screen on a phone. Esc closes, the arrows move, focus stays in the tour,
- * and nothing moves when the device asks for less motion. A step whose
- * element is not on the page is left out.
+ * screen on a phone, and for a step with no element. Esc closes, the arrows
+ * move, focus stays in the tour, and nothing moves when the device asks for
+ * less motion. A step whose element is not on the page is left out.
  */
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 
 export interface TourStep {
-  /** The `data-tour` value of the element to light up. */
-  target: string;
+  /** The `data-tour` value of the element to light up; without one the step stands alone. */
+  target?: string;
   title: string;
   body: string;
+  /** Under the text: what to look for where the tour cannot point. */
+  visual?: ReactNode;
 }
+
+/** The tour's own words; Macedonian unless the page passes its language's. */
+export interface TourLabels {
+  of: (n: number, total: number) => string;
+  skip: string;
+  back: string;
+  next: string;
+  done: string;
+}
+
+const MK_LABELS: TourLabels = {
+  of: (n, total) => `${n} од ${total}`, skip: 'Прескокни', back: 'Назад', next: 'Напред', done: 'Готово',
+};
 
 interface Box { top: number; left: number; width: number; height: number }
 
 const PAD = 6;
 const find = (target: string) => document.querySelector<HTMLElement>(`[data-tour="${target}"]`);
 
-export default function DashboardTour({ steps, onClose }: { steps: TourStep[]; onClose: () => void }) {
+export default function Tour({ steps, onClose, labels = MK_LABELS }: { steps: TourStep[]; onClose: () => void; labels?: TourLabels }) {
   // Only the steps whose element is on the page, read once the page is drawn. The
   // tour opens in the same render as the home tab it points at — on a first visit
   // as the data arrives, from "Водич" on another tab as the tab changes — and while
@@ -36,35 +53,37 @@ export default function DashboardTour({ steps, onClose }: { steps: TourStep[]; o
   const [wanted] = useState(steps);
   const [shown, setShown] = useState<TourStep[]>([]);
   useEffect(() => {
-    const frame = requestAnimationFrame(() => setShown(wanted.filter((s) => find(s.target))));
+    const frame = requestAnimationFrame(() => setShown(wanted.filter((s) => !s.target || find(s.target))));
     return () => cancelAnimationFrame(frame);
   }, [wanted]);
   const [index, setIndex] = useState(0);
-  const [box, setBox] = useState<Box | null>(null);
+  const [measured, setMeasured] = useState<Box | null>(null);
   const [reduced] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
   const [narrow, setNarrow] = useState(() => typeof window === 'undefined' || window.innerWidth < 640);
   const card = useRef<HTMLDivElement>(null);
   const primary = useRef<HTMLButtonElement>(null);
   const step = shown[index];
   const last = index === shown.length - 1;
+  // The light stays where it was until the next element is measured, and glides there.
+  const box = step?.target ? measured : null;
 
   // Bring the step's element into view, then light it up where it ended.
   useEffect(() => {
     if (!step) return;
-    const el = find(step.target);
+    primary.current?.focus({ preventScroll: true });
+    const el = step.target ? find(step.target) : null;
     if (!el) return;
     el.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
     let frame = 0;
     const measure = () => {
       const r = el.getBoundingClientRect();
-      setBox({ top: r.top, left: r.left, width: r.width, height: r.height });
+      setMeasured({ top: r.top, left: r.left, width: r.width, height: r.height });
       setNarrow(window.innerWidth < 640);
     };
     const settle = setTimeout(measure, reduced ? 0 : 380);
     const follow = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure); };
     window.addEventListener('scroll', follow, { passive: true });
     window.addEventListener('resize', follow);
-    primary.current?.focus({ preventScroll: true });
     return () => {
       clearTimeout(settle);
       cancelAnimationFrame(frame);
@@ -103,7 +122,7 @@ export default function DashboardTour({ steps, onClose }: { steps: TourStep[]; o
   };
 
   return (
-    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-labelledby="tour-title">
+    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-labelledby="tour-title" aria-describedby="tour-body">
       {box ? (
         <div
           className="fixed rounded-2xl pointer-events-none"
@@ -117,16 +136,17 @@ export default function DashboardTour({ steps, onClose }: { steps: TourStep[]; o
       )}
       <div
         ref={card}
-        className={`fixed bg-white rounded-2xl shadow-xl p-4 ${narrow || !box ? 'inset-x-3 bottom-3' : 'w-80'}`}
+        className={`fixed bg-white rounded-2xl shadow-xl p-4 ${narrow || !box ? 'inset-x-3 bottom-3 sm:mx-auto sm:max-w-md' : 'w-80'}`}
         style={cardStyle}
       >
-        <p className="text-xs text-stone-500">{index + 1} од {shown.length}</p>
+        <p className="text-xs text-stone-500">{labels.of(index + 1, shown.length)}</p>
         <h2 id="tour-title" className="mt-0.5 font-semibold text-stone-900">{step.title}</h2>
-        <p className="mt-1 text-sm text-stone-700">{step.body}</p>
+        <p id="tour-body" className="mt-1 text-sm text-stone-700">{step.body}</p>
+        {step.visual && <div className="mt-3">{step.visual}</div>}
         <div className="mt-4 flex items-center gap-2">
-          <button type="button" onClick={onClose} className="text-sm text-stone-500 underline underline-offset-2 mr-auto">Прескокни</button>
+          <button type="button" onClick={onClose} className="text-sm text-stone-500 underline underline-offset-2 mr-auto">{labels.skip}</button>
           {index > 0 && (
-            <button type="button" onClick={() => setIndex(index - 1)} className="px-3 py-2 rounded-lg border border-stone-300 text-sm">Назад</button>
+            <button type="button" onClick={() => setIndex(index - 1)} className="px-3 py-2 rounded-lg border border-stone-300 text-sm">{labels.back}</button>
           )}
           <button
             ref={primary}
@@ -134,7 +154,7 @@ export default function DashboardTour({ steps, onClose }: { steps: TourStep[]; o
             onClick={() => (last ? onClose() : setIndex(index + 1))}
             className="px-4 py-2 rounded-lg bg-stone-900 text-white text-sm font-semibold"
           >
-            {last ? 'Готово' : 'Напред'}
+            {last ? labels.done : labels.next}
           </button>
         </div>
       </div>
