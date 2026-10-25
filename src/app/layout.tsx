@@ -9,6 +9,7 @@ import FloatingContactButton from "@/components/FloatingContactButton";
 import AttributionCapture from "@/components/AttributionCapture";
 import HomeScreenGuide from "@/components/HomeScreenGuide";
 import { HOME_SHARE, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from "@/lib/share-preview";
+import { jsonLd } from "@/lib/json-ld";
 import Footer from "@/components/Footer";
 import MiniCart from "@/components/MiniCart";
 import { Analytics } from "@vercel/analytics/next";
@@ -102,7 +103,7 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: jsonLd({
               "@context": "https://schema.org",
               "@type": "Organization",
               name: "Marshal",

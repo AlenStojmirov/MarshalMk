@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getProductById } from '@/lib/products-server';
 import { getProductDisplayName, getCategoryLabel } from '@/lib/product-display';
 import { productShare, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from '@/lib/share-preview';
+import { jsonLd } from '@/lib/json-ld';
 import ProductPageClient from './ProductPageClient';
 
 interface ProductPageProps {
@@ -123,11 +124,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(productJsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbJsonLd) }}
       />
       <ProductPageClient product={serializedProduct} />
     </>

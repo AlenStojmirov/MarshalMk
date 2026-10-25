@@ -3,6 +3,7 @@ import CategoryPageContent from '@/components/CategoryPageContent';
 import { fetchPaginatedProducts, parseSearchParams } from '@/lib/products-server';
 import { getCategoryLabel } from '@/lib/product-display';
 import ProductGrid from '@/components/ProductGrid';
+import { jsonLd } from '@/lib/json-ld';
 
 interface CategoryPageProps {
   params: Promise<{
@@ -55,13 +56,14 @@ async function CategoryPageLoader({ params, searchParams }: CategoryPageProps) {
 
   return (
     <>
+      {/* jsonLd, not JSON.stringify: the label falls back to the slug from the URL (15.3). */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbJsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(itemListJsonLd) }}
       />
       <CategoryPageContent
         paginatedData={paginatedData}

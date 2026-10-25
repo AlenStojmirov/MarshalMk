@@ -100,6 +100,8 @@ Cost and margin `src/lib/cost.ts` (Firebase stores purchase price **×2**; `real
 
 `src/app/layout.tsx` (metadata, hreflang, JSON-LD), `sitemap.ts`, `robots.ts`, `public/llms.txt` / `llms-full.txt`. Canonical base `https://marshal.mk`. Admin is `noindex`.
 
+JSON-LD goes into its `<script>` only through `jsonLd()` (`src/lib/json-ld.ts`), never a bare `JSON.stringify`: a `</script>` in a product name, or in a category slug typed into the URL, would otherwise run as code (15.3). Security headers for every response (frames denied, `nosniff`, referrer, permissions) are in `next.config.ts`.
+
 ## Conventions
 
 - App Router; dynamic `params` are `Promise`s — `await params`. A `page.tsx` may only export the page (move shared components to `src/components/`).
