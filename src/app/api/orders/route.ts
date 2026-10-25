@@ -29,9 +29,20 @@ function getClientIp(request: NextRequest): string {
   );
 }
 
+// 32 letters and digits, without 0/O and 1/I, so a number read over the phone or
+// typed from a screenshot comes out right; 32 divides 256, so each is as likely.
+const ORDER_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const ORDER_RANDOM_CHARS = 6;
+
+/**
+ * `ORD-{time}-{random}`. The random part comes from `crypto` and is six characters
+ * (30 bits) where it was four from `Math.random` (15.2). Tracking needs the phone
+ * as well now, so the number is no longer a key on its own. Older numbers stay valid.
+ */
 function generateOrderNumber(): string {
   const timestamp = Date.now().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const bytes = crypto.getRandomValues(new Uint8Array(ORDER_RANDOM_CHARS));
+  const random = Array.from(bytes, (b) => ORDER_ALPHABET[b % ORDER_ALPHABET.length]).join('');
   return `ORD-${timestamp}-${random}`;
 }
 
@@ -161,7 +172,7 @@ export async function POST(request: NextRequest) {
   // ── Per-email rate limit (3 orders per hour) ──────────────────────────
   const email = customer.email.trim().toLowerCase();
   if (isRateLimited(`email:${email}`, 3, 3_600_000)) {
-    console.warn(`[ORDER_EMAIL_LIMIT] email=${email} ip=${ip}`);
+    console.warn(`[ORDER_EMAIL_LIMIT] ip=${ip}`);
     return NextResponse.json(
       { error: 'Too many orders for this email address. Please try again later.' },
       { status: 429 }
@@ -436,7 +447,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(
-      `[ORDER_CREATED] orderNumber=${orderNumber} ip=${ip} email=${email} items=${items.length}`
+      `[ORDER_CREATED] orderNumber=${orderNumber} ip=${ip} items=${items.length}`
     );
 
     // ── E-mail to the shop (14.2) ─────────────────────────────────────────

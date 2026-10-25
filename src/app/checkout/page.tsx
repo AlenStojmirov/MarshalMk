@@ -17,6 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { accountFetch } from '@/lib/account-client';
 import LoyaltyBox, { type QuoteResponse } from '@/components/checkout/LoyaltyBox';
+import { rememberPlacedOrder } from '@/lib/order-track';
 
 /** The tracked link this visitor arrived by, if it is recent enough to explain the order (D-025). */
 function storedSource(): OrderSource | null {
@@ -218,8 +219,19 @@ export default function CheckoutPage() {
         return;
       }
 
+      // The confirmation looks the order up by number and phone (15.2); the link alone shows nothing.
+      rememberPlacedOrder({
+        orderNumber: data.orderNumber,
+        phone: formData.phone,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        address: deliveryMethod === 'pickup' ? '' : formData.address,
+        city: deliveryMethod === 'pickup' ? '' : formData.city,
+        notes: formData.notes ?? '',
+      });
       clearCart();
-      router.push(`/checkout/confirmation?order=${data.orderNumber}`);
+      router.push(`/checkout/confirmation?order=${encodeURIComponent(data.orderNumber)}`);
     } catch (err) {
       console.error('Error creating order:', err);
       setError(t('checkout.orderFailed'));

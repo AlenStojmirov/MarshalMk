@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Order, OrderStatus } from '@/types';
+import { OrderOutcome, OrderStatus } from '@/types';
 import { useTranslation } from '@/lib/i18n';
+import { mkDate, mkNumber } from '@/lib/mk-format';
+import { fetchTrackedOrder, type TrackedOrder } from '@/lib/order-track';
 import {
   Search,
   Package,
@@ -13,7 +15,7 @@ import {
   Truck,
   XCircle,
   ArrowLeft,
-  MapPin,
+  Store,
 } from 'lucide-react';
 
 const STATUS_CONFIG: Record<
@@ -140,47 +142,49 @@ function OrderTimeline({ currentStatus }: { currentStatus: OrderStatus }) {
   );
 }
 
+const OUTCOME_KEY: Partial<Record<OrderOutcome, string>> = {
+  refused: 'tracking.outcomeRefused',
+  returned: 'tracking.outcomeReturned',
+  not_collected: 'tracking.outcomeNotCollected',
+};
+
+const hhmm = (d: Date) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+
 export default function TrackOrderPage() {
   const { t } = useTranslation();
   const [orderNumber, setOrderNumber] = useState('');
-  const [order, setOrder] = useState<Order | null>(null);
+  const [phone, setPhone] = useState('');
+  const [order, setOrder] = useState<TrackedOrder | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
 
+  // The number and the phone it was ordered with (15.2): the number alone shows nothing.
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orderNumber.trim()) return;
+    if (!orderNumber.trim() || !phone.trim()) return;
 
     setLoading(true);
     setError(null);
     setSearched(true);
 
-    try {
-      const res = await fetch(`/api/orders/track?orderNumber=${encodeURIComponent(orderNumber.trim().toUpperCase())}`);
-      const data = await res.json();
-
-      if (!res.ok || !data.order) {
-        setOrder(null);
-        console.error('Track order API error:', res.status, data);
-        setError(res.status === 500 ? t('tracking.searchFailed') : t('tracking.orderNotFound'));
-      } else {
-        const order = data.order;
-        setOrder({
-          ...order,
-          createdAt: new Date(order.createdAt),
-          updatedAt: new Date(order.updatedAt),
-        });
-      }
-    } catch (err) {
-      console.error('Error searching for order:', err);
-      setError(t('tracking.searchFailed'));
-    } finally {
-      setLoading(false);
+    const r = await fetchTrackedOrder(orderNumber.trim().toUpperCase(), phone.trim());
+    if ('order' in r) {
+      setOrder(r.order);
+    } else {
+      setOrder(null);
+      setError(
+        r.error === 'not_found' ? t('tracking.orderNotFound')
+          : r.error === 'too_many' ? t('tracking.tooMany')
+          : t('tracking.searchFailed')
+      );
     }
+    setLoading(false);
   };
 
   const statusInfo = order ? STATUS_CONFIG[order.status] : null;
+  const createdAt = order ? new Date(order.createdAt) : null;
+  const outcomeKey = order?.outcome ? OUTCOME_KEY[order.outcome] : undefined;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -200,7 +204,7 @@ export default function TrackOrderPage() {
 
         {/* Search Form */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <form onSubmit={handleSearch} className="flex gap-4">
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="flex-1">
               <label htmlFor="orderNumber" className="sr-only">
                 {t('tracking.orderNumber')}
@@ -211,13 +215,31 @@ export default function TrackOrderPage() {
                 value={orderNumber}
                 onChange={(e) => setOrderNumber(e.target.value)}
                 placeholder={t('tracking.placeholder')}
+                autoCapitalize="characters"
+                autoComplete="off"
+                spellCheck={false}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div className="sm:w-56">
+              <label htmlFor="phone" className="sr-only">
+                {t('tracking.phone')}
+              </label>
+              <input
+                type="tel"
+                id="phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder={t('tracking.phonePlaceholder')}
+                autoComplete="tel"
+                inputMode="tel"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <button
               type="submit"
-              disabled={loading || !orderNumber.trim()}
-              className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg shadow-md shadow-blue-600/20 hover:bg-blue-700 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-none flex items-center gap-2 transition-all duration-200"
+              disabled={loading || !orderNumber.trim() || !phone.trim()}
+              className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg shadow-md shadow-blue-600/20 hover:bg-blue-700 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-none flex items-center justify-center gap-2 transition-all duration-200"
             >
               {loading ? (
                 <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
@@ -239,14 +261,14 @@ export default function TrackOrderPage() {
         )}
 
         {/* Order Details */}
-        {order && statusInfo && (
+        {order && statusInfo && createdAt && (
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             {/* Order Header */}
             <div className="p-6 border-b bg-gray-50">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <p className="text-sm text-gray-500">{t('tracking.orderNumber')}</p>
-                  <p className="text-xl font-bold text-gray-900">{order.orderNumber}</p>
+                  <p className="text-xl font-bold text-gray-900 break-words">{order.orderNumber}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span
@@ -258,9 +280,9 @@ export default function TrackOrderPage() {
                 </div>
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                {t('tracking.orderedOn')}: {order.createdAt.toLocaleDateString()} {t('tracking.at')}{' '}
-                {order.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {t('tracking.orderedOn')}: {mkDate(createdAt)} {t('tracking.at')} {hhmm(createdAt)}
               </p>
+              {outcomeKey && <p className="text-sm font-medium text-gray-700 mt-1">{t(outcomeKey)}</p>}
             </div>
 
             {/* Order Timeline */}
@@ -268,7 +290,8 @@ export default function TrackOrderPage() {
               <OrderTimeline currentStatus={order.status} />
             </div>
 
-            {/* Order Items */}
+            {/* Order Items — no price per line: above the threshold the stored prices
+                carry the courier absorbed into them (D-006). */}
             <div className="p-6 border-b">
               <h3 className="font-semibold text-gray-900 mb-4">{t('tracking.items')}</h3>
               <div className="space-y-4">
@@ -284,40 +307,26 @@ export default function TrackOrderPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 truncate">{item.productName}</p>
-                      {item.size && (
-                        <p className="text-sm text-gray-500">{t('tracking.size')}: {item.size}</p>
-                      )}
                       <p className="text-sm text-gray-500">
-                        {t('tracking.qty')}: {item.quantity} × {item.price.toFixed(2)} ден.
+                        {item.size ? `${t('tracking.size')}: ${item.size} · ` : ''}{t('tracking.qty')}: {item.quantity}
                       </p>
                     </div>
-                    <p className="font-medium text-gray-900">
-                      {(item.price * item.quantity).toFixed(2)} ден.
-                    </p>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Delivery Address */}
-            <div className="p-6 border-b">
-              <h3 className="font-semibold text-gray-900 mb-3">{t('tracking.deliveryAddress')}</h3>
-              <div className="flex items-start gap-3 text-gray-600">
-                <MapPin className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p>{order.customer.firstName} {order.customer.lastName}</p>
-                  <p>{order.customer.address}</p>
-                  <p>{order.customer.city}</p>
-                  <p>{order.customer.phone}</p>
-                </div>
-              </div>
+            {/* Delivery */}
+            <div className="p-6 border-b flex items-center gap-3 text-gray-700">
+              {order.deliveryMethod === 'pickup' ? <Store className="h-5 w-5 flex-shrink-0" /> : <Truck className="h-5 w-5 flex-shrink-0" />}
+              <span>{order.deliveryMethod === 'pickup' ? t('checkout.pickupAt') : t('checkout.courier')}</span>
             </div>
 
             {/* Order Total */}
             <div className="p-6 bg-gray-50">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-gray-900">{t('tracking.total')}</span>
-                <span className="text-2xl font-bold text-gray-900">{order.total.toFixed(2)} ден.</span>
+                <span className="text-2xl font-bold text-gray-900">{mkNumber(order.total)} ден.</span>
               </div>
             </div>
           </div>

@@ -262,7 +262,10 @@
     "pickupTitle": "Store pickup",
     "pickupPayment": "Payment: At pickup",
     "amountReadyPickup": "Please have {amount} den. ready when you come to pick up your order.",
-    "thankYouPickup": "Thank you for your order. We'll contact you when it's ready for pickup."
+    "thankYouPickup": "Thank you for your order. We'll contact you when it's ready for pickup.",
+    "trackHint": "See your order's status and details on the tracking page, with the order number and your phone.",
+    "trackOrder": "Track your order",
+    "totalToPay": "Total to pay"
   },
   "admin": {
     "login": "Admin Login",
@@ -427,22 +430,27 @@
   },
   "tracking": {
     "title": "Track Your Order",
-    "subtitle": "Enter your order number to check the status of your order",
+    "subtitle": "Enter your order number and the phone number you ordered with",
     "backToStore": "Back to Store",
     "orderNumber": "Order Number",
-    "placeholder": "Enter order number (e.g., ORD-XXXXX-XXXX)",
+    "placeholder": "Order number (e.g., ORD-XXXXXXXX-XXXXXX)",
     "search": "Track",
     "orderNotFound": "Order not found",
     "searchFailed": "Failed to search for order. Please try again.",
-    "checkNumber": "Please check the order number and try again.",
+    "checkNumber": "Please check the order number and the phone, and try again.",
     "orderedOn": "Ordered on",
     "at": "at",
     "items": "Items in Your Order",
     "size": "Size",
     "qty": "Qty",
-    "deliveryAddress": "Delivery Address",
     "total": "Total",
-    "enterOrderNumber": "Enter your order number above to track your delivery"
+    "enterOrderNumber": "Enter your order number and phone above to track your delivery",
+    "phone": "Phone",
+    "phonePlaceholder": "Phone used for the order",
+    "tooMany": "Too many attempts. Please try again in a minute.",
+    "outcomeRefused": "The parcel was refused on delivery.",
+    "outcomeReturned": "The order was returned.",
+    "outcomeNotCollected": "The order was not collected."
   },
   "inStoreSales": {
     "title": "In-Store Sales",
