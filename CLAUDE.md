@@ -17,6 +17,7 @@ npm run start             # serve the build (restart it after every rebuild)
 npm run lint              # eslint
 npm run migrations:check  # which Supabase migrations have landed (also probes anon access)
 npm run user:role [email] [admin|staff|none]   # list or set back-office roles
+npm run backup            # every table + accounts to BACKUP_DIR (outside the repo), checked; before each migration and merge to master
 ```
 
 Data scripts (`tsx`, service-role key, see `scripts/SCRIPTS.md`): `baseline`, `ledger:sync`, `snapshot`, `publish:candidates`, `ageing:estimate`, `cost:backfill`, `orders:shipping`, `refresh`, `sale:set`, `category:replace`, `migrate:sale`. Temporary scripts go in `scripts/_tmp-*.ts` (from there tsx finds `node_modules` and `.env.local`; import app code as `../src/lib/...`) and are deleted after use.
@@ -52,7 +53,7 @@ Data scripts (`tsx`, service-role key, see `scripts/SCRIPTS.md`): `baseline`, `l
 
 ### Migrations
 
-`supabase/migrations/00N_*.sql`, idempotent, **pasted by the owner into the Supabase SQL editor** (DDL cannot go through PostgREST). Write the next number, add a probe to `scripts/check-migrations.ts`, and keep code working before the migration runs (fall back when a view/function is missing — see `useProducts.ts`, `ledger-ops.ts`). SQL can be tested locally in PGlite (`@electric-sql/pglite`, installed in the scratchpad, not the repo) with a stand-in `auth.jwt()`.
+`supabase/migrations/00N_*.sql`, idempotent, **pasted by the owner into the Supabase SQL editor** (DDL cannot go through PostgREST). Write the next number, add a probe to `scripts/check-migrations.ts`, add any new table to `TABLES` in `scripts/backup.ts` (after the tables it references — until then every backup fails and names it), ask for `npm run backup` before the owner pastes it, and keep code working before the migration runs (fall back when a view/function is missing — see `useProducts.ts`, `ledger-ops.ts`). SQL can be tested locally in PGlite (`@electric-sql/pglite`, installed in the scratchpad, not the repo) with a stand-in `auth.jwt()`.
 
 ### Writing stock
 

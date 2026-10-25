@@ -267,3 +267,67 @@ npm run sizes:canonical apply    # запишува
 функцијата за враќање во базата ги бара по точна големина.
 
 Преглед 2026-09-27: 55 производи (40 на полица, 238 во sold[]), 238 ledger редови, 0 нарачки.
+
+---
+
+## 14. Бекап на базата (Task 15.4)
+
+```bash
+npm run backup                          # бекап сега
+npm run backup -- --decrypt <папка>     # шифриран бекап → обични датотеки до него
+```
+
+Supabase Free **нема бекапи**, ни автоматски ни за симнување. Оваа скрипта е единствениот
+начин да се врати избришана табела или миграција што тргнала наопаку.
+
+**Што прави** (само чита, со service role):
+- секоја табела во `<табела>.json.gz`, по 1.000 редови на барање;
+- профилите во `auth-users.json.gz`: id, е-пошта, улога, начин на најава, датуми.
+  **Без лозинки**, бидејќи Supabase не ги дава. По враќање, луѓето поставуваат нова;
+- `manifest.json`: кога, кој commit, кој проект, миграциите, редовите и проверката на секоја
+  датотека, и редоследот за враќање (15.5);
+- бројот на запишани редови се споредува со бројот во базата, а секоја датотека се чита
+  повторно. Ако нешто не се совпаѓа, папката добива `-failed`, а излезниот код е 1.
+
+**Каде:** `BACKUP_DIR` во `.env.local`, стандардно `C:\Users\<корисник>\MarshalBackups`.
+Секое пуштање прави една папка (`2026-10-25_161513`). Се чуваат **последните 12** добри,
+а постарите и неуспешните се бришат сами. Други папки таму не се допираат. Секое пуштање
+запишува еден ред во `backup.log` во истата папка. Папка во repo-то се одбива, бидејќи
+бекапот има имиња, телефони и адреси.
+
+**Шифрирање:** со `BACKUP_PASSPHRASE` (најмалку 12 знаци) во `.env.local`, секоја датотека е
+`.json.gz.enc` (AES-256-GCM, вграден `crypto`). Само тогаш копија смее на Google Drive или на
+надворешен диск. `manifest.json` останува читлив. **Изгубена лозинка значи изгубени бекапи.**
+Чувај ја надвор од компјутерот, на пример во менаџер за лозинки или на хартија.
+
+**Кога:**
+- **пред секоја миграција** во Supabase;
+- **пред секој merge на master**;
+- **на денот на преминот**, по последниот Sync All (D-012). Еднаш тогаш и Firebase →
+  Realtime Database → ⋮ → Export JSON (види 15.10);
+- **секој понеделник**, сам, преку Task Scheduler (подолу).
+
+Слики од производите нема во бекапот: тие се во `public/images/products/`, значи во git.
+
+### Секој понеделник, сам (Windows Task Scheduler)
+
+Еднаш, во PowerShell, од папката на проектот:
+
+```powershell
+$action   = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument '/c npm run backup' -WorkingDirectory (Get-Location).Path
+$trigger  = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 10:00
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 15)
+Register-ScheduledTask -TaskName 'Marshal бекап' -Action $action -Trigger $trigger -Settings $settings -Description 'npm run backup (Task 15.4)'
+```
+
+- `StartWhenAvailable`: ако компјутерот бил исклучен во понеделник во 10:00, бекапот се прави
+  штом ќе се вклучи.
+- Работи кога си најавен на Windows. Резултатот е во `backup.log`.
+- Проба веднаш: `Start-ScheduledTask 'Marshal бекап'`, па погледни го `backup.log`.
+- Бришење на задачата: `Unregister-ScheduledTask 'Marshal бекап'`.
+
+### Нова табела
+
+Табела додадена со миграција мора да се додаде во `TABLES` во `scripts/backup.ts`, на
+место по табелите на кои се повикува. Дотогаш секој бекап е неуспешен и ја кажува табелата.
+Така нова табела не може тивко да остане надвор од бекапот.
