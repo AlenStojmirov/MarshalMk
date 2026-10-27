@@ -78,7 +78,6 @@ function InventoryManagement() {
     setMigrationResult(null);
     try {
       const result = await migrateAllProducts();
-      console.log("МИГРАЦИСКИ РЕЗУЛТАТИ: ", result);
       setMigrationResult(result);
     } catch (err) {
       console.error('Migration error:', err);

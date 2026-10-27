@@ -251,9 +251,9 @@ export const FITS: Record<string, Labeled> = {
 };
 
 export const SIZE_ADVICE: Record<SizeAdvice, Labeled & { hint: string }> = {
-  true:    { mk: 'Одговара точно',      en: 'True to size',    hint: 'Земи ја својата вообичаена големина.' },
-  larger:  { mk: 'Земи број поголем',   en: 'Size up',         hint: 'Кројот е потесен — земи број поголем од вообичаениот.' },
-  smaller: { mk: 'Земи број помал',     en: 'Size down',       hint: 'Кројот е поширок — земи број помал од вообичаениот.' },
+  true:    { mk: 'Одговара точно',      en: 'True to size',    hint: 'Земете ја својата вообичаена големина.' },
+  larger:  { mk: 'Земи број поголем',   en: 'Size up',         hint: 'Кројот е потесен — земете број поголем од вообичаениот.' },
+  smaller: { mk: 'Земи број помал',     en: 'Size down',       hint: 'Кројот е поширок — земете број помал од вообичаениот.' },
 };
 
 /** Fabric weight — worth saying on knitwear and jackets. Stored in details.weight. */
