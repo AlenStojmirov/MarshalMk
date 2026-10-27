@@ -1,6 +1,6 @@
 /**
- * The customer e-mails, in Macedonian (Task 13.11), and at the end the one to
- * the shop for a new order (14.2). Short, one thing each,
+ * The customer e-mails, in Macedonian (Task 13.11), then the one to the shop
+ * for a new order (14.2) and the customer's copy of it (14.5). Short, one thing each,
  * with a button to the page it is about. Plain HTML with inline styles: mail
  * clients ignore stylesheets.
  *
@@ -9,6 +9,8 @@
  * birthday) only to those who agreed, with a one-click way out.
  */
 
+import { POLICIES } from '@/config/policies';
+import { STORE_ADDRESS } from '@/config/store';
 import { mkDate, mkDen, mkNumber } from '@/lib/mk-format';
 import type { CustomerInfo, OrderItem } from '@/types';
 
@@ -183,6 +185,84 @@ export function newOrderEmail(o: NewOrderMail): Rendered {
 
   return {
     subject: `${prefix}Нова нарачка ${o.orderNumber} · ${mkDen(o.total)} · ${pickup ? 'подигање' : c.city || 'достава'}`,
+    html,
+    text,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// To the customer, for their order (Task 14.5)
+// ---------------------------------------------------------------------------
+
+/** The tracking page with the number already in it; the phone is never in a link (D-038). */
+export const trackOrderUrl = (orderNumber: string) => `${SITE}/track-order?broj=${encodeURIComponent(orderNumber)}`;
+
+/**
+ * The customer's copy of a new order: the number to keep, what was ordered,
+ * what is to be paid and what happens next, with a button to the tracking page.
+ *
+ * What the tracking page shows (D-038) and no more. No price per line: above the
+ * threshold the stored prices carry the courier absorbed into them (D-006).
+ * Nothing about the person beyond the first name and the city: the address is
+ * typed by hand at checkout, and a mistyped one that happens to exist would
+ * otherwise hand a stranger a street and a phone number.
+ */
+export function orderConfirmationEmail(o: NewOrderMail): Rendered {
+  const c = o.customer;
+  const pickup = c.deliveryMethod === 'pickup';
+  const prefix = o.test ? '[ПРОБА] ' : '';
+  const track = trackOrderUrl(o.orderNumber);
+  const policy = `${SITE}${POLICIES.delivery.path}`;
+
+  const next = pickup
+    ? 'Ќе те контактираме кога нарачката ќе биде спремна за подигање.'
+    : 'Наскоро ќе те контактираме за да ја потврдиме доставата.';
+  const delivery = o.shipping > 0 ? `со доставата од ${mkDen(o.shipping)}` : 'доставата е бесплатна';
+  const pay = pickup
+    ? `Плаќаш во продавницата, кога ќе ја подигнеш нарачката: ${STORE_ADDRESS}.`
+    : `Плаќаш во готово на курирот, кога ќе ја примиш пратката. Достава до: ${c.city}.`;
+
+  const rows = o.items.map((i) =>
+    `<tr>
+       <td style="padding:6px 0;border-bottom:1px solid #e7e5e4">${esc(i.productName)}${i.size ? `<br><span style="color:#78716c;font-size:13px">Големина ${esc(String(i.size))}</span>` : ''}</td>
+       <td style="padding:6px 0 6px 8px;border-bottom:1px solid #e7e5e4;text-align:right;white-space:nowrap">× ${i.quantity}</td>
+     </tr>`).join('');
+
+  const html = layout(
+    `${o.test ? '<p style="background:#fef3c7;border-radius:6px;padding:8px 10px;margin:0 0 12px;font-size:13px">Ова е проба од Админ → Поставки: вака изгледа пораката што ја добива купувачот.</p>' : ''}
+     <p>${hi(esc(c.firstName))}</p>
+     <p>Ти благодариме! Ја примивме твојата нарачка. ${next}</p>
+     <p style="margin:16px 0 0;font-size:13px;color:#57534e">Број на нарачка</p>
+     <p style="margin:0;font-size:20px;font-weight:bold;letter-spacing:1px;white-space:nowrap">${esc(o.orderNumber)}</p>
+     <p style="margin:4px 0 16px;font-size:13px;color:#57534e">Чувај го: со него и со твојот телефон ја следиш нарачката.</p>
+     <table style="width:100%;border-collapse:collapse;font-size:14px">${rows}</table>
+     <p style="margin:12px 0 0"><strong>За плаќање: ${mkDen(o.total)}</strong>${pickup ? '' : ` <span style="color:#57534e;font-size:13px">(${delivery})</span>`}</p>
+     <p style="margin:4px 0 0;font-size:14px">${esc(pay)}</p>
+     ${o.member ? `<p style="margin:12px 0 0;font-size:14px">Нарачката ја гледаш и во <a href="${SITE}/smetka?tab=naracki" style="color:#1c1917">твојот профил</a>.</p>` : ''}`,
+    { label: 'Следи ја нарачката', href: track },
+    `Ја добиваш оваа порака затоа што нарача на marshal.mk. За прашање или замена, одговори на оваа порака. <a href="${policy}" style="color:#78716c">${POLICIES.delivery.title}</a>.`,
+  );
+
+  const text = [
+    `${prefix}${hi(c.firstName)}`,
+    '',
+    `Ти благодариме! Ја примивме твојата нарачка. ${next}`,
+    '',
+    `Број на нарачка: ${o.orderNumber}`,
+    'Чувај го: со него и со твојот телефон ја следиш нарачката.',
+    '',
+    ...o.items.map((i) => `${i.productName}${i.size ? ` (${i.size})` : ''} × ${i.quantity}`),
+    '',
+    `За плаќање: ${mkDen(o.total)}${pickup ? '' : ` (${delivery})`}`,
+    pay,
+    '',
+    `Следи ја нарачката: ${track}`,
+    `${POLICIES.delivery.title}: ${policy}`,
+    'За прашање или замена, одговори на оваа порака.',
+  ].join('\n');
+
+  return {
+    subject: `${prefix}Ја примивме твојата нарачка ${o.orderNumber}`,
     html,
     text,
   };

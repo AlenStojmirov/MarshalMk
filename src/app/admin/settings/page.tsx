@@ -80,7 +80,7 @@ export default function SettingsPage() {
     const { sent, failed, skipped } = r.data;
     if (skipped) setTest({ ok: false, text: `Не е пратено: ${skipped}.` });
     else if (failed.length) setTest({ ok: false, text: `Не стигна до: ${failed.join(' · ')}${sent.length ? `. Пратено на ${sent.join(', ')}.` : ''}` });
-    else setTest({ ok: true, text: `Пратено на ${sent.join(', ')}. Провери го сандачето (и „Spam“).` });
+    else setTest({ ok: true, text: `Пратено на ${sent.join(', ')}: две пораки, за продавницата и примерот што го добива купувачот. Провери го сандачето (и „Spam“).` });
   };
 
   return (
@@ -110,6 +110,7 @@ export default function SettingsPage() {
           <p className="text-sm text-slate-500 mt-1">
             За секоја нова нарачка на сајтот, на овие адреси стигнува е-пошта: купувач, телефон, адреса,
             производи со големина и колку се наплаќа. Без адреса не се праќа ништо.
+            И купувачот добива своја порака: бројот на нарачката, производите, колку плаќа и копче за следење.
           </p>
 
           <ul className="mt-4 space-y-2">

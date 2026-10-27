@@ -66,7 +66,7 @@ function ConfirmationContent() {
               <p className="text-xl sm:text-2xl font-bold text-gray-900 break-words">{orderNumber}</p>
               <p className="mt-4 text-gray-600">{t('confirmation.trackHint')}</p>
               <Link
-                href="/track-order"
+                href={`/track-order?broj=${encodeURIComponent(orderNumber)}`}
                 className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
               >
                 <Search className="h-5 w-5" />

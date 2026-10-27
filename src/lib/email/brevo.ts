@@ -17,6 +17,8 @@ export interface Email {
   text: string;
   /** For Brevo's own statistics, e.g. 'points_last'. */
   tag?: string;
+  /** Where a reply goes; the sender is a no-reply address. */
+  replyTo?: { email: string; name?: string };
 }
 
 export function emailConfigured(): boolean {
@@ -37,6 +39,7 @@ export async function sendEmail(m: Email): Promise<{ messageId?: string; error?:
         htmlContent: m.html,
         textContent: m.text,
         ...(m.tag ? { tags: [m.tag] } : {}),
+        ...(m.replyTo ? { replyTo: m.replyTo } : {}),
       }),
     });
     const body = await res.json().catch(() => ({}));

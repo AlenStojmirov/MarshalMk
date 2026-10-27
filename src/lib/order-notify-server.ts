@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { STORE_EMAIL, STORE_NAME } from '@/config/store';
 import { emailConfigured, sendEmail } from '@/lib/email/brevo';
-import { newOrderEmail, type NewOrderMail } from '@/lib/email/templates';
+import { newOrderEmail, orderConfirmationEmail, type NewOrderMail } from '@/lib/email/templates';
 import { fetchStoreSettings } from '@/lib/store-settings';
 
 /**
@@ -37,5 +38,30 @@ export async function notifyShopOfOrder(sb: SupabaseClient, order: NewOrderMail)
     };
   } catch (e) {
     return { sent: [], failed: [(e as Error).message] };
+  }
+}
+
+/**
+ * The customer's copy of the order (Task 14.5), to the address typed at
+ * checkout. Same rules as the shop's: sent after the response, never throws, a
+ * failure only goes to the log. A reply goes to the shop's own address, so a
+ * question or an exchange is one "reply" away while the sender stays the
+ * verified no-reply.
+ *
+ * `to` is for the test in /admin/settings, which sends the customer's copy to
+ * the shop's addresses rather than to the made-up customer.
+ */
+export async function confirmOrderToCustomer(order: NewOrderMail, to = order.customer.email): Promise<{ error?: string; skipped?: string }> {
+  try {
+    if (!emailConfigured()) return { skipped: 'BREVO_API_KEY не е поставен' };
+    const r = await sendEmail({
+      to: { email: to },
+      ...orderConfirmationEmail(order),
+      replyTo: { email: STORE_EMAIL, name: STORE_NAME },
+      tag: order.test ? 'order_test' : 'order_confirmation',
+    });
+    return r.error ? { error: r.error } : {};
+  } catch (e) {
+    return { error: (e as Error).message };
   }
 }

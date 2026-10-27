@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { OrderOutcome, OrderStatus } from '@/types';
 import { useTranslation } from '@/lib/i18n';
 import { mkDate, mkNumber } from '@/lib/mk-format';
-import { fetchTrackedOrder, type TrackedOrder } from '@/lib/order-track';
+import { fetchTrackedOrder, ORDER_NUMBER_MAX, type TrackedOrder } from '@/lib/order-track';
 import {
   Search,
   Package,
@@ -150,9 +151,29 @@ const OUTCOME_KEY: Partial<Record<OrderOutcome, string>> = {
 
 const hhmm = (d: Date) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 
+/** `?broj=` from the customer's e-mail (14.5) fills the number; the phone is always typed (D-038). */
+function numberFromLink(raw: string | null): string {
+  const n = (raw ?? '').trim().toUpperCase();
+  return n.length <= ORDER_NUMBER_MAX && /^[A-Z0-9-]+$/.test(n) ? n : '';
+}
+
 export default function TrackOrderPage() {
+  // Reading the link needs a Suspense boundary; until then the empty form shows,
+  // so the page is never blank.
+  return (
+    <Suspense fallback={<TrackOrder initialNumber="" />}>
+      <TrackOrderFromLink />
+    </Suspense>
+  );
+}
+
+function TrackOrderFromLink() {
+  return <TrackOrder initialNumber={numberFromLink(useSearchParams().get('broj'))} />;
+}
+
+function TrackOrder({ initialNumber }: { initialNumber: string }) {
   const { t } = useTranslation();
-  const [orderNumber, setOrderNumber] = useState('');
+  const [orderNumber, setOrderNumber] = useState(initialNumber);
   const [phone, setPhone] = useState('');
   const [order, setOrder] = useState<TrackedOrder | null>(null);
   const [loading, setLoading] = useState(false);

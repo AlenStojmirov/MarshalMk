@@ -14,7 +14,7 @@ import { priceOrder } from '@/lib/order-math';
 import { quoteServer, userFromRequest } from '@/lib/basket-server';
 import { redeemCoupon, releaseOrderCoupon } from '@/lib/coupons';
 import { cancelOrderPoints, creditPoints, redeemPoints } from '@/lib/points';
-import { notifyShopOfOrder } from '@/lib/order-notify-server';
+import { confirmOrderToCustomer, notifyShopOfOrder } from '@/lib/order-notify-server';
 import type { OrderLoyalty } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -450,11 +450,12 @@ export async function POST(request: NextRequest) {
       `[ORDER_CREATED] orderNumber=${orderNumber} ip=${ip} items=${items.length}`
     );
 
-    // ── E-mail to the shop (14.2) ─────────────────────────────────────────
-    // After the response: the customer never waits for it, and a failure is
-    // only logged — the order stands either way.
+    // ── E-mails: to the shop (14.2) and the customer's copy (14.5) ────────
+    // After the response: the customer never waits for them, and a failure is
+    // only logged — the order stands either way. The customer's address stays
+    // out of the log (D-038).
     after(async () => {
-      const r = await notifyShopOfOrder(supabase, {
+      const mail = {
         orderNumber,
         customer: orderRow.customer,
         items: orderRow.items,
@@ -462,9 +463,12 @@ export async function POST(request: NextRequest) {
         shipping,
         total,
         member: !!memberId,
-      });
-      if (r.failed.length) console.error(`[ORDER_NOTIFY_FAILED] orderNumber=${orderNumber} ${r.failed.join(' | ')}`);
-      else if (r.skipped) console.log(`[ORDER_NOTIFY_SKIPPED] orderNumber=${orderNumber} ${r.skipped}`);
+      };
+      const [shop, own] = await Promise.all([notifyShopOfOrder(supabase, mail), confirmOrderToCustomer(mail)]);
+      if (shop.failed.length) console.error(`[ORDER_NOTIFY_FAILED] orderNumber=${orderNumber} ${shop.failed.join(' | ')}`);
+      else if (shop.skipped) console.log(`[ORDER_NOTIFY_SKIPPED] orderNumber=${orderNumber} ${shop.skipped}`);
+      if (own.error) console.error(`[ORDER_CONFIRM_FAILED] orderNumber=${orderNumber} ${own.error}`);
+      else if (own.skipped) console.log(`[ORDER_CONFIRM_SKIPPED] orderNumber=${orderNumber} ${own.skipped}`);
     });
 
     return NextResponse.json({ orderNumber }, { status: 201 });
