@@ -26,6 +26,12 @@ export interface ProfileInput {
   phone: string;
   /** yyyy-mm-dd, or empty. */
   birthDate: string;
+  /**
+   * Where the customer's own orders go (14.9): filled in at checkout, never
+   * required. Absent when not sent (sign-up), and then left as it is.
+   */
+  address?: string;
+  city?: string;
   marketing: boolean;
   /** The rules and the privacy policy. Required when the profile is made, not when it is edited. */
   consent?: boolean;
@@ -36,7 +42,7 @@ export interface RegistrationInput extends ProfileInput {
   password: string;
 }
 
-export type AccountField = 'email' | 'password' | 'firstName' | 'lastName' | 'phone' | 'birthDate' | 'consent';
+export type AccountField = 'email' | 'password' | 'firstName' | 'lastName' | 'phone' | 'birthDate' | 'address' | 'city' | 'consent';
 export type FieldErrors = Partial<Record<AccountField, string>>;
 
 export const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
@@ -52,6 +58,8 @@ export function validateProfile(p: ProfileInput, now = new Date(), needsConsent 
     const d = new Date(`${p.birthDate}T00:00:00`);
     if (Number.isNaN(d.getTime()) || d.getFullYear() < 1900 || d > now) e.birthDate = 'Провери го датумот.';
   }
+  if ((p.address ?? '').trim().length > 200) e.address = 'Адресата е предолга.';
+  if ((p.city ?? '').trim().length > 80) e.city = 'Градот е предолг.';
   if (needsConsent && p.consent !== true) e.consent = 'За профил треба да се согласиш со правилата и политиката за приватност.';
   return e;
 }
@@ -70,6 +78,9 @@ export interface CustomerRow {
   phone: string;
   phone_norm: string;
   birth_date: string | null;
+  /** Absent until migration 021. */
+  address?: string | null;
+  city?: string | null;
   marketing_consent: boolean;
   phone_verified_at: string | null;
   welcome_issued_at: string | null;
@@ -83,6 +94,10 @@ export interface CustomerProfile {
   lastName: string;
   phone: string;
   birthDate: string;
+  address: string;
+  city: string;
+  /** Migration 021 has run, so the profile can hold an address. */
+  hasAddress: boolean;
   marketing: boolean;
   phoneVerified: boolean;
   tourSeen: boolean;
@@ -95,6 +110,9 @@ export function rowToProfile(r: CustomerRow): CustomerProfile {
     lastName: r.last_name ?? '',
     phone: r.phone,
     birthDate: r.birth_date ?? '',
+    address: r.address ?? '',
+    city: r.city ?? '',
+    hasAddress: 'address' in r,
     marketing: r.marketing_consent,
     phoneVerified: !!r.phone_verified_at,
     tourSeen: !!r.tour_seen_at,
@@ -162,7 +180,6 @@ export interface CheckoutDetails {
   lastName: string;
   email: string;
   phone: string;
-  /** From the last order with delivery: the profile holds no address. */
   address: string;
   city: string;
 }

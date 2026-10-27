@@ -12,7 +12,7 @@
  */
 export const POLICIES = {
   delivery: { path: '/dostava-i-zamena', title: 'Достава, плаќање и замена', version: '2026-10-18', live: true },
-  privacy: { path: '/privatnost', title: 'Политика за приватност', version: '2026-10-18', live: true },
+  privacy: { path: '/privatnost', title: 'Политика за приватност', version: '2026-10-27', live: true },
   rules: { path: '/pravila', title: 'Правила за поени и купони', version: '2026-10-18', live: true },
 } as const;
 

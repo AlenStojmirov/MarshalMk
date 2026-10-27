@@ -20,6 +20,9 @@ export default function ProfileForm({
     lastName: initial?.lastName ?? '',
     phone: initial?.phone ?? '',
     birthDate: initial?.birthDate ?? '',
+    // Sent only once the profile can hold them (migration 021); until then the
+    // fields are not shown and the server leaves the columns alone.
+    ...(initial?.hasAddress ? { address: initial.address, city: initial.city } : {}),
     marketing: initial?.marketing ?? false,
     consent: false,
   });
@@ -69,6 +72,16 @@ export default function ProfileForm({
       >
         <input type="tel" autoComplete="tel" inputMode="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} className={inputCls(errors.phone)} />
       </Field>
+      {form.address !== undefined && (
+        <>
+          <Field label="Адреса за достава (улица и број)" error={errors.address} hint="Не е задолжително. Со неа наплатата се пополнува сама, а за секоја нарачка може да се смени.">
+            <input autoComplete="street-address" value={form.address} onChange={(e) => set('address', e.target.value)} className={inputCls(errors.address)} />
+          </Field>
+          <Field label="Град" error={errors.city}>
+            <input autoComplete="address-level2" value={form.city ?? ''} onChange={(e) => set('city', e.target.value)} className={inputCls(errors.city)} />
+          </Field>
+        </>
+      )}
       <Field label="Датум на раѓање" error={errors.birthDate} hint="Не е задолжително. За подарок на твојот роденден.">
         <BirthDateInput value={form.birthDate} onChange={(v) => set('birthDate', v)} error={errors.birthDate} />
       </Field>

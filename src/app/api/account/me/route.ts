@@ -14,7 +14,7 @@ import {
  *
  *   GET    the profile; once the e-mail is confirmed it also hands out, once,
  *          the welcome coupon and the bonuses (settleAccount)
- *   PATCH  { firstName, lastName, phone, birthDate, marketing, consent? }
+ *   PATCH  { firstName, lastName, phone, birthDate, address?, city?, marketing, consent? }
  *          changes the profile, or makes it for an account that has none
  *          (one made outside the sign-up form) — then `consent` is required
  *
@@ -55,6 +55,9 @@ export async function PATCH(req: NextRequest) {
     lastName: str(body.lastName).trim(),
     phone: str(body.phone).trim(),
     birthDate: str(body.birthDate).trim(),
+    // Only when sent: a body without them leaves the saved address alone (14.9).
+    ...(typeof body.address === 'string' ? { address: body.address.trim() } : {}),
+    ...(typeof body.city === 'string' ? { city: body.city.trim() } : {}),
     marketing: body.marketing === true,
     consent: body.consent === true,
   };
@@ -77,6 +80,9 @@ export async function PATCH(req: NextRequest) {
       phone: input.phone,
       phone_norm: phoneNorm,
       birth_date: input.birthDate || null,
+      // Only onto a row that has the columns (migration 021).
+      ...(row && 'address' in row && input.address !== undefined ? { address: input.address || null } : {}),
+      ...(row && 'city' in row && input.city !== undefined ? { city: input.city || null } : {}),
       marketing_consent: input.marketing,
       // A new number is unconfirmed until an order to it is delivered and paid (13.8).
       ...(row && row.phone_norm !== phoneNorm ? { phone_verified_at: null } : {}),
