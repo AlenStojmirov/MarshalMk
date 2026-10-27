@@ -10,14 +10,16 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, MailCheck } from 'lucide-react';
-import { CONSENT, POLICIES } from '@/config/policies';
+import { POLICIES } from '@/config/policies';
 import { FieldErrors, MIN_PASSWORD, RegistrationInput, validateRegistration } from '@/lib/account';
 import { accountFetch, resendConfirmation } from '@/lib/account-client';
+import { useTranslation } from '@/lib/i18n';
 import AccountFrame, { BirthDateInput, Field, Notice, buttonCls, inputCls } from './AccountFrame';
 
 export default function RegisterForm() {
-  // Where the visitor came to sign up from, for the reports (13.12): `?od=trkalo` from the wheel.
-  const from = useSearchParams().get('od');
+  const { t, language } = useTranslation();
+  // Where the visitor came to sign up from, for the reports (13.12): `?from=wheel` from the wheel.
+  const from = useSearchParams().get('from');
   const [form, setForm] = useState<RegistrationInput>({
     email: '', password: '', firstName: '', lastName: '', phone: '', birthDate: '', marketing: false, consent: false,
   });
@@ -38,7 +40,7 @@ export default function RegisterForm() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const found = validateRegistration(form);
+    const found = validateRegistration(form, new Date(), language);
     setErrors(found);
     if (Object.keys(found).length) return;
     setBusy(true);
@@ -57,59 +59,59 @@ export default function RegisterForm() {
 
   if (sentTo) {
     return (
-      <AccountFrame title="Провери ја е-поштата">
+      <AccountFrame title={t('account.register.checkTitle')}>
         <Notice tone="green">
           <p className="flex items-start gap-2">
             <MailCheck className="h-5 w-5 shrink-0 mt-0.5" />
-            <span>Ти пративме линк на <strong>{sentTo}</strong>. Кликни на него за да го потврдиш профилот, па најави се.</span>
+            <span>{t('account.register.sentBefore')} <strong>{sentTo}</strong>{t('account.register.sentAfter')}</span>
           </p>
         </Notice>
-        <p className="text-sm text-stone-600 mt-4">Не стигна? Провери и во „Спам“ или „Промоции“.</p>
+        <p className="text-sm text-stone-600 mt-4">{t('account.register.notArrived')}</p>
         <button
           type="button"
-          onClick={async () => setResent((await resendConfirmation(sentTo)) ?? 'Пратено повторно.')}
+          onClick={async () => setResent((await resendConfirmation(sentTo)) ?? t('account.register.resent'))}
           className="mt-3 text-sm font-medium text-stone-900 underline underline-offset-2"
         >
-          Прати го линкот повторно
+          {t('account.common.resendLink')}
         </button>
         {resent && <p className="text-sm text-stone-600 mt-2">{resent}</p>}
-        <p className="mt-6 text-sm"><Link href="/smetka" className="underline underline-offset-2">Кон најава</Link></p>
+        <p className="mt-6 text-sm"><Link href="/account" className="underline underline-offset-2">{t('account.register.toLogin')}</Link></p>
       </AccountFrame>
     );
   }
 
   return (
     <AccountFrame
-      title="Нов профил"
-      subtitle={<>Собирај поени со секоја нарачка и добивај купони. Веќе имаш профил? <Link href="/smetka" className="underline underline-offset-2">Најави се</Link>.</>}
+      title={t('account.register.title')}
+      subtitle={<>{t('account.register.subtitleBefore')} <Link href="/account" className="underline underline-offset-2">{t('account.register.subtitleLink')}</Link>{t('account.register.subtitleAfter')}</>}
     >
       <form onSubmit={submit} className="space-y-4" noValidate>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Име" error={errors.firstName}>
+          <Field label={t('account.fields.firstName')} error={errors.firstName}>
             <input autoComplete="given-name" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} className={inputCls(errors.firstName)} />
           </Field>
-          <Field label="Презиме" error={errors.lastName}>
+          <Field label={t('account.fields.lastName')} error={errors.lastName}>
             <input autoComplete="family-name" value={form.lastName} onChange={(e) => set('lastName', e.target.value)} className={inputCls(errors.lastName)} />
           </Field>
         </div>
-        <Field label="Е-пошта" error={errors.email}>
+        <Field label={t('account.fields.email')} error={errors.email}>
           <input type="email" autoComplete="email" inputMode="email" value={form.email} onChange={(e) => set('email', e.target.value)} className={inputCls(errors.email)} />
         </Field>
-        <Field label="Телефон" error={errors.phone} hint="Еден број може да има само еден профил.">
+        <Field label={t('account.fields.phone')} error={errors.phone} hint={t('account.register.phoneHint')}>
           <input type="tel" autoComplete="tel" inputMode="tel" placeholder="070 123 456" value={form.phone} onChange={(e) => set('phone', e.target.value)} className={inputCls(errors.phone)} />
         </Field>
-        <Field label="Лозинка" error={errors.password} hint={`Најмалку ${MIN_PASSWORD} знаци.`}>
+        <Field label={t('account.fields.password')} error={errors.password} hint={t('account.fields.passwordHint', { min: MIN_PASSWORD })}>
           <div className="relative">
             <input
               type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={form.password}
               onChange={(e) => set('password', e.target.value)} className={inputCls(errors.password) + ' pr-11'}
             />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 text-stone-500" aria-label={showPassword ? 'Скриј ја лозинката' : 'Покажи ја лозинката'}>
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 text-stone-500" aria-label={showPassword ? t('account.register.hidePassword') : t('account.register.showPassword')}>
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
         </Field>
-        <Field label="Датум на раѓање (не е задолжително)" error={errors.birthDate} hint="За подарок на твојот роденден.">
+        <Field label={t('account.register.birthDate')} error={errors.birthDate} hint={t('account.register.birthDateHint')}>
           <BirthDateInput value={form.birthDate} onChange={(v) => set('birthDate', v)} error={errors.birthDate} />
         </Field>
 
@@ -122,20 +124,20 @@ export default function RegisterForm() {
         <label className="flex items-start gap-2.5 text-sm text-stone-700">
           <input type="checkbox" checked={!!form.consent} onChange={(e) => set('consent', e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            {CONSENT.required}{' '}
-            <Link href={POLICIES.rules.path} target="_blank" className="underline underline-offset-2">Правила</Link>
+            {t('account.consent.required')}{' '}
+            <Link href={POLICIES.rules.path} target="_blank" className="underline underline-offset-2">{t('account.consent.rulesLink')}</Link>
             {' · '}
-            <Link href={POLICIES.privacy.path} target="_blank" className="underline underline-offset-2">Приватност</Link>
+            <Link href={POLICIES.privacy.path} target="_blank" className="underline underline-offset-2">{t('account.consent.privacyLink')}</Link>
           </span>
         </label>
         {errors.consent && <p className="text-xs text-red-600 -mt-2">{errors.consent}</p>}
         <label className="flex items-start gap-2.5 text-sm text-stone-700">
           <input type="checkbox" checked={form.marketing} onChange={(e) => set('marketing', e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{CONSENT.marketing}</span>
+          <span>{t('account.consent.marketing')}</span>
         </label>
 
         {error && <Notice tone="red">{error}</Notice>}
-        <button type="submit" disabled={busy} className={buttonCls}>{busy ? 'Се прави профилот…' : 'Направи профил'}</button>
+        <button type="submit" disabled={busy} className={buttonCls}>{busy ? t('account.register.submitting') : t('account.register.submit')}</button>
       </form>
     </AccountFrame>
   );

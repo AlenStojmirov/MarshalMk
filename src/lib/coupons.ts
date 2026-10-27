@@ -14,7 +14,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { BasketCoupon, CouponKind } from './loyalty';
-import { mkDate, mkDen, mkNumber } from './mk-format';
+import { DEFAULT_LANGUAGE, translate, type Language } from './i18n/messages';
+import { formatDate, formatNumber, formatPrice } from './i18n/format';
 
 export const COUPONS = 'coupons';
 export const COUPON_REDEMPTIONS = 'coupon_redemptions';
@@ -178,27 +179,31 @@ export function generateCode(prefix = 'MR', length = 6): string {
 /** Why the database will not let this customer use this code. 'login': no account. */
 export type CouponLookupRefusal = 'not_found' | 'inactive' | 'not_started' | 'expired' | 'not_yours' | 'used_up' | 'used' | 'login';
 
-export function lookupRefusalText(r: CouponLookupRefusal, startsAt?: Date): string {
+export function lookupRefusalText(r: CouponLookupRefusal, startsAt?: Date, lang: Language = DEFAULT_LANGUAGE): string {
+  const say = (key: string, params?: Record<string, string>) => translate(lang, `coupon.refusal.${key}`, params);
   switch (r) {
-    case 'not_found': return 'Нема таков купон. Провери го кодот.';
-    case 'inactive': return 'Овој купон повеќе не важи.';
-    case 'not_started': return startsAt ? `Купонот важи од ${mkDate(startsAt)}.` : 'Купонот уште не важи.';
-    case 'expired': return 'Купонот истекол.';
-    case 'not_yours': return 'Овој купон е личен и не е на твојот профил.';
-    case 'used_up': return 'Купонот е веќе искористен колку што смее.';
-    case 'used': return 'Веќе го искористи овој купон.';
-    case 'login': return 'Купоните важат за нарачки со најава на профилот.';
+    case 'not_found': return say('notFound');
+    case 'inactive': return say('inactive');
+    case 'not_started': return startsAt ? say('notStartedFrom', { date: formatDate(lang, startsAt) }) : say('notStarted');
+    case 'expired': return say('expired');
+    case 'not_yours': return say('notYours');
+    case 'used_up': return say('usedUp');
+    case 'used': return say('used');
+    case 'login': return say('login');
   }
 }
 
-const den = mkDen;
-
 /** "−10% · најмногу 500 ден. · кошничка од 1.500 ден." — in the customer's words, without the internal note. */
-export function describeCoupon(c: Pick<Coupon, 'kind' | 'value' | 'maxDiscount' | 'minBasket'>, scope?: string): string {
+export function describeCoupon(
+  c: Pick<Coupon, 'kind' | 'value' | 'maxDiscount' | 'minBasket'>,
+  scope?: string,
+  lang: Language = DEFAULT_LANGUAGE,
+): string {
+  const price = (n: number) => formatPrice(lang, n);
   const parts = [
-    c.kind === 'percent' ? `−${mkNumber(c.value, 1)}%` : c.kind === 'fixed' ? `−${den(c.value)}` : 'Бесплатна достава',
-    c.kind === 'percent' && c.maxDiscount ? `најмногу ${den(c.maxDiscount)}` : null,
-    c.minBasket ? `кошничка од ${den(c.minBasket)}` : null,
+    c.kind === 'percent' ? `−${formatNumber(lang, c.value, 1)}%` : c.kind === 'fixed' ? `−${price(c.value)}` : translate(lang, 'coupon.freeShipping'),
+    c.kind === 'percent' && c.maxDiscount ? translate(lang, 'coupon.atMost', { amount: price(c.maxDiscount) }) : null,
+    c.minBasket ? translate(lang, 'coupon.minBasket', { amount: price(c.minBasket) }) : null,
     scope || null,
   ];
   return parts.filter(Boolean).join(' · ');

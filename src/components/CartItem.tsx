@@ -16,7 +16,7 @@ interface CartItemProps {
 
 export default function CartItem({ item }: CartItemProps) {
   const { updateQuantity, removeFromCart } = useCart();
-  const { t, language } = useTranslation();
+  const { t, language, price } = useTranslation();
   const { product, quantity, selectedSize } = item;
 
   // Get max stock based on size or total stock
@@ -38,7 +38,7 @@ export default function CartItem({ item }: CartItemProps) {
           {product.imageUrl ? (
             <Image
               src={product.imageUrl}
-              alt={getProductDisplayName(product.name, product.category, product.brand)}
+              alt={getProductDisplayName(product.name, product.category, product.brand, language)}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
               sizes="(max-width: 640px) 80px, 96px"
@@ -62,7 +62,7 @@ export default function CartItem({ item }: CartItemProps) {
         <div className="flex-1 min-w-0">
           <Link href={`/product/${product.id}`}>
             <h3 className="text-sm sm:text-base font-medium text-gray-900 hover:text-blue-600 transition-colors duration-200 line-clamp-2">
-              {getProductDisplayName(product.name, product.category, product.brand)}
+              {getProductDisplayName(product.name, product.category, product.brand, language)}
             </h3>
           </Link>
           <p className="text-xs text-gray-400 mt-0.5">{t('categoryNames.' + product.category)}</p>
@@ -73,8 +73,8 @@ export default function CartItem({ item }: CartItemProps) {
           )}
           {onSale ? (
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 mt-1.5">
-              <p className="text-sm font-semibold text-red-600">{unitPrice.toFixed(2)} ден.</p>
-              <p className="text-xs text-gray-400 line-through">{product.price.toFixed(2)} ден.</p>
+              <p className="text-sm font-semibold text-red-600">{price(unitPrice)}</p>
+              <p className="text-xs text-gray-400 line-through">{price(product.price)}</p>
               {percentOff > 0 && (
                 <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
                   -{percentOff}%
@@ -82,7 +82,7 @@ export default function CartItem({ item }: CartItemProps) {
               )}
             </div>
           ) : (
-            <p className="text-sm font-semibold text-gray-900 mt-1.5">{unitPrice.toFixed(2)} ден.</p>
+            <p className="text-sm font-semibold text-gray-900 mt-1.5">{price(unitPrice)}</p>
           )}
         </div>
 
@@ -93,7 +93,7 @@ export default function CartItem({ item }: CartItemProps) {
             <button
               onClick={() => updateQuantity(product.id, quantity - 1, selectedSize)}
               disabled={quantity <= 1}
-              aria-label="Decrease quantity"
+              aria-label={t('common.decreaseQuantity')}
               title={quantity <= 1 ? t('cart.removeItem') : undefined}
               className="p-2 sm:p-1.5 hover:bg-gray-100 active:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors duration-150 focus:outline-none focus-visible:bg-gray-100"
             >
@@ -103,7 +103,7 @@ export default function CartItem({ item }: CartItemProps) {
             <button
               onClick={() => updateQuantity(product.id, quantity + 1, selectedSize)}
               disabled={quantity >= maxStock}
-              aria-label="Increase quantity"
+              aria-label={t('common.increaseQuantity')}
               className="p-2 sm:p-1.5 hover:bg-gray-100 active:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors duration-150 focus:outline-none focus-visible:bg-gray-100"
             >
               <Plus className="h-3.5 w-3.5 text-gray-500" />
@@ -114,11 +114,11 @@ export default function CartItem({ item }: CartItemProps) {
           <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:gap-1.5">
             <div className="flex flex-col sm:items-end">
               <p className={`text-sm font-bold tabular-nums ${onSale ? 'text-red-600' : 'text-gray-900'}`}>
-                {lineTotal.toFixed(2)} ден.
+                {price(lineTotal)}
               </p>
               {onSale && lineSavings > 0 && (
                 <p className="text-[10px] text-red-600 font-medium tabular-nums">
-                  {t('product.save', { amount: lineSavings.toFixed(0) })}
+                  {t('product.save', { amount: price(lineSavings) })}
                 </p>
               )}
             </div>

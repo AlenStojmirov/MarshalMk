@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronDown } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
 
 export interface SortOption {
   label: string;
@@ -14,12 +15,13 @@ interface SortSelectProps {
 }
 
 export default function SortSelect({ options, value, onSortChange }: SortSelectProps) {
+  const { t } = useTranslation();
   return (
     <div className="relative inline-block w-full sm:w-auto">
       <select
         value={value}
         onChange={(e) => onSortChange(e.target.value)}
-        aria-label="Sort products"
+        aria-label={t('a11y.sort')}
         className="appearance-none w-full sm:w-auto bg-white border border-stone-200 py-2 sm:py-2.5 pl-3 sm:pl-4 pr-9 sm:pr-10 text-[11px] sm:text-[12px] text-stone-700 uppercase tracking-wider cursor-pointer hover:border-stone-400 focus:outline-none focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-colors duration-150"
       >
         {options.map((option) => (

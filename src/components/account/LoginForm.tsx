@@ -7,10 +7,12 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { isEmail } from '@/lib/account';
 import { resendConfirmation, signInErrorText } from '@/lib/account-client';
+import { useTranslation } from '@/lib/i18n';
 import AccountFrame, { Field, Notice, buttonCls, inputCls } from './AccountFrame';
 
 export default function LoginForm({ notice }: { notice?: string }) {
   const { signIn } = useAuth();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,7 +21,7 @@ export default function LoginForm({ notice }: { notice?: string }) {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isEmail(email) || !password) { setError({ text: 'Внеси е-пошта и лозинка.', unconfirmed: false }); return; }
+    if (!isEmail(email) || !password) { setError({ text: t('account.login.missing'), unconfirmed: false }); return; }
     setBusy(true);
     setError(null);
     try {
@@ -32,15 +34,15 @@ export default function LoginForm({ notice }: { notice?: string }) {
 
   return (
     <AccountFrame
-      title="Најава"
-      subtitle={<>Немаш профил? <Link href="/smetka/registracija" className="underline underline-offset-2">Регистрирај се</Link> и собирај поени.</>}
+      title={t('account.login.title')}
+      subtitle={<>{t('account.login.subtitleBefore')} <Link href="/account/register" className="underline underline-offset-2">{t('account.login.subtitleLink')}</Link> {t('account.login.subtitleAfter')}</>}
     >
       {notice && <div className="mb-4"><Notice tone="green">{notice}</Notice></div>}
       <form onSubmit={submit} className="space-y-4" noValidate>
-        <Field label="Е-пошта">
+        <Field label={t('account.fields.email')}>
           <input type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls()} />
         </Field>
-        <Field label="Лозинка">
+        <Field label={t('account.fields.password')}>
           <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls()} />
         </Field>
         {error && (
@@ -49,19 +51,19 @@ export default function LoginForm({ notice }: { notice?: string }) {
             {error.unconfirmed && (
               <button
                 type="button"
-                onClick={async () => setResent((await resendConfirmation(email.trim().toLowerCase())) ?? 'Линкот е пратен повторно.')}
+                onClick={async () => setResent((await resendConfirmation(email.trim().toLowerCase())) ?? t('account.common.linkResent'))}
                 className="block mt-1 font-medium underline underline-offset-2"
               >
-                Прати го линкот повторно
+                {t('account.common.resendLink')}
               </button>
             )}
             {resent && <span className="block mt-1">{resent}</span>}
           </Notice>
         )}
-        <button type="submit" disabled={busy} className={buttonCls}>{busy ? 'Се најавува…' : 'Најави се'}</button>
+        <button type="submit" disabled={busy} className={buttonCls}>{busy ? t('account.login.submitting') : t('account.login.submit')}</button>
       </form>
       <p className="mt-4 text-sm text-center">
-        <Link href="/smetka/zaboravena-lozinka" className="text-stone-600 underline underline-offset-2">Заборавена лозинка?</Link>
+        <Link href="/account/forgot-password" className="text-stone-600 underline underline-offset-2">{t('account.login.forgot')}</Link>
       </p>
     </AccountFrame>
   );

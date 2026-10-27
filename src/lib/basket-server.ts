@@ -22,6 +22,7 @@ import { LoyaltySettings, fetchLoyaltySettings } from './loyalty-settings';
 import { describeCoupon, lookupCoupon, lookupRefusalText, toBasketCoupon } from './coupons';
 import { fetchPointsMovements, summarizePoints } from './points';
 import { isBackOffice, roleOf } from './roles';
+import { DEFAULT_LANGUAGE, translate, type Language } from './i18n/messages';
 
 export interface CartLineInput {
   productId: string;
@@ -92,6 +93,8 @@ export interface ServerQuote {
 }
 
 export async function quoteServer(sb: SupabaseClient, a: {
+  /** The language the messages are in: the request's (D-039). */
+  lang?: Language;
   lines: CartLineInput[];
   method: DeliveryMethod;
   couponCode?: string;
@@ -121,15 +124,16 @@ export async function quoteServer(sb: SupabaseClient, a: {
     balance = summarizePoints(moves.data, new Date()).active;
   }
 
+  const lang = a.lang ?? DEFAULT_LANGUAGE;
   let coupon: ServerQuote['coupon'];
   let basketCoupon: BasketCoupon | undefined;
   const code = a.couponCode?.trim();
   if (code) {
-    if (!memberId) coupon = { code, applied: false, message: lookupRefusalText('login') };
+    if (!memberId) coupon = { code, applied: false, message: lookupRefusalText('login', undefined, lang) };
     else {
       const r = await lookupCoupon(sb, code, memberId);
-      if (r.error) coupon = { code, applied: false, message: 'Купонот не може да се провери во моментов.' };
-      else if (r.refusal || !r.coupon) coupon = { code, applied: false, message: lookupRefusalText(r.refusal ?? 'not_found') };
+      if (r.error) coupon = { code, applied: false, message: translate(lang, 'errors.api.cart.couponCheck') };
+      else if (r.refusal || !r.coupon) coupon = { code, applied: false, message: lookupRefusalText(r.refusal ?? 'not_found', undefined, lang) };
       else basketCoupon = toBasketCoupon(r.coupon);
     }
   }
@@ -145,10 +149,10 @@ export async function quoteServer(sb: SupabaseClient, a: {
 
   if (basketCoupon && quote.coupon) {
     coupon = quote.coupon.applied
-      ? { code: basketCoupon.code, applied: true, description: describeCoupon(basketCoupon) }
-      : { code: basketCoupon.code, applied: false, message: couponRefusalText(quote.coupon.refusal!, basketCoupon) };
+      ? { code: basketCoupon.code, applied: true, description: describeCoupon(basketCoupon, undefined, lang) }
+      : { code: basketCoupon.code, applied: false, message: couponRefusalText(quote.coupon.refusal!, basketCoupon, lang) };
   }
-  const pointsMessage = memberId && quote.points.refusal ? pointsRefusalText(quote.points.refusal, settings) : undefined;
+  const pointsMessage = memberId && quote.points.refusal ? pointsRefusalText(quote.points.refusal, settings, lang) : undefined;
 
   return { quote, products, unavailable, memberId, settings, coupon, pointsMessage };
 }

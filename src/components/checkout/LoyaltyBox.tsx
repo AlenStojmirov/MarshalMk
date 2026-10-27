@@ -14,7 +14,6 @@ import Link from 'next/link';
 import { Gift, Tag, X } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 import type { PublicBasketQuote } from '@/lib/loyalty';
-import { mkNumber } from '@/lib/mk-format';
 
 /** What /api/cart/quote answers. */
 export interface QuoteResponse {
@@ -26,8 +25,6 @@ export interface QuoteResponse {
   points: { balance: number; maxUsable: number; used: number; message: string | null };
   earn: number;
 }
-
-const n = (v: number) => mkNumber(v);
 
 /** The slider's one-time hint (13.13): a per-device nicety, so the browser is enough. */
 const HINT_KEY = 'marshal-hint-points-slider';
@@ -48,7 +45,7 @@ export default function LoyaltyBox({
   pointsWanted: number;
   onPoints: (points: number) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, number: n, price } = useTranslation();
   const [typed, setTyped] = useState('');
   // The points field while it is being typed in; null shows the chosen number.
   const [pointsDraft, setPointsDraft] = useState<string | null>(null);
@@ -68,14 +65,14 @@ export default function LoyaltyBox({
         {data.signedIn ? (
           <p className="mt-1 text-gray-600">
             {t('loyalty.finishProfile')}{' '}
-            <Link href="/smetka" className="underline underline-offset-2">{t('loyalty.toAccount')}</Link>
+            <Link href="/account" className="underline underline-offset-2">{t('loyalty.toAccount')}</Link>
           </p>
         ) : (
           <p className="mt-1 text-gray-600">
             {t('loyalty.forMembers')}{' '}
-            <Link href="/smetka" className="underline underline-offset-2">{t('loyalty.signIn')}</Link>
+            <Link href="/account" className="underline underline-offset-2">{t('loyalty.signIn')}</Link>
             {' · '}
-            <Link href="/smetka/registracija" className="underline underline-offset-2">{t('loyalty.register')}</Link>
+            <Link href="/account/register" className="underline underline-offset-2">{t('loyalty.register')}</Link>
           </p>
         )}
       </div>
@@ -140,7 +137,7 @@ export default function LoyaltyBox({
         <div>
           {sliderMax > 0 ? (
             <>
-              <p className="text-gray-700">{t('loyalty.youHave', { points: n(balance), max: n(sliderMax) })}</p>
+              <p className="text-gray-700">{t('loyalty.youHave', { points: n(balance), max: price(sliderMax) })}</p>
               {hint && (
                 <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900 flex items-start gap-2" role="note">
                   <span className="flex-1">{t('loyalty.sliderHint')}</span>

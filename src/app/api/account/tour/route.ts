@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { CUSTOMERS, fail, requireUser } from '@/lib/account-server';
+import { apiSay } from '@/lib/i18n/messages';
 
 /**
  * POST /api/account/tour — the customer has seen the dashboard tour (13.13).
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
     .eq('user_id', auth.user.id).is('tour_seen_at', null);
   if (error) {
     console.error(`[ACCOUNT_TOUR_FAILED] user=${auth.user.id} ${error.message}`);
-    return fail(500, 'Не е запишано.');
+    return fail(500, apiSay(req)('account.notSaved'));
   }
   return NextResponse.json({ ok: true });
 }

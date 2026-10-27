@@ -1,13 +1,17 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { MapPin } from 'lucide-react';
 
-import { POLICIES } from '@/config/policies';
+import { POLICIES, type PolicyKey } from '@/config/policies';
+import { useTranslation } from '@/lib/i18n';
 import { HomeScreenGuideLink } from '@/components/HomeScreenGuide';
-import { STORE_ADDRESS, STORE_EMAIL, STORE_FACEBOOK_URL, STORE_INSTAGRAM_URL, STORE_MAPS_URL } from '@/config/store';
+import { STORE_EMAIL, STORE_FACEBOOK_URL, STORE_INSTAGRAM_URL, STORE_MAPS_URL, storeAddress } from '@/config/store';
 
 export default function Footer() {
-return (
+  const { t, language } = useTranslation();
+  return (
     <footer className="bg-stone-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Main footer — compact single row on mobile, 3-col on desktop */}
@@ -15,7 +19,7 @@ return (
           {/* Logo */}
           <Image
             src="/logo_white.png"
-            alt="Marshal - Men's Fashion Store"
+            alt={t('header.storeName')}
             width={70}
             height={24}
             className="w-[70px] sm:w-[120px]"
@@ -35,12 +39,12 @@ return (
               href={STORE_MAPS_URL}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`Open ${STORE_ADDRESS} in Google Maps`}
-              title="Open in Google Maps"
+              aria-label={`${storeAddress(language)} — ${t('checkout.openInMaps')}`}
+              title={t('checkout.openInMaps')}
               className="inline-flex items-center gap-1.5 hover:text-white transition-colors duration-200"
             >
               <MapPin className="h-3.5 w-3.5 shrink-0" />
-              <span>{STORE_ADDRESS}</span>
+              <span>{storeAddress(language)}</span>
             </a>
           </div>
 
@@ -87,9 +91,9 @@ return (
 
         {/* Delivery, exchange, privacy (13.5): the pages a buyer paying on delivery looks for first */}
         <nav className="flex flex-wrap justify-center gap-x-5 gap-y-1 pb-4 text-[11px] sm:text-xs text-gray-400">
-          {Object.values(POLICIES).filter((p) => p.live).map((p) => (
-            <Link key={p.path} href={p.path} className="hover:text-white transition-colors duration-200">
-              {p.title}
+          {(Object.keys(POLICIES) as PolicyKey[]).filter((k) => POLICIES[k].live).map((k) => (
+            <Link key={k} href={POLICIES[k].path} className="hover:text-white transition-colors duration-200">
+              {t(`policies.${k}.title`)}
             </Link>
           ))}
           <HomeScreenGuideLink className="hover:text-white transition-colors duration-200" />
@@ -97,7 +101,7 @@ return (
 
         {/* Copyright — thin divider line */}
         <div className="border-t border-stone-800 py-4 text-center text-[11px] text-gray-500 tracking-wide">
-          &copy; 2025 Marshal | Powered by <Link className="text-gray-400 hover:text-white transition-colors duration-200" target="_blank" href="https://github.com/AlenStojmirov">Alen</Link>
+          &copy; 2025 {t('header.storeName')} | {t('footer.madeBy')} <Link className="text-gray-400 hover:text-white transition-colors duration-200" target="_blank" href="https://github.com/AlenStojmirov">Alen</Link>
         </div>
       </div>
     </footer>

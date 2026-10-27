@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { isBlocked, isRateLimited, recordViolation } from '@/lib/rate-limit';
 import { userFromRequest } from '@/lib/basket-server';
 import { spinWheel } from '@/lib/wheel-server';
+import { apiSay } from '@/lib/i18n/messages';
 
 /**
  * POST /api/wheel/spin — one spin (Task 13.10). The database decides the prize
@@ -11,11 +12,12 @@ import { spinWheel } from '@/lib/wheel-server';
  * own lock; the lock is what makes a second spin in a period impossible.
  */
 
+/** Status and message key (`errors.api.wheel.*`) per refusal. */
 const REFUSAL: Record<string, [number, string]> = {
-  off: [404, 'Тркалото моментално не е активно.'],
-  member: [403, 'За да вртиш, најави се на профил со потврдена е-пошта.'],
-  not_now: [409, 'Веќе заврте. Следното вртење е подоцна.'],
-  no_prizes: [503, 'Тркалото моментално нема награди. Пробај подоцна.'],
+  off: [404, 'off'],
+  member: [403, 'member'],
+  not_now: [409, 'notNow'],
+  no_prizes: [503, 'noPrizes'],
 };
 
 function clientIp(req: NextRequest): string {
@@ -24,26 +26,27 @@ function clientIp(req: NextRequest): string {
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
-  if (isBlocked(ip)) return NextResponse.json({ error: 'Пристапот е привремено ограничен.' }, { status: 403 });
+  const say = apiSay(req);
+  if (isBlocked(ip)) return NextResponse.json({ error: say('blockedShort') }, { status: 403 });
   if (isRateLimited(`wheel:${ip}`, 10, 60_000)) {
     recordViolation(ip);
-    return NextResponse.json({ error: 'Премногу обиди. Почекај малку.' }, { status: 429 });
+    return NextResponse.json({ error: say('tooManyWait') }, { status: 429 });
   }
   try {
     const sb = getSupabaseAdmin();
     const user = await userFromRequest(sb, req.headers.get('authorization'));
     if (user && isRateLimited(`wheel-user:${user.id}`, 5, 60_000)) {
-      return NextResponse.json({ error: 'Премногу обиди. Почекај малку.' }, { status: 429 });
+      return NextResponse.json({ error: say('tooManyWait') }, { status: 429 });
     }
     const r = await spinWheel(sb, user);
     if (r.refusal) {
-      const [status, error] = REFUSAL[r.refusal];
-      return NextResponse.json({ error, refusal: r.refusal }, { status });
+      const [status, key] = REFUSAL[r.refusal];
+      return NextResponse.json({ error: say(`wheel.${key}`), refusal: r.refusal }, { status });
     }
     console.log(`[WHEEL_SPIN] user=${user!.id} prize="${r.result!.label}"`);
     return NextResponse.json(r.result);
   } catch (e) {
     console.error(`[WHEEL_SPIN_FAILED] ip=${ip} ${(e as Error).message}`);
-    return NextResponse.json({ error: 'Вртењето не успеа. Ништо не е потрошено, пробај повторно.' }, { status: 500 });
+    return NextResponse.json({ error: say('wheel.failed') }, { status: 500 });
   }
 }

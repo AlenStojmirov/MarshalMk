@@ -151,7 +151,7 @@ export default function ProductListingLayout({
           </div>
           <div className="flex-1">
             <div className="text-center py-16">
-              <p className="text-stone-400 text-sm tracking-wide">{t('categoryPage.noResults') || 'No products match your filters'}</p>
+              <p className="text-stone-400 text-sm tracking-wide">{t('categoryPage.noResults')}</p>
               <button
                 onClick={handleClearFilters}
                 className="mt-4 px-4 py-2 text-[13px] text-stone-900 underline underline-offset-4 decoration-stone-300 hover:decoration-stone-900 transition-colors duration-200"

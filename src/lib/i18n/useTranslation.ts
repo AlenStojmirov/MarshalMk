@@ -1,11 +1,11 @@
 'use client';
 
 import { useLanguage } from './LanguageContext';
-
-type TranslationValue = string | { [key: string]: TranslationValue };
+import { translate } from './messages';
+import { formatDate, formatNumber, formatPrice } from './format';
 
 export function useTranslation() {
-  const { language, translations } = useLanguage();
+  const { language } = useLanguage();
 
   /**
    * Get a translation by key path (e.g., 'common.addToCart')
@@ -15,34 +15,16 @@ export function useTranslation() {
    * @param params - Optional object with values to interpolate
    * @returns The translated string or the key if not found
    */
-  const t = (key: string, params?: Record<string, string | number>): string => {
-    const keys = key.split('.');
-    let value: TranslationValue = translations;
+  const t = (key: string, params?: Record<string, string | number>): string => translate(language, key, params);
 
-    for (const k of keys) {
-      if (typeof value === 'object' && value !== null && k in value) {
-        value = value[k];
-      } else {
-        // Return key if translation not found
-        console.warn(`Translation not found for key: ${key}`);
-        return key;
-      }
-    }
-
-    if (typeof value !== 'string') {
-      console.warn(`Translation value is not a string for key: ${key}`);
-      return key;
-    }
-
-    // Handle interpolation
-    if (params) {
-      return value.replace(/\{(\w+)\}/g, (_, paramKey) => {
-        return params[paramKey]?.toString() || `{${paramKey}}`;
-      });
-    }
-
-    return value;
+  return {
+    t,
+    language,
+    /** "1.500 ден." / "1,500 MKD" */
+    price: (n: number) => formatPrice(language, n),
+    /** "1.500" / "1,500" */
+    number: (n: number, maxDecimals = 0) => formatNumber(language, n, maxDecimals),
+    /** "8.11.2026" / "8 Nov 2026" */
+    date: (d: Date | string | undefined) => formatDate(language, d),
   };
-
-  return { t, language };
 }

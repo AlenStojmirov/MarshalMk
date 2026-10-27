@@ -6,7 +6,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { OrderOutcome, OrderStatus } from '@/types';
 import { useTranslation } from '@/lib/i18n';
-import { mkDate, mkNumber } from '@/lib/mk-format';
 import { fetchTrackedOrder, ORDER_NUMBER_MAX, type TrackedOrder } from '@/lib/order-track';
 import {
   Search,
@@ -151,7 +150,10 @@ const OUTCOME_KEY: Partial<Record<OrderOutcome, string>> = {
 
 const hhmm = (d: Date) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 
-/** `?broj=` from the customer's e-mail (14.5) fills the number; the phone is always typed (D-038). */
+/**
+ * `?number=` from the customer's e-mail (14.5) fills the number; the phone is always typed (D-038).
+ * `?broj=` is what the e-mails sent before the URLs went English carry.
+ */
 function numberFromLink(raw: string | null): string {
   const n = (raw ?? '').trim().toUpperCase();
   return n.length <= ORDER_NUMBER_MAX && /^[A-Z0-9-]+$/.test(n) ? n : '';
@@ -168,11 +170,12 @@ export default function TrackOrderPage() {
 }
 
 function TrackOrderFromLink() {
-  return <TrackOrder initialNumber={numberFromLink(useSearchParams().get('broj'))} />;
+  const params = useSearchParams();
+  return <TrackOrder initialNumber={numberFromLink(params.get('number') ?? params.get('broj'))} />;
 }
 
 function TrackOrder({ initialNumber }: { initialNumber: string }) {
-  const { t } = useTranslation();
+  const { t, price, date } = useTranslation();
   const [orderNumber, setOrderNumber] = useState(initialNumber);
   const [phone, setPhone] = useState('');
   const [order, setOrder] = useState<TrackedOrder | null>(null);
@@ -301,7 +304,7 @@ function TrackOrder({ initialNumber }: { initialNumber: string }) {
                 </div>
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                {t('tracking.orderedOn')}: {mkDate(createdAt)} {t('tracking.at')} {hhmm(createdAt)}
+                {t('tracking.orderedOn')}: {date(createdAt)} {t('tracking.at')} {hhmm(createdAt)}
               </p>
               {outcomeKey && <p className="text-sm font-medium text-gray-700 mt-1">{t(outcomeKey)}</p>}
             </div>
@@ -347,7 +350,7 @@ function TrackOrder({ initialNumber }: { initialNumber: string }) {
             <div className="p-6 bg-gray-50">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-gray-900">{t('tracking.total')}</span>
-                <span className="text-2xl font-bold text-gray-900">{mkNumber(order.total)} ден.</span>
+                <span className="text-2xl font-bold text-gray-900">{price(order.total)}</span>
               </div>
             </div>
           </div>

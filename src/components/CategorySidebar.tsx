@@ -4,10 +4,6 @@ import * as Slider from '@radix-ui/react-slider';
 import { useTranslation } from '@/lib/i18n';
 import { groupSizes, sizeLabel } from '@/lib/sizes';
 
-function formatPrice(value: number): string {
-  return value.toLocaleString('mk-MK') + ' ден.';
-}
-
 interface CategorySidebarProps {
   priceRange: { min: number; max: number };
   availableSizes: { size: string; count: number }[];
@@ -31,7 +27,7 @@ export default function CategorySidebar({
   onSizeChange,
   onClearFilters,
 }: CategorySidebarProps) {
-  const { t, language } = useTranslation();
+  const { t, language, price } = useTranslation();
 
   const { min: absoluteMin, max: absoluteMax } = priceRange;
 
@@ -80,15 +76,15 @@ export default function CategorySidebar({
               </Slider.Track>
               <Slider.Thumb
                 className="block w-4 h-4 bg-white border-2 border-stone-900 rounded-full hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-400 focus:ring-offset-2 transition-colors duration-150 cursor-grab active:cursor-grabbing"
-                aria-label="Minimum price"
+                aria-label={t('categoryPage.minPrice')}
               />
               <Slider.Thumb
                 className="block w-4 h-4 bg-white border-2 border-stone-900 rounded-full hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-400 focus:ring-offset-2 transition-colors duration-150 cursor-grab active:cursor-grabbing"
-                aria-label="Maximum price"
+                aria-label={t('categoryPage.maxPrice')}
               />
             </Slider.Root>
             <p className="text-[11px] text-stone-400 mt-3 text-center tracking-wide">
-              {formatPrice(currentMinPrice)} – {formatPrice(currentMaxPrice)}
+              {price(currentMinPrice)} – {price(currentMaxPrice)}
             </p>
           </div>
         )}
@@ -113,7 +109,7 @@ export default function CategorySidebar({
                             ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
                             : 'border-stone-200 text-stone-600 hover:border-stone-900 hover:text-stone-900 hover:shadow-sm'
                         }`}
-                        title={`${count} product(s)`}
+                        title={t('categories.productCount', { count })}
                       >
                         {sizeLabel(size, (language === 'en' ? 'en' : 'mk'))}
                       </button>

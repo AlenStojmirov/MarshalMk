@@ -1,6 +1,5 @@
 {
   "common": {
-    "products": "Products",
     "categories": "Categories",
     "cart": "Cart",
     "search": "Search products...",
@@ -8,19 +7,11 @@
     "buyNow": "Buy Now",
     "outOfStock": "Out of Stock",
     "featured": "Featured",
-    "inStock": "In Stock",
-    "price": "Price",
     "quantity": "Quantity",
     "total": "Total",
     "loading": "Loading...",
-    "error": "Error",
     "save": "Save",
     "cancel": "Cancel",
-    "delete": "Delete",
-    "edit": "Edit",
-    "back": "Back",
-    "next": "Next",
-    "previous": "Previous",
     "all": "All",
     "noImage": "No Image",
     "viewProduct": "View Product",
@@ -28,26 +19,23 @@
     "shipping": "Shipping",
     "subtotal": "Subtotal",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "copy": "Copy",
+    "copied": "Copied",
+    "decreaseQuantity": "Decrease quantity",
+    "increaseQuantity": "Increase quantity"
   },
   "header": {
-    "storeName": "MyStore",
+    "storeName": "Marshal",
     "switchLanguage": "Switch Language",
     "trackOrder": "Track Order",
-    "freeShippingBanner": "FREE DELIVERY FOR ORDERS OVER {amount} DEN",
+    "freeShippingBanner": "FREE DELIVERY FOR ORDERS OVER {amount}",
     "home": "Home",
     "new": "New",
-    "mens": "Mens",
-    "mensShoes": "Shoes",
-    "mensClothing": "Clothing",
-    "mensAccessories": "Accessories",
     "sale": "Sale",
     "account": "My account"
   },
   "home": {
-    "welcome": "Welcome to MyStore",
-    "subtitle": "Discover our amazing collection of products at great prices.",
-    "showingProducts": "Showing {shown} of {total} products",
     "seoTitle": "Marshal — Men's Fashion & Clothing Store",
     "categoryPolos": "Polo Shirts",
     "categoryJeans": "Jeans",
@@ -57,7 +45,7 @@
     "secureShoppingTitle": "SECURE SHOPPING",
     "secureShoppingDescription": "You are in safe hands",
     "freeShippingTitle": "FREE DELIVERY",
-    "freeShippingDescription": "Free delivery for orders over {amount} den",
+    "freeShippingDescription": "Free delivery for orders over {amount}",
     "supportTitle": "SUPPORT",
     "supportDescription": "Customer support 24/7"
   },
@@ -74,13 +62,13 @@
     "size": "Size",
     "removeItem": "Remove item",
     "youSaved": "You saved",
-    "miniCartTitle": "Added to your cart",
-    "miniCartSubtitle": "{count} item(s) in your bag",
+    "miniCartSubtitle": "Items in your cart: {count}",
     "subtotal": "Subtotal",
     "viewCart": "View Cart",
     "checkout": "Checkout",
-    "freeShippingRemaining": "Spend {amount} ден. more to unlock free shipping",
-    "freeShippingUnlocked": "🎉 You unlocked free shipping!"
+    "freeShippingRemaining": "Spend {amount} more for free delivery",
+    "freeShippingUnlocked": "🎉 You unlocked free shipping!",
+    "close": "Close cart"
   },
   "product": {
     "backToProducts": "Back to products",
@@ -94,13 +82,10 @@
     "outOfStockInSize": "Out of Stock in {size}",
     "totalStock": "Total Stock: {count} items",
     "addedToCart": "Added to Cart!",
-    "notFound": "Product not found",
-    "notFoundDescription": "The product you're looking for doesn't exist or has been removed.",
-    "returnHome": "Return to Home",
     "relatedProducts": "Related Products",
     "askOnInstagram": "Ask about this on Instagram",
     "sale": "Sale",
-    "save": "Save {amount} ден.",
+    "save": "Save {amount}",
     "delivery": {
       "payTitle": "Cash on delivery",
       "payText": "Pay in cash when the parcel arrives, no card needed.",
@@ -197,14 +182,16 @@
     "filters": "Filters",
     "price": "Price",
     "size": "Size",
-    "brand": "Brand",
-    "color": "Color",
     "productCount": "{count} products",
     "filterCount": "{filtered} of {total} products",
     "clearFilters": "Clear Filters",
-    "sortLatest": "Sort by latest products",
+    "sortLatest": "Sort by newest products",
     "sortPriceAsc": "Sort by price: low to high",
-    "sortPriceDesc": "Sort by price: high to low"
+    "sortPriceDesc": "Sort by price: high to low",
+    "noResults": "No products match your filters",
+    "noProducts": "No products found",
+    "minPrice": "Minimum price",
+    "maxPrice": "Maximum price"
   },
   "pagination": {
     "label": "Pagination",
@@ -222,7 +209,7 @@
     "couponLine": "Coupon {code}",
     "couponFreeShipping": "free delivery",
     "pointsLine": "Points",
-    "youHave": "You have {points} points. You can use up to {max} den on this order.",
+    "youHave": "You have {points} points. You can use up to {max} on this order.",
     "pointsInput": "Number of points",
     "pointsUnit": "points",
     "willEarn": "You will earn {points} points with this order.",
@@ -234,7 +221,12 @@
     "toAccount": "Go to your account",
     "sliderHint": "This is where you choose how many points to use: move the slider or type the number.",
     "gotIt": "Got it",
-    "unavailable": "Some products are no longer available. Remove them from the cart."
+    "unavailable": "Some products are no longer available. Remove them from the cart.",
+    "pointsRefusal": {
+      "balance": "Points can be spent once you have at least {points}.",
+      "order": "Points can be spent on orders of at least {amount}",
+      "noRoom": "The items in your cart can't be paid for with points (a big discount or the lowest price)."
+    }
   },
   "checkout": {
     "title": "Checkout",
@@ -285,14 +277,14 @@
     "contactInfo": "Contact Information",
     "deliveryAddress": "Delivery Address",
     "paymentMethod": "Payment: Cash on Delivery",
-    "amountReady": "Please have {amount} ден. ready when your order arrives.",
+    "amountReady": "Please have {amount} ready when your order arrives.",
     "continueShopping": "Continue Shopping",
     "loadingOrder": "Loading order details...",
     "orderNotFound": "Order not found",
     "returnHome": "Return to Home",
     "pickupTitle": "Store pickup",
     "pickupPayment": "Payment: At pickup",
-    "amountReadyPickup": "Please have {amount} den. ready when you come to pick up your order.",
+    "amountReadyPickup": "Please have {amount} ready when you come to pick up your order.",
     "thankYouPickup": "Thank you for your order. We'll contact you when it's ready for pickup.",
     "trackHint": "See your order's status and details on the tracking page, with the order number and your phone.",
     "trackOrder": "Track your order",
@@ -306,13 +298,10 @@
     "signingIn": "Signing in...",
     "signOut": "Sign Out",
     "invalidCredentials": "Invalid email or password",
-    "createAdminHint": "Create an admin user in Firebase Authentication to access this panel.",
+    "createAdminHint": "No account? Ask the owner to create one under Users.",
     "dashboard": "Admin Dashboard",
     "loggedInAs": "Logged in as {email}",
-    "inventorySync": "Inventory Sync",
-    "viewOrders": "View Orders",
     "addProduct": "Add Product",
-    "products": "Products",
     "product": "Product",
     "category": "Category",
     "brand": "Brand",
@@ -339,7 +328,6 @@
     "delete": "Delete",
     "confirmDelete": "Are you sure you want to delete \"{name}\"?",
     "sizes": "Sizes & Stock",
-    "sizePlaceholder": "Enter size (e.g., S, M, L, XL, 42, 43...)",
     "addSize": "Add Size",
     "quantity": "Qty",
     "removeSize": "Remove size",
@@ -349,9 +337,6 @@
     "productId": "Product ID (Key)",
     "productIdPlaceholder": "Enter custom product ID (e.g., SKU-001, PROD-123)",
     "productIdHint": "Leave empty to auto-generate. Use this to set a custom ID/key for the product.",
-    "inStoreSales": "In-Store Sales",
-    "soldOut": "Sold Out",
-    "expenses": "Unpaid",
     "saleSection": "Sale Settings",
     "onSale": "On Sale",
     "salePercentage": "Discount (%)",
@@ -375,7 +360,6 @@
     "marginLowWarn": "Margin is under {pct}%. After operating costs this leaves almost nothing.",
     "belowFloorWarn": "Price is under the floor of {floor} den. (cost +{pct}%). Below that a sale does not recover capital, it spends it.",
     "avgMargin": "Average margin",
-    "onSaleCount": "On sale",
     "belowMarginFloor": "Margin under 25%",
     "noCostCount": "No cost",
     "noCostHint": "No purchase price — margin cannot be computed",
@@ -406,25 +390,20 @@
     "onSaleStaleSub": "no sales in 90 days",
     "onSaleStaleHint": "The discount is not working — this is clearance, keep it",
     "filterOnSaleMoving": "On sale + moving",
-    "filterOnSaleStale": "On sale + idle"
+    "filterOnSaleStale": "On sale + idle",
+    "filters": "Filters",
+    "additionalImages": "Additional images",
+    "additionalImagesHint": "One URL per line. These will show in the product gallery."
   },
   "orders": {
     "title": "Orders",
     "backToDashboard": "Back to Dashboard",
-    "allOrders": "All Orders",
-    "orderNumber": "Order Number",
     "customer": "Customer",
     "items": "items",
     "item": "item",
     "total": "Total",
-    "status": "Status",
-    "date": "Date",
-    "actions": "Actions",
-    "viewOnSite": "View on site",
     "noOrders": "No orders yet",
     "noOrdersWithStatus": "No {status} orders",
-    "orderDetails": "Order Details",
-    "orderSummary": "Order Summary",
     "orderItems": "Order Items",
     "deliveryAddress": "Delivery Address",
     "pickup": "Store pickup",
@@ -438,7 +417,6 @@
     "statusShipped": "Shipped",
     "statusDelivered": "Delivered",
     "statusCancelled": "Cancelled",
-    "closeDetails": "Close Details",
     "refresh": "Refresh",
     "loading": "Loading orders...",
     "loadFailed": "Failed to load orders",
@@ -450,7 +428,6 @@
     "collectedAmount": "Actually collected (incl. shipping)",
     "notExact": "Exactly {requested} is not reachable with whole prices — {actual} den. will be recorded.",
     "outcome": "Outcome",
-    "outcomeOpen": "Still open",
     "outcomeDelivered": "Delivered and paid",
     "outcomeCollected": "Collected and paid",
     "outcomeRefused": "Refused at the door",
@@ -496,12 +473,9 @@
     "noItemsAdded": "No items added yet. Click 'Add Product' to start.",
     "addAtLeastOneProduct": "Please add at least one product",
     "total": "Total",
-    "notes": "Notes",
-    "notesPlaceholder": "Optional notes about this sale...",
     "saving": "Saving...",
     "noSalesFound": "No Sales Found",
     "noSalesDescription": "No in-store sales have been recorded yet.",
-    "transactions": "Transactions",
     "uniqueProducts": "unique products",
     "totalSales": "Total Sales",
     "productsSold": "Products Sold",
@@ -565,7 +539,6 @@
     "noExpensesDescription": "No units have left at price 0.",
     "items": "items",
     "size": "Size",
-    "expense": "Expense",
     "notCosts": "These are not operating costs. Rent, wages and utilities are entered under “Costs & result”.",
     "legacyReason": "Personal · old record",
     "legacyHint": "Recorded before 24.09.2026, when no reason was asked — all zero prices from then count as personal use (D-005)."
@@ -575,10 +548,7 @@
     "pageTitle": "Products on Sale",
     "subtitle": "Grab these amazing deals before they're gone!",
     "noProducts": "No products on sale at the moment",
-    "checkBackSoon": "Check back soon for new deals!",
-    "off": "off",
-    "originalPrice": "Original",
-    "productCount": "{count} products on sale"
+    "checkBackSoon": "Check back soon for new deals!"
   },
   "newProducts": {
     "title": "New Arrivals",
@@ -586,13 +556,13 @@
     "subtitle": "Check out our latest products",
     "noProducts": "No new products at the moment",
     "checkBackSoon": "Check back soon for new arrivals!",
-    "productCount": "{count} new products",
     "philosophyLabel": "Our Philosophy",
-    "philosophyTitle": "Modern essentials for everyday wear"
+    "philosophyTitle": "Modern essentials for everyday wear",
+    "empty": "No products yet"
   },
   "inventory": {
     "title": "Inventory Sync",
-    "subtitle": "Sync products from your inventory app (Realtime Database) to the store (Firestore)",
+    "subtitle": "Sync products from your inventory app (Firebase Realtime Database) to the store (Supabase)",
     "backToDashboard": "Back to Dashboard",
     "refresh": "Refresh",
     "syncAll": "Sync All to Store",
@@ -602,9 +572,7 @@
     "totalItemsPurchasePriceInStock": "Total Items purchase price in Stock",
     "lastSyncResult": "Last Sync Result",
     "notSyncedYet": "Not synced yet",
-    "synced": "synced",
     "syncedWithErrors": "Synced {migrated} products with {errors} errors",
-    "syncedSuccess": "Successfully synced {count} products!",
     "inventoryProducts": "Inventory Products (from Realtime Database)",
     "loadingInventory": "Loading inventory...",
     "noProductsFound": "No products found in inventory",
@@ -614,8 +582,8 @@
     "brand": "Brand",
     "sizesStock": "Sizes / Stock",
     "notConfigured": "Realtime Database is not configured. Please set NEXT_PUBLIC_INVENTORY_FIREBASE_DATABASE_URL in your environment variables.",
-    "loadFailed": "Failed to load inventory from Realtime Database. Make sure NEXT_PUBLIC_FIREBASE_DATABASE_URL is configured correctly.",
-    "confirmSync": "This will sync all products from Realtime Database to Firestore. Continue?",
+    "loadFailed": "Failed to load inventory from Realtime Database. Make sure NEXT_PUBLIC_INVENTORY_FIREBASE_DATABASE_URL is configured correctly.",
+    "confirmSync": "This will sync all products from Realtime Database to Supabase. Continue?",
     "syncFailed": "Migration failed. Check console for details.",
     "loginRequired": "Please log in to manage inventory",
     "goToLogin": "Go to Admin Login",
@@ -635,5 +603,427 @@
     "retry": "Try again",
     "home": "Home",
     "code": "Error code"
+  },
+  "policies": {
+    "delivery": {
+      "title": "Delivery, payment and exchanges"
+    },
+    "privacy": {
+      "title": "Privacy policy"
+    },
+    "rules": {
+      "title": "Points and coupons rules"
+    },
+    "validFrom": "In effect from {date}",
+    "translationNote": "This is a translation for convenience; the Macedonian version is the one that applies."
+  },
+  "coupon": {
+    "freeShipping": "Free delivery",
+    "atMost": "up to {amount}",
+    "minBasket": "on carts from {amount}",
+    "refusal": {
+      "notFound": "No such coupon. Check the code.",
+      "inactive": "This coupon is no longer valid.",
+      "notStartedFrom": "The coupon is valid from {date}.",
+      "notStarted": "The coupon is not valid yet.",
+      "expired": "The coupon has expired.",
+      "notYours": "This coupon is personal and is not on your account.",
+      "usedUp": "This coupon has been used as many times as allowed.",
+      "used": "You have already used this coupon.",
+      "login": "Coupons apply to orders placed while signed in to your account."
+    },
+    "basketRefusal": {
+      "minBasket": "The coupon applies to carts of at least {amount}",
+      "noItems": "The coupon doesn't apply to the items in your cart.",
+      "noRoom": "The items in your cart are already at their lowest price, so the coupon gives no discount. It is kept for another order.",
+      "pickup": "There is no delivery with store pickup, so the coupon is kept for another order.",
+      "alreadyFree": "Delivery is already free for this cart, so the coupon is kept for another order."
+    }
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "offline": "No connection. Check your internet and try again.",
+    "signIn": {
+      "unconfirmed": "Your email isn't confirmed yet. Click the link we sent you.",
+      "wrong": "Wrong email or password.",
+      "tooMany": "Too many attempts. Try again in a few minutes.",
+      "failed": "Couldn't sign you in. Please try again."
+    },
+    "resend": {
+      "wait": "Please wait a moment before asking for another email.",
+      "failed": "The email wasn't sent. Please try again."
+    },
+    "fields": {
+      "firstNameMissing": "Enter your first name.",
+      "firstNameLong": "The first name is too long.",
+      "lastNameLong": "The last name is too long.",
+      "phone": "Enter a Macedonian phone number, for example 070 123 456.",
+      "birthDate": "Check the date.",
+      "addressLong": "The address is too long.",
+      "cityLong": "The city name is too long.",
+      "consent": "To open an account you need to accept the rules and the privacy policy.",
+      "email": "Enter a valid email address.",
+      "passwordShort": "The password needs at least {min} characters."
+    },
+    "api": {
+      "notSignedIn": "You're not signed in.",
+      "sessionExpired": "Your session has expired. Please sign in again.",
+      "badRequest": "Invalid request.",
+      "checkFields": "Check the highlighted fields.",
+      "blocked": "Access is temporarily restricted. Try again later.",
+      "blockedShort": "Access is temporarily restricted.",
+      "tooManyMinutes": "Too many attempts. Try again in a few minutes.",
+      "tooManyWait": "Too many attempts. Please wait a moment.",
+      "tooManyRequests": "Too many requests. Please wait a moment.",
+      "fillForm": "Please fill in the form before sending it.",
+      "account": {
+        "checkoutRead": "Your account details can't be read right now.",
+        "read": "Your account can't be read right now.",
+        "save": "Your profile can't be saved right now.",
+        "create": "The account can't be created right now.",
+        "unfinished": "Your account was created but not finished. Sign in once you have confirmed your email, and complete it.",
+        "staff": "This is a staff account. To shop, open an account with another email.",
+        "phoneTaken": "This number already has an account. Enter another number.",
+        "phoneTakenSignIn": "This number already has an account. Sign in, or enter another number.",
+        "tooManyForEmail": "Too many attempts for this email. Try again later.",
+        "weakPassword": "The password is too weak.",
+        "weakPasswordField": "The password is too weak. Add letters and numbers.",
+        "tooManyEmails": "Too many emails in a short time. Try again in a few minutes.",
+        "signupDisabled": "Sign-up is temporarily turned off.",
+        "ordersRead": "Your orders can't be read right now.",
+        "notSaved": "Not saved."
+      },
+      "cart": {
+        "invalid": "The cart is empty or invalid.",
+        "quoteFailed": "Couldn't work out the total. Please try again.",
+        "couponCheck": "The coupon can't be checked right now."
+      },
+      "order": {
+        "busy": "We are experiencing high demand. Please try again shortly.",
+        "tooMany": "Too many requests. Please wait before placing another order.",
+        "missingData": "Missing order data.",
+        "badDelivery": "Invalid delivery method.",
+        "missingField": "Missing required field: {field}",
+        "badEmail": "Invalid email address.",
+        "tooManyItems": "Too many items in the order.",
+        "badItem": "Invalid item in the order.",
+        "tooManyForEmail": "Too many orders for this email address. Please try again later.",
+        "unavailable": "Some items are no longer available. Remove them from the cart.",
+        "couponInvalid": "The coupon is not valid.",
+        "pointsChanged": "The points for this order have changed. Check the cart and try again.",
+        "couponGone": "The coupon is no longer valid. Remove it and try again.",
+        "sizeUnavailable": "Some items are no longer available in the size you picked.",
+        "failed": "Couldn't place the order. Please try again."
+      },
+      "wheel": {
+        "read": "The wheel can't be loaded right now.",
+        "off": "The wheel is not active right now.",
+        "member": "To spin, sign in to an account with a confirmed email.",
+        "notNow": "You have already spun. Your next spin comes later.",
+        "noPrizes": "The wheel has no prizes right now. Try again later.",
+        "failed": "The spin didn't go through. Nothing was used up; try again."
+      }
+    }
+  },
+  "footer": {
+    "madeBy": "Powered by"
+  },
+  "a11y": {
+    "fullscreen": "View fullscreen",
+    "viewImage": "Image {n}",
+    "close": "Close",
+    "previousImage": "Previous image",
+    "nextImage": "Next image",
+    "clearSearch": "Clear search",
+    "breadcrumb": "Breadcrumb",
+    "sort": "Sort products"
+  },
+  "tour": {
+    "of": "{n} of {total}",
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done"
+  },
+  "wheel": {
+    "title": "Wheel of Fortune",
+    "everySpinWins": "Every spin wins a prize.",
+    "ariaLabel": "Prize wheel: {prizes}",
+    "spinFailed": "The spin didn't go through.",
+    "inactive": "The wheel isn't active right now.",
+    "won": "You won: {prize}",
+    "hoursOne": "{n} hour",
+    "hoursOther": "{n} hours",
+    "daysOne": "{n} day",
+    "daysOther": "{n} days",
+    "couponTerms": "Valid for {hours}. Can't be combined with another coupon.",
+    "couponTermsMinBasket": "Valid for {hours}, on carts from {amount}. Can't be combined with another coupon.",
+    "toCart": "Apply to cart",
+    "pointsWonOne": "+{n} point, valid for {days}.",
+    "pointsWonOther": "+{n} points, valid for {days}.",
+    "myPoints": "My points",
+    "signUpToSpin": "Sign up to spin",
+    "signUpPitch": "Every spin wins a prize, and with an account you also earn points on every order.",
+    "signUp": "Sign up",
+    "signIn": "Sign in",
+    "finishProfile": "Confirm your email and complete your account to spin.",
+    "toAccount": "Go to your account",
+    "spinning": "Spinning…",
+    "spin": "Spin",
+    "alreadySpun": "Already spun",
+    "bonusSpinsOne": "You have {n} bonus spin from your orders.",
+    "bonusSpinsOther": "You have {n} bonus spins from your orders.",
+    "nextSpin": "Next spin on {date}.",
+    "spinEvery": "One spin every {days}, plus a bonus spin for every delivered order.",
+    "chances": "Prize chances",
+    "limitNote": "A prize that has hit its daily or monthly limit is off the wheel for now, and the other prizes' chances go up.",
+    "rules": "Rules"
+  },
+  "account": {
+    "common": {
+      "signOut": "Sign out",
+      "resendLink": "Send the link again",
+      "linkResent": "We've sent the link again.",
+      "saving": "Saving…",
+      "toShop": "Go to the shop",
+      "clearDate": "Clear"
+    },
+    "fields": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "email": "Email",
+      "phone": "Phone",
+      "password": "Password",
+      "passwordHint": "At least {min} characters.",
+      "city": "City"
+    },
+    "consent": {
+      "required": "I have read and accept the Points and Coupons Rules and the Privacy Policy.",
+      "marketing": "I'd like to get offers and news by email. I can unsubscribe at any time.",
+      "rulesLink": "Rules",
+      "privacyLink": "Privacy"
+    },
+    "units": {
+      "pointsOne": "{n} point",
+      "pointsOther": "{n} points",
+      "daysOne": "{n} day",
+      "daysOther": "{n} days",
+      "monthsOne": "{n} month",
+      "monthsOther": "{n} months"
+    },
+    "page": {
+      "title": "My account",
+      "emailConfirmed": "Your email is confirmed. Sign in.",
+      "retry": "Try again",
+      "staffTitle": "Staff account",
+      "staffNotice": "This account is for working in the shop, not for shopping. For points and coupons, open an account with a different email.",
+      "toAdmin": "Go to admin",
+      "finishTitle": "Complete your profile"
+    },
+    "login": {
+      "title": "Sign in",
+      "subtitleBefore": "No account yet?",
+      "subtitleLink": "Sign up",
+      "subtitleAfter": "and collect points.",
+      "missing": "Enter your email and password.",
+      "submitting": "Signing in…",
+      "submit": "Sign in",
+      "forgot": "Forgot your password?"
+    },
+    "register": {
+      "title": "Create an account",
+      "subtitleBefore": "Collect points with every order and get coupons. Already have an account?",
+      "subtitleLink": "Sign in",
+      "subtitleAfter": ".",
+      "phoneHint": "Each phone number can have only one account.",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "birthDate": "Date of birth (optional)",
+      "birthDateHint": "For a gift on your birthday.",
+      "submitting": "Creating your account…",
+      "submit": "Create account",
+      "checkTitle": "Check your email",
+      "sentBefore": "We've sent a link to",
+      "sentAfter": ". Click it to confirm your account, then sign in.",
+      "notArrived": "Didn't get it? Check your Spam or Promotions folder too.",
+      "resent": "Sent again.",
+      "toLogin": "Go to sign in"
+    },
+    "forgot": {
+      "title": "Forgot password",
+      "subtitle": "We'll send you a link to set a new password.",
+      "missing": "Enter the email of your account.",
+      "wait": "Please wait a moment before asking for a new link.",
+      "sent": "If there's an account with that email, we've sent the link. Check your Spam folder too.",
+      "sending": "Sending…",
+      "submit": "Send link",
+      "back": "Back to sign in"
+    },
+    "newPassword": {
+      "title": "New password",
+      "mismatch": "The two passwords don't match.",
+      "sameAsOld": "Your new password must be different from the old one.",
+      "failed": "Your password wasn't changed. Ask for a new link.",
+      "loading": "Loading…",
+      "expired": "This link has expired or has already been used.",
+      "askNew": "Ask for a new link",
+      "label": "New password",
+      "again": "Repeat password",
+      "submit": "Save password"
+    },
+    "profile": {
+      "phoneHint": "Confirmed with your first delivered and paid order.",
+      "address": "Delivery address (street and number)",
+      "addressHint": "Optional. With it, the checkout fills itself in, and you can change it for any order.",
+      "birthDate": "Date of birth",
+      "birthDateHint": "Optional. For a gift on your birthday.",
+      "saved": "Saved.",
+      "finish": "Complete profile",
+      "save": "Save"
+    },
+    "tabs": {
+      "home": "Home",
+      "coupons": "Coupons",
+      "points": "Points",
+      "orders": "Orders",
+      "wheel": "Wheel",
+      "profile": "Profile"
+    },
+    "dashboard": {
+      "hello": "Hi, {name}",
+      "guide": "Guide",
+      "confirmedWelcome": "Your email is confirmed. Welcome!",
+      "confirmEmail": "Confirm your email: click the link we sent you. Until then, there are no points or coupons.",
+      "myDetails": "My details"
+    },
+    "tour": {
+      "points": {
+        "title": "Your points",
+        "body": "These are your active points. 1 point = 1 denar off your next order."
+      },
+      "pending": {
+        "title": "Pending points",
+        "body": "Points from each order wait {days} after it's delivered and paid, then become active. After that, they're valid for {months}."
+      },
+      "coupons": {
+        "title": "Coupons",
+        "body": "Here are your coupons. Copy the code or apply it to your cart in one click. The ones expiring soon are at the top."
+      },
+      "wheel": {
+        "title": "Wheel of Fortune",
+        "body": "Every spin wins a prize, and every delivered order gets you another spin."
+      },
+      "how": {
+        "title": "How points work",
+        "body": "For every order you get {earnPct}% of what you pay. Spend them once you have {minPoints}, on up to {maxPct}% of your cart."
+      },
+      "orders": {
+        "title": "My orders",
+        "body": "Track your orders here and see how many points each one earned you."
+      }
+    },
+    "home": {
+      "activePoints": "Active points",
+      "worth": "= {amount} off your next order",
+      "pending": "pending",
+      "pendingHint": "They become active {days} after the order is delivered and paid.",
+      "expiringOne": "{n} point expires on {date}. Use it before then.",
+      "expiringOther": "{n} points expire on {date}. Use them before then.",
+      "couponsActiveOne": "{n} active coupon",
+      "couponsActiveOther": "{n} active coupons",
+      "couponsSoonOne": "{n} expires soon",
+      "couponsSoonOther": "{n} expire soon",
+      "couponsHint": "Copy the code or apply it to your cart",
+      "howTitle": "How points work",
+      "earnBefore": "For every order you get",
+      "earnAfter": "of what you pay, in points. 1 point = 1 denar.",
+      "reduced": "Products discounted by up to {bandPct}% earn {reducedPct}%; above that, they earn no points.",
+      "activation": "Points become active {days} after delivery and are valid for {months}.",
+      "spend": "Spend them once you have {minPoints}, on orders from {minOrder}, on up to {maxPct}% of the cart.",
+      "allRules": "Full rules"
+    },
+    "wheelCard": {
+      "title": "Wheel of Fortune",
+      "canSpin": "You can spin now!",
+      "nextAt": "Next spin on {date}",
+      "everySpin": "Every spin wins a prize"
+    },
+    "coupons": {
+      "onlyCategories": "only on {list}",
+      "onlyProducts": "only on selected products",
+      "exceptCategories": "not on {list}",
+      "copyAria": "Copy {code}",
+      "copied": "copied",
+      "copy": "Copy",
+      "expiresToday": "Expires today",
+      "expiresIn": "Expires in {n} days",
+      "validUntil": "Valid until {date}",
+      "noEnd": "No expiry date",
+      "validFrom": "Valid from {date}",
+      "used": "Used, {date}",
+      "usedOnOrder": "Used on order {order}, {date}",
+      "expired": "Expired on {date}",
+      "off": "No longer valid",
+      "apply": "Apply to cart",
+      "savedBefore": "Coupon",
+      "savedAfter": "is saved in your cart and will be applied when you order.",
+      "soonTitle": "Expiring soon",
+      "activeTitle": "Active",
+      "none": "You don't have any coupons right now. We'll let you know when you get one.",
+      "noOthers": "No others.",
+      "historyTitle": "Used and expired",
+      "onePerOrder": "One coupon per order."
+    },
+    "points": {
+      "active": "Active",
+      "pending": "Pending",
+      "expiringOne": "{n} point expires on {date}.",
+      "expiringOther": "{n} points expire on {date}.",
+      "historyTitle": "History",
+      "empty": "You don't have any points yet. With every order you get {pct}% of what you pay.",
+      "reversed": "returned",
+      "state": {
+        "awaiting": "awaiting delivery",
+        "waiting": "active from {date}",
+        "active": "valid until {date}",
+        "expired": "expired",
+        "used": "used"
+      }
+    },
+    "history": {
+      "earn": "Earned",
+      "bonus": "Bonus",
+      "wheel": "Wheel of Fortune",
+      "adjust_add": "Added",
+      "return": "Returned",
+      "redeem": "Spent",
+      "adjust_remove": "Removed",
+      "cancel": "Removed · cancelled order",
+      "expired": "Expired"
+    },
+    "orders": {
+      "empty": "You haven't placed any orders with this account yet.",
+      "itemsOne": "{n} item",
+      "itemsOther": "{n} items",
+      "pickup": "Store pickup",
+      "courier": "Courier delivery",
+      "total": "total {amount}",
+      "coupon": "coupon {code}",
+      "paidWith": "paid with {points}",
+      "earned": "{points} for this order",
+      "status": {
+        "pending": "Received",
+        "confirmed": "Confirmed",
+        "processing": "Being prepared",
+        "shipped": "Shipped",
+        "delivered": "Delivered",
+        "cancelled": "Cancelled"
+      },
+      "outcome": {
+        "refused": "Refused",
+        "returned": "Returned",
+        "not_collected": "Not collected"
+      }
+    }
   }
 }

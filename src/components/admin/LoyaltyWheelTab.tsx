@@ -87,7 +87,7 @@ export default function LoyaltyWheelTab({ wheelEnabled }: { wheelEnabled: boolea
     <div className="space-y-4">
       <p className={`rounded-xl border px-4 py-3 text-sm ${wheelEnabled ? 'border-green-200 bg-green-50 text-green-900' : 'border-slate-200 bg-white text-slate-700'}`}>
         Тркалото е <strong>{wheelEnabled ? 'вклучено' : 'исклучено'}</strong> на сајтот (прекинувачот е во „Поставки“).
-        {wheelEnabled ? ' Купувачите го гледаат на /trkalo и на својот профил.' : ' Додека е исклучено, не се гледа никаде.'}
+        {wheelEnabled ? ' Купувачите го гледаат на /wheel и на својот профил.' : ' Додека е исклучено, не се гледа никаде.'}
       </p>
 
       {message && <p className={`text-sm ${message.tone === 'red' ? 'text-red-600' : 'text-green-700'}`}>{message.text}</p>}

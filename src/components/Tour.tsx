@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useTranslation } from '@/lib/i18n';
 
 export interface TourStep {
   /** The `data-tour` value of the element to light up; without one the step stands alone. */
@@ -26,7 +27,7 @@ export interface TourStep {
   visual?: ReactNode;
 }
 
-/** The tour's own words; Macedonian unless the page passes its language's. */
+/** The tour's own words; the page's language (`tour.*`) unless the page passes its own. */
 export interface TourLabels {
   of: (n: number, total: number) => string;
   skip: string;
@@ -35,16 +36,16 @@ export interface TourLabels {
   done: string;
 }
 
-const MK_LABELS: TourLabels = {
-  of: (n, total) => `${n} од ${total}`, skip: 'Прескокни', back: 'Назад', next: 'Напред', done: 'Готово',
-};
-
 interface Box { top: number; left: number; width: number; height: number }
 
 const PAD = 6;
 const find = (target: string) => document.querySelector<HTMLElement>(`[data-tour="${target}"]`);
 
-export default function Tour({ steps, onClose, labels = MK_LABELS }: { steps: TourStep[]; onClose: () => void; labels?: TourLabels }) {
+export default function Tour({ steps, onClose, labels: given }: { steps: TourStep[]; onClose: () => void; labels?: TourLabels }) {
+  const { t } = useTranslation();
+  const labels: TourLabels = given ?? {
+    of: (n, total) => t('tour.of', { n, total }), skip: t('tour.skip'), back: t('tour.back'), next: t('tour.next'), done: t('tour.done'),
+  };
   // Only the steps whose element is on the page, read once the page is drawn. The
   // tour opens in the same render as the home tab it points at — on a first visit
   // as the data arrives, from "Водич" on another tab as the tab changes — and while

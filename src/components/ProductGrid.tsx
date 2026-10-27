@@ -2,6 +2,7 @@
 
 import { Product } from '@/types';
 import ProductCard from './ProductCard';
+import { useTranslation } from '@/lib/i18n';
 
 interface ProductGridProps {
   products: Product[];
@@ -9,6 +10,7 @@ interface ProductGridProps {
 }
 
 export default function ProductGrid({ products, loading }: ProductGridProps) {
+  const { t } = useTranslation();
   if (loading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
@@ -28,7 +30,7 @@ export default function ProductGrid({ products, loading }: ProductGridProps) {
   if (products.length === 0) {
     return (
       <div className="text-center py-16">
-        <p className="text-stone-400 text-sm uppercase tracking-wider">No products found</p>
+        <p className="text-stone-400 text-sm uppercase tracking-wider">{t('categoryPage.noProducts')}</p>
       </div>
     );
   }

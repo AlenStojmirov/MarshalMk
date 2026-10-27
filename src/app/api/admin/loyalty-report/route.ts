@@ -65,7 +65,8 @@ export async function GET(req: NextRequest) {
     for (let page = 1; ; page++) {
       const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
       if (error) throw new Error(`users: ${error.message}`);
-      for (const u of data.users) if (u.user_metadata?.signup_source === 'trkalo') fromWheel.add(u.id);
+      // 'trkalo' is what sign-ups from the wheel stored before the URLs went English.
+      for (const u of data.users) if (['wheel', 'trkalo'].includes(u.user_metadata?.signup_source)) fromWheel.add(u.id);
       if (data.users.length < 1000) break;
     }
 

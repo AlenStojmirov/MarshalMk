@@ -16,6 +16,7 @@ import { redeemCoupon, releaseOrderCoupon } from '@/lib/coupons';
 import { cancelOrderPoints, creditPoints, redeemPoints } from '@/lib/points';
 import { confirmOrderToCustomer, notifyShopOfOrder } from '@/lib/order-notify-server';
 import type { OrderLoyalty } from '@/types';
+import { apiSay, requestLanguage } from '@/lib/i18n/messages';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -52,11 +53,12 @@ function generateOrderNumber(): string {
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
+  const say = apiSay(request);
 
   // ── Layer 1: Temporary blocklist ──────────────────────────────────────
   if (isBlocked(ip)) {
     return NextResponse.json(
-      { error: 'Access temporarily restricted. Please try again later.' },
+      { error: say('blocked') },
       { status: 403 }
     );
   }
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
   if (isGloballyThrottled()) {
     console.error(`[ORDER_ALERT] Global order rate exceeded. ip=${ip}`);
     return NextResponse.json(
-      { error: 'We are experiencing high demand. Please try again shortly.' },
+      { error: say('order.busy') },
       { status: 503 }
     );
   }
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
     recordViolation(ip);
     console.warn(`[ORDER_RATE_LIMIT] ip=${ip}`);
     return NextResponse.json(
-      { error: 'Too many requests. Please wait before placing another order.' },
+      { error: say('order.tooMany') },
       { status: 429 }
     );
   }
@@ -86,7 +88,7 @@ export async function POST(request: NextRequest) {
     body = await request.json();
   } catch {
     recordViolation(ip);
-    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
+    return NextResponse.json({ error: say('badRequest') }, { status: 400 });
   }
 
   // ── Layer 4: Honeypot ─────────────────────────────────────────────────
@@ -103,7 +105,7 @@ export async function POST(request: NextRequest) {
     recordViolation(ip);
     console.warn(`[ORDER_TIMING] ip=${ip} submissionMs=${submissionMs}`);
     return NextResponse.json(
-      { error: 'Please fill in the form before submitting.' },
+      { error: say('fillForm') },
       { status: 400 }
     );
   }
@@ -123,7 +125,7 @@ export async function POST(request: NextRequest) {
 
   if (!customer || !items || !Array.isArray(items) || items.length === 0 || subtotal === undefined) {
     recordViolation(ip);
-    return NextResponse.json({ error: 'Missing order data.' }, { status: 400 });
+    return NextResponse.json({ error: say('order.missingData') }, { status: 400 });
   }
 
   // Absent means courier: every client built before pickup existed sends no
@@ -131,7 +133,7 @@ export async function POST(request: NextRequest) {
   // is not one of the two known values is refused rather than guessed at.
   const rawMethod = body.deliveryMethod;
   if (rawMethod !== undefined && rawMethod !== 'courier' && rawMethod !== 'pickup') {
-    return NextResponse.json({ error: 'Invalid delivery method.' }, { status: 400 });
+    return NextResponse.json({ error: say('order.badDelivery') }, { status: 400 });
   }
   const deliveryMethod: 'courier' | 'pickup' = rawMethod === 'pickup' ? 'pickup' : 'courier';
   const source = cleanSource(body.source);
@@ -143,19 +145,19 @@ export async function POST(request: NextRequest) {
   for (const field of requiredFields) {
     if (!customer[field] || typeof customer[field] !== 'string' || !customer[field].trim()) {
       return NextResponse.json(
-        { error: `Missing required field: ${field}` },
+        { error: say('order.missingField', { field }) },
         { status: 400 }
       );
     }
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
-    return NextResponse.json({ error: 'Invalid email address.' }, { status: 400 });
+    return NextResponse.json({ error: say('order.badEmail') }, { status: 400 });
   }
 
   if (items.length > 100) {
     recordViolation(ip);
-    return NextResponse.json({ error: 'Too many items in order.' }, { status: 400 });
+    return NextResponse.json({ error: say('order.tooManyItems') }, { status: 400 });
   }
 
   for (const item of items) {
@@ -165,7 +167,7 @@ export async function POST(request: NextRequest) {
       item.quantity < 1 ||
       item.quantity > 999
     ) {
-      return NextResponse.json({ error: 'Invalid item in order.' }, { status: 400 });
+      return NextResponse.json({ error: say('order.badItem') }, { status: 400 });
     }
   }
 
@@ -174,7 +176,7 @@ export async function POST(request: NextRequest) {
   if (isRateLimited(`email:${email}`, 3, 3_600_000)) {
     console.warn(`[ORDER_EMAIL_LIMIT] ip=${ip}`);
     return NextResponse.json(
-      { error: 'Too many orders for this email address. Please try again later.' },
+      { error: say('order.tooManyForEmail') },
       { status: 429 }
     );
   }
@@ -197,21 +199,22 @@ export async function POST(request: NextRequest) {
       lines: items.map((i) => ({ productId: i.productId, size: i.size ?? null, quantity: Math.max(1, Math.round(Number(i.quantity) || 1)) })),
       method: deliveryMethod,
       couponCode,
+      lang: requestLanguage(request),
       pointsRequested: pointsWanted,
       user,
     });
     if (sq.unavailable.length > 0) {
       return NextResponse.json(
-        { error: 'Некои производи повеќе не се достапни. Отстрани ги од кошничката.', unavailable: sq.unavailable },
+        { error: say('order.unavailable'), unavailable: sq.unavailable },
         { status: 409 }
       );
     }
     if (couponCode && !sq.coupon?.applied) {
-      return NextResponse.json({ error: sq.coupon?.message ?? 'Купонот не важи.', coupon: true }, { status: 409 });
+      return NextResponse.json({ error: sq.coupon?.message ?? say('order.couponInvalid'), coupon: true }, { status: 409 });
     }
     if (pointsWanted > 0 && sq.quote.points.used < pointsWanted) {
       return NextResponse.json(
-        { error: 'Поените за оваа нарачка се сменија. Провери ја кошничката и пробај повторно.', points: true },
+        { error: say('order.pointsChanged'), points: true },
         { status: 409 }
       );
     }
@@ -261,7 +264,7 @@ export async function POST(request: NextRequest) {
       });
       if (r.refusal || r.error) {
         console.warn(`[ORDER_COUPON_REFUSED] code=${q.coupon.code} ${r.refusal ?? r.error} ip=${ip}`);
-        return NextResponse.json({ error: 'Купонот повеќе не важи. Отстрани го и пробај повторно.', coupon: true }, { status: 409 });
+        return NextResponse.json({ error: say('order.couponGone'), coupon: true }, { status: 409 });
       }
       Object.assign(loyalty, { couponCode: q.coupon.code, couponDiscount: q.coupon.discount, ...(shippingWaived ? { shippingWaived } : {}) });
     }
@@ -271,7 +274,7 @@ export async function POST(request: NextRequest) {
         await releaseOrderCoupon(supabase, orderId);
         console.warn(`[ORDER_POINTS_REFUSED] ${r.error} ip=${ip}`);
         return NextResponse.json(
-          { error: 'Поените за оваа нарачка се сменија. Провери ја кошничката и пробај повторно.', points: true },
+          { error: say('order.pointsChanged'), points: true },
           { status: 409 }
         );
       }
@@ -313,7 +316,7 @@ export async function POST(request: NextRequest) {
         );
         return NextResponse.json(
           {
-            error: 'Некои производи веќе не се достапни во избраната големина.',
+            error: say('order.sizeUnavailable'),
             shortages: reservation.shortages,
           },
           { status: 409 }
@@ -321,7 +324,7 @@ export async function POST(request: NextRequest) {
       }
       console.error(`[ORDER_RESERVE_FAILED] ip=${ip} ${reservation.error ?? ''}`);
       return NextResponse.json(
-        { error: 'Failed to create order. Please try again.' },
+        { error: say('order.failed') },
         { status: 500 }
       );
     }
@@ -475,7 +478,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error('[ORDER_ERROR]', err);
     return NextResponse.json(
-      { error: 'Failed to create order. Please try again.' },
+      { error: say('order.failed') },
       { status: 500 }
     );
   }

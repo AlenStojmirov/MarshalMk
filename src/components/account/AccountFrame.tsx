@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from '@/lib/i18n';
 
 /**
  * The frame of the customer's pages (13.6): one narrow column, mobile first,
@@ -38,6 +39,7 @@ export const inputCls = (error?: string) =>
  * never required, so a date once picked could not be taken back.
  */
 export function BirthDateInput({ value, onChange, error }: { value: string; onChange: (v: string) => void; error?: string }) {
+  const { t } = useTranslation();
   return (
     <div className="flex gap-2">
       <input type="date" autoComplete="bday" value={value} onChange={(e) => onChange(e.target.value)} className={`${inputCls(error)} flex-1 min-w-0`} />
@@ -47,7 +49,7 @@ export function BirthDateInput({ value, onChange, error }: { value: string; onCh
           onClick={() => onChange('')}
           className="shrink-0 rounded-lg border border-stone-300 bg-white px-3 text-sm text-stone-700 hover:bg-stone-100"
         >
-          Избриши
+          {t('account.common.clearDate')}
         </button>
       )}
     </div>

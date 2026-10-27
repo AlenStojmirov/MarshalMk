@@ -9,13 +9,14 @@ import { useCart } from '@/context/CartContext';
 import { CustomerInfo, DeliveryMethod, OrderItem } from '@/types';
 import { useTranslation } from '@/lib/i18n';
 import { customerShippingFor, getShippingLabel } from '@/config/shipping';
-import { STORE_ADDRESS, STORE_MAPS_URL } from '@/config/store';
+import { STORE_MAPS_URL, storeAddress } from '@/config/store';
 import FreeShippingProgress from '@/components/FreeShippingProgress';
 import { getEffectivePrice, isOnSale, getPercentOff } from '@/lib/pricing';
 import { ATTRIBUTION_KEY, HEARD_FROM, HEARD_LABEL, isFresh, type HeardFrom, type OrderSource } from '@/lib/attribution';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { accountFetch } from '@/lib/account-client';
+import { languageHeaders } from '@/lib/i18n/messages';
 import LoyaltyBox, { type QuoteResponse } from '@/components/checkout/LoyaltyBox';
 import { rememberPlacedOrder } from '@/lib/order-track';
 import { CHECKOUT_DETAIL_FIELDS, type CheckoutDetails } from '@/lib/account';
@@ -40,7 +41,7 @@ export default function CheckoutPage() {
   const [honeypot, setHoneypot] = useState('');
   const formLoadedAt = useRef(Date.now());
   const errorBoxRef = useRef<HTMLDivElement>(null);
-  const { t, language } = useTranslation();
+  const { t, language, price } = useTranslation();
 
   const [formData, setFormData] = useState<CustomerInfo>({
     firstName: '',
@@ -215,6 +216,7 @@ export default function CheckoutPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...languageHeaders(),
           ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
         body: JSON.stringify({
@@ -449,7 +451,7 @@ export default function CheckoutPage() {
                   <MapPin className="h-5 w-5 shrink-0 mt-0.5 text-gray-500" />
                   <div>
                     <p className="text-sm font-medium text-gray-900">{t('checkout.pickupAt')}</p>
-                    <p className="text-sm text-gray-700">{STORE_ADDRESS}</p>
+                    <p className="text-sm text-gray-700">{storeAddress(language)}</p>
                     <a
                       href={STORE_MAPS_URL}
                       target="_blank"
@@ -632,10 +634,10 @@ export default function CheckoutPage() {
                           {onSale ? (
                             <span className="flex items-baseline gap-1.5">
                               <span className="text-[11px] sm:text-xs text-red-600 font-semibold">
-                                {unitPrice.toFixed(2)} ден.
+                                {price(unitPrice)}
                               </span>
                               <span className="text-[10px] sm:text-[11px] text-gray-400 line-through">
-                                {item.product.price.toFixed(2)} ден.
+                                {price(item.product.price)}
                               </span>
                               {percentOff > 0 && (
                                 <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1 py-0.5 rounded">
@@ -645,13 +647,13 @@ export default function CheckoutPage() {
                             </span>
                           ) : (
                             <span className="text-[11px] sm:text-xs text-gray-400">
-                              {unitPrice.toFixed(2)} ден. {t('checkout.each')}
+                              {price(unitPrice)} {t('checkout.each')}
                             </span>
                           )}
                         </div>
                       </div>
                       <p className={`text-[13px] sm:text-sm font-bold tabular-nums self-center whitespace-nowrap pl-1 ${onSale ? 'text-red-600' : 'text-gray-900'}`}>
-                        {(unitPrice * item.quantity).toFixed(2)} ден.
+                        {price(unitPrice * item.quantity)}
                       </p>
                     </div>
                     );
@@ -664,7 +666,7 @@ export default function CheckoutPage() {
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-gray-600">
                   <span>{t('common.subtotal')}</span>
-                  <span>{(q ? q.goods : totalPrice).toFixed(2)} ден.</span>
+                  <span>{price(q ? q.goods : totalPrice)}</span>
                 </div>
                 {(() => {
                   const totalSavings = items.reduce(
@@ -680,7 +682,7 @@ export default function CheckoutPage() {
                         {t('cart.youSaved')}
                       </span>
                       <span className="text-red-700 font-semibold tabular-nums">
-                        -{totalSavings.toFixed(2)} ден.
+                        -{price(totalSavings)}
                       </span>
                     </div>
                   ) : null;
@@ -688,13 +690,13 @@ export default function CheckoutPage() {
                 {q?.coupon?.applied && q.coupon.discount > 0 && (
                   <div className="flex justify-between text-emerald-700">
                     <span>{t('loyalty.couponLine', { code: q.coupon.code })}</span>
-                    <span className="tabular-nums">-{q.coupon.discount.toFixed(2)} ден.</span>
+                    <span className="tabular-nums">-{price(q.coupon.discount)}</span>
                   </div>
                 )}
                 {q && q.points.used > 0 && (
                   <div className="flex justify-between text-emerald-700">
                     <span>{t('loyalty.pointsLine')}</span>
-                    <span className="tabular-nums">-{q.points.used.toFixed(2)} ден.</span>
+                    <span className="tabular-nums">-{price(q.points.used)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-600">
@@ -707,15 +709,15 @@ export default function CheckoutPage() {
                       ? t('checkout.noShipping')
                       : q
                         ? q.shipping > 0
-                          ? `${q.shipping} ден.`
+                          ? price(q.shipping)
                           : q.freeShipping === 'coupon' ? `${t('common.free')} (${t('loyalty.couponFreeShipping')})` : t('common.free')
-                        : getShippingLabel(totalPrice, t('common.free'))}
+                        : getShippingLabel(totalPrice, t('common.free'), language)}
                   </span>
                 </div>
                 <hr />
                 <div className="flex justify-between text-lg font-bold text-gray-900">
                   <span>{t('common.total')}</span>
-                  <span>{totalNow.toFixed(2)} ден.</span>
+                  <span>{price(totalNow)}</span>
                 </div>
               </div>
 

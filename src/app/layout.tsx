@@ -89,7 +89,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="mk">
       <head>
         <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
         <link

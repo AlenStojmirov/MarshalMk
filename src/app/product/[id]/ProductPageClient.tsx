@@ -47,7 +47,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [addedToCart, setAddedToCart] = useState(false);
-  const { t, language } = useTranslation();
+  const { t, language, price } = useTranslation();
 
   const hasSizes = product?.sizes && product.sizes.length > 0;
   const selectedSizeData = hasSizes
@@ -98,7 +98,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
           {/* ─── Left Column: Product Images ─── */}
           <ProductImageGallery
             images={allImages}
-            alt={getProductDisplayName(product.name, product.category, product.brand)}
+            alt={getProductDisplayName(product.name, product.category, product.brand, language)}
             featured={product.featured}
             featuredLabel={t('common.featured')}
             noImageLabel={t('common.noImage')}
@@ -126,7 +126,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
             </button>
             {/* Product Name */}
             <h1 className="text-2xl md:text-3xl font-light text-stone-900 leading-tight mb-4">
-              {getProductDisplayName(product.name, product.category, product.brand)}
+              {getProductDisplayName(product.name, product.category, product.brand, language)}
             </h1>
 
             {/* Category */}
@@ -140,10 +140,10 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-baseline gap-3 flex-wrap">
                     <span className="text-2xl md:text-3xl font-semibold text-red-600">
-                      {product.sale!.salePrice.toFixed(2)} ден.
+                      {price(product.sale!.salePrice)}
                     </span>
                     <span className="text-base text-stone-400 line-through">
-                      {product.price.toFixed(2)} ден.
+                      {price(product.price)}
                     </span>
                     {percentOff > 0 && (
                       <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white bg-red-600 px-2 py-1">
@@ -153,12 +153,12 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
                   </div>
                   {savings > 0 && (
                     <span className="inline-flex w-fit text-[11px] font-semibold uppercase tracking-wider text-red-700 bg-red-50 border border-red-100 px-2 py-1 rounded-sm">
-                      {t('product.save', { amount: savings.toFixed(0) })}
+                      {t('product.save', { amount: price(savings) })}
                     </span>
                   )}
                 </div>
               ) : (
-                <p className="text-xl text-stone-900">{product.price.toFixed(2)} ден.</p>
+                <p className="text-xl text-stone-900">{price(product.price)}</p>
               )}
             </div>
 
@@ -264,7 +264,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
                 <div className="flex items-center border border-stone-300">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    aria-label="Decrease quantity"
+                    aria-label={t('common.decreaseQuantity')}
                     className="w-10 h-10 flex items-center justify-center text-stone-500 hover:text-stone-900 hover:bg-stone-100 active:bg-stone-200 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-inset"
                   >
                     <Minus className="h-3.5 w-3.5" />
@@ -274,7 +274,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
                   </span>
                   <button
                     onClick={() => setQuantity(Math.min(availableStock, quantity + 1))}
-                    aria-label="Increase quantity"
+                    aria-label={t('common.increaseQuantity')}
                     className="w-10 h-10 flex items-center justify-center text-stone-500 hover:text-stone-900 hover:bg-stone-100 active:bg-stone-200 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-inset"
                   >
                     <Plus className="h-3.5 w-3.5" />

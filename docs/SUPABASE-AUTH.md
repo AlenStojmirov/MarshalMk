@@ -14,10 +14,12 @@ Authentication → **URL Configuration**:
 | Поле | Вредност |
 |---|---|
 | Site URL | `https://marshal.mk` |
-| Redirect URLs | `https://marshal.mk/smetka**` |
-| | `http://localhost:3000/smetka**` (за тест на компјутер) |
+| Redirect URLs | `https://marshal.mk/account**` |
+| | `http://localhost:3000/account**` (за тест на компјутер) |
+| | `https://marshal.mk/smetka**` (старата адреса, за линковите пратени пред D-039) |
 
-Потврдата на е-пошта враќа на `/smetka?potvrdeno=1`, новата лозинка на `/smetka/nova-lozinka`. Адреса
+Потврдата на е-пошта враќа на `/account?confirmed=1`, новата лозинка на `/account/new-password`
+(до 2026-10-27 `/smetka…`; старите адреси пренасочуваат, D-039). Адреса
 што не е на листата Supabase ја заменува со Site URL.
 
 ## 3. Пораки
@@ -64,4 +66,4 @@ Authentication → **Email Templates**. `{{ .ConfirmationURL }}` го попол
 
 - Authentication → Providers → Email: **Confirm email вклучено** (`mailer_autoconfirm: false`, проверено 2026-10-18).
 - Регистрацијата останува отворена. Сметка направена надвор од формата на сајтот нема улога и нема
-  пристап до ништо, а на `/smetka` се бара да го доврши профилот (D-033).
+  пристап до ништо, а на `/account` се бара да го доврши профилот (D-033).

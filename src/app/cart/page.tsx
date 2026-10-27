@@ -11,7 +11,7 @@ import { getEffectivePrice } from '@/lib/pricing';
 
 export default function CartPage() {
   const { items, totalItems, totalPrice, clearCart } = useCart();
-  const { t } = useTranslation();
+  const { t, language, price } = useTranslation();
 
   const totalSavings = items.reduce(
     (sum, item) => sum + (item.product.price - getEffectivePrice(item.product)) * item.quantity,
@@ -88,7 +88,7 @@ export default function CartPage() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between text-gray-600">
                 <span>{t('cart.items')} ({totalItems})</span>
-                <span>{totalPrice.toFixed(2)} ден.</span>
+                <span>{price(totalPrice)}</span>
               </div>
               {totalSavings > 0 && (
                 <div className="flex justify-between items-center bg-red-50 border border-red-100 -mx-1 px-3 py-2 rounded-md">
@@ -99,13 +99,13 @@ export default function CartPage() {
                     {t('cart.youSaved')}
                   </span>
                   <span className="text-red-700 font-semibold tabular-nums">
-                    -{totalSavings.toFixed(2)} ден.
+                    -{price(totalSavings)}
                   </span>
                 </div>
               )}
               <div className="flex justify-between text-gray-600">
                 <span>{t('common.shipping')}</span>
-                <span className="text-emerald-600 font-medium">{getShippingLabel(totalPrice, t('common.free'))}</span>
+                <span className="text-emerald-600 font-medium">{getShippingLabel(totalPrice, t('common.free'), language)}</span>
               </div>
             </div>
 
@@ -113,7 +113,7 @@ export default function CartPage() {
 
             <div className="flex justify-between items-baseline mb-6">
               <span className="text-base font-bold text-gray-900">{t('common.total')}</span>
-              <span className="text-xl font-bold text-gray-900">{(totalPrice + getShippingCost(totalPrice)).toFixed(2)} ден.</span>
+              <span className="text-xl font-bold text-gray-900">{price(totalPrice + getShippingCost(totalPrice))}</span>
             </div>
 
             <div className="space-y-3">

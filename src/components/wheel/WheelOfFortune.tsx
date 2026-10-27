@@ -9,6 +9,7 @@
  * invisible.
  */
 
+import { useTranslation } from '@/lib/i18n';
 import type { PublicPrize } from '@/lib/wheel';
 
 const R = 140;
@@ -57,6 +58,7 @@ export default function WheelOfFortune({
   animate: boolean;
   onStopped: () => void;
 }) {
+  const { t } = useTranslation();
   const n = Math.max(prizes.length, 1);
   const seg = 360 / n;
 
@@ -78,7 +80,7 @@ export default function WheelOfFortune({
           viewBox={`${-R - 6} ${-R - 6} ${2 * R + 12} ${2 * R + 12}`}
           className="w-full h-full drop-shadow-md"
           role="img"
-          aria-label={`Тркало со награди: ${prizes.map((p) => p.label).join(', ')}`}
+          aria-label={t('wheel.ariaLabel', { prizes: prizes.map((p) => p.label).join(', ') })}
         >
           <circle r={R + 4} fill="#78716c" />
           {prizes.map((p, i) => {

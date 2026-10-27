@@ -47,7 +47,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: "yearly" as const,
         priority: 0.4,
       })),
-    ...(wheelOn ? [{ url: `${BASE_URL}/trkalo`, lastModified: new Date(), changeFrequency: "weekly" as const, priority: 0.5 }] : []),
+    ...(wheelOn ? [{ url: `${BASE_URL}/wheel`, lastModified: new Date(), changeFrequency: "weekly" as const, priority: 0.5 }] : []),
   ];
 
   // Category pages

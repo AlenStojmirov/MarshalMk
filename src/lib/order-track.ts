@@ -9,7 +9,7 @@
  * match too, and even then the answer carries nothing about the person: where
  * the order is, what was in it and what is to be paid.
  *
- * No price per line and no delivery charge, as on /smetka (13.9): above the
+ * No price per line and no delivery charge, as on /account (13.9): above the
  * threshold the stored prices carry the courier absorbed into them (D-006), so
  * they would neither match what the customer saw at checkout nor add up to the
  * total. The total is what is collected, delivery included.

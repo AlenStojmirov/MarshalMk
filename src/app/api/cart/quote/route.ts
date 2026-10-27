@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { isBlocked, isRateLimited } from '@/lib/rate-limit';
 import { publicQuote } from '@/lib/loyalty';
 import { cleanCartLines, quoteServer, userFromRequest } from '@/lib/basket-server';
+import { apiSay, requestLanguage } from '@/lib/i18n/messages';
 
 /**
  * POST /api/cart/quote — what the checkout shows (Task 13.7).
@@ -19,24 +20,26 @@ function clientIp(req: NextRequest): string {
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
-  if (isBlocked(ip)) return NextResponse.json({ error: 'Пристапот е привремено ограничен.' }, { status: 403 });
+  const say = apiSay(req);
+  if (isBlocked(ip)) return NextResponse.json({ error: say('blockedShort') }, { status: 403 });
   // The checkout asks again as the customer types a coupon or moves the slider.
-  if (isRateLimited(`quote:${ip}`, 90, 60_000)) return NextResponse.json({ error: 'Премногу барања. Почекај малку.' }, { status: 429 });
+  if (isRateLimited(`quote:${ip}`, 90, 60_000)) return NextResponse.json({ error: say('tooManyRequests') }, { status: 429 });
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Неважечко барање.' }, { status: 400 });
+    return NextResponse.json({ error: say('badRequest') }, { status: 400 });
   }
   const lines = cleanCartLines(body.items);
-  if (!lines) return NextResponse.json({ error: 'Кошничката е празна или неважечка.' }, { status: 400 });
+  if (!lines) return NextResponse.json({ error: say('cart.invalid') }, { status: 400 });
   const method = body.deliveryMethod === 'pickup' ? 'pickup' : 'courier';
 
   try {
     const sb = getSupabaseAdmin();
     const user = await userFromRequest(sb, req.headers.get('authorization'));
     const r = await quoteServer(sb, {
+      lang: requestLanguage(req),
       lines,
       method,
       couponCode: typeof body.couponCode === 'string' ? body.couponCode : undefined,
@@ -59,6 +62,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     console.error(`[QUOTE_FAILED] ip=${ip} ${(e as Error).message}`);
-    return NextResponse.json({ error: 'Пресметката не успеа. Пробај повторно.' }, { status: 500 });
+    return NextResponse.json({ error: say('cart.quoteFailed') }, { status: 500 });
   }
 }

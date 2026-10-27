@@ -9,7 +9,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation, useLanguage, Language } from '@/lib/i18n';
 import { useCategories } from '@/hooks/useProducts';
 import { SHIPPING_CONFIG } from '@/config/shipping';
-import { mkNumber } from '@/lib/mk-format';
 
 export default function Header() {
   const { totalItems, openMiniCart } = useCart();
@@ -18,7 +17,7 @@ export default function Header() {
   const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
   const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const { t } = useTranslation();
+  const { t, price } = useTranslation();
   const { language, setLanguage } = useLanguage();
   const categoriesDropdownRef = useRef<HTMLDivElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
@@ -176,7 +175,7 @@ export default function Header() {
               </div>
 
               <Link
-                href="/smetka"
+                href="/account"
                 className="flex items-center text-gray-500 hover:text-black hover:scale-110 active:scale-95 transition-all duration-200"
                 title={t('header.account')}
                 aria-label={t('header.account')}
@@ -210,7 +209,7 @@ export default function Header() {
                 <span className={`fi ${language === 'mk' ? 'fi-mk' : 'fi-gb'} text-lg`}></span>
               </button>
               <Link
-                href="/smetka"
+                href="/account"
                 onClick={closeMobileMenu}
                 className="text-gray-500 hover:text-black hover:scale-110 active:scale-95 transition-all duration-200"
                 title={t('header.account')}
@@ -337,7 +336,7 @@ export default function Header() {
 
       {/* Top Bar - Below Menu */}
       <div className="bg-stone-900 text-white text-center py-2.5 text-xs uppercase tracking-[0.2em] font-light">
-        {t('header.freeShippingBanner', { amount: mkNumber(SHIPPING_CONFIG.freeShippingThreshold) })}
+        {t('header.freeShippingBanner', { amount: price(SHIPPING_CONFIG.freeShippingThreshold) })}
       </div>
     </header>
   );

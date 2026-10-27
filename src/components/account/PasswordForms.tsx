@@ -13,9 +13,11 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { MIN_PASSWORD, isEmail } from '@/lib/account';
 import { resetRedirect } from '@/lib/account-client';
+import { useTranslation } from '@/lib/i18n';
 import AccountFrame, { Field, Notice, buttonCls, inputCls } from './AccountFrame';
 
 export function ForgotPasswordForm() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -23,36 +25,37 @@ export function ForgotPasswordForm() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isEmail(email)) { setError('Внеси ја е-поштата на профилот.'); return; }
+    if (!isEmail(email)) { setError(t('account.forgot.missing')); return; }
     setBusy(true);
     setError(null);
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: resetRedirect() });
     setBusy(false);
     // The same answer whether the e-mail has a profile or not.
-    if (err && /rate limit|security purposes/i.test(err.message)) { setError('Почекај малку пред да побараш нов линк.'); return; }
+    if (err && /rate limit|security purposes/i.test(err.message)) { setError(t('account.forgot.wait')); return; }
     setSent(true);
   };
 
   return (
-    <AccountFrame title="Заборавена лозинка" subtitle="Ќе ти пратиме линк за нова лозинка.">
+    <AccountFrame title={t('account.forgot.title')} subtitle={t('account.forgot.subtitle')}>
       {sent ? (
-        <Notice tone="green">Ако постои профил со таа е-пошта, линкот е пратен. Провери и во „Спам“.</Notice>
+        <Notice tone="green">{t('account.forgot.sent')}</Notice>
       ) : (
         <form onSubmit={submit} className="space-y-4" noValidate>
-          <Field label="Е-пошта">
+          <Field label={t('account.fields.email')}>
             <input type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls()} />
           </Field>
           {error && <Notice tone="red">{error}</Notice>}
-          <button type="submit" disabled={busy} className={buttonCls}>{busy ? 'Се праќа…' : 'Прати линк'}</button>
+          <button type="submit" disabled={busy} className={buttonCls}>{busy ? t('account.forgot.sending') : t('account.forgot.submit')}</button>
         </form>
       )}
-      <p className="mt-4 text-sm text-center"><Link href="/smetka" className="text-stone-600 underline underline-offset-2">Назад кон најава</Link></p>
+      <p className="mt-4 text-sm text-center"><Link href="/account" className="text-stone-600 underline underline-offset-2">{t('account.forgot.back')}</Link></p>
     </AccountFrame>
   );
 }
 
 export function NewPasswordForm() {
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
   const router = useRouter();
   const [password, setPassword] = useState('');
   const [again, setAgain] = useState('');
@@ -61,39 +64,39 @@ export function NewPasswordForm() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < MIN_PASSWORD) { setError(`Лозинката треба да има најмалку ${MIN_PASSWORD} знаци.`); return; }
-    if (password !== again) { setError('Двете лозинки не се исти.'); return; }
+    if (password.length < MIN_PASSWORD) { setError(t('errors.fields.passwordShort', { min: MIN_PASSWORD })); return; }
+    if (password !== again) { setError(t('account.newPassword.mismatch')); return; }
     setBusy(true);
     setError(null);
     const { error: err } = await supabase.auth.updateUser({ password });
     setBusy(false);
     if (err) {
-      setError(/different from the old/i.test(err.message) ? 'Новата лозинка треба да е различна од старата.' : 'Лозинката не е сменета. Побарај нов линк.');
+      setError(/different from the old/i.test(err.message) ? t('account.newPassword.sameAsOld') : t('account.newPassword.failed'));
       return;
     }
-    router.push('/smetka');
+    router.push('/account');
   };
 
-  if (loading) return <AccountFrame title="Нова лозинка"><p className="text-sm text-stone-500">Се вчитува…</p></AccountFrame>;
+  if (loading) return <AccountFrame title={t('account.newPassword.title')}><p className="text-sm text-stone-500">{t('account.newPassword.loading')}</p></AccountFrame>;
   if (!user) {
     return (
-      <AccountFrame title="Нова лозинка">
-        <Notice tone="amber">Линкот е истечен или веќе искористен.</Notice>
-        <p className="mt-4 text-sm"><Link href="/smetka/zaboravena-lozinka" className="underline underline-offset-2">Побарај нов линк</Link></p>
+      <AccountFrame title={t('account.newPassword.title')}>
+        <Notice tone="amber">{t('account.newPassword.expired')}</Notice>
+        <p className="mt-4 text-sm"><Link href="/account/forgot-password" className="underline underline-offset-2">{t('account.newPassword.askNew')}</Link></p>
       </AccountFrame>
     );
   }
   return (
-    <AccountFrame title="Нова лозинка" subtitle={user.email}>
+    <AccountFrame title={t('account.newPassword.title')} subtitle={user.email}>
       <form onSubmit={submit} className="space-y-4" noValidate>
-        <Field label="Нова лозинка" hint={`Најмалку ${MIN_PASSWORD} знаци.`}>
+        <Field label={t('account.newPassword.label')} hint={t('account.fields.passwordHint', { min: MIN_PASSWORD })}>
           <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls()} />
         </Field>
-        <Field label="Повтори ја">
+        <Field label={t('account.newPassword.again')}>
           <input type="password" autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} className={inputCls()} />
         </Field>
         {error && <Notice tone="red">{error}</Notice>}
-        <button type="submit" disabled={busy} className={buttonCls}>{busy ? 'Се зачувува…' : 'Зачувај ја лозинката'}</button>
+        <button type="submit" disabled={busy} className={buttonCls}>{busy ? t('account.common.saving') : t('account.newPassword.submit')}</button>
       </form>
     </AccountFrame>
   );

@@ -8,6 +8,7 @@ import { fetchLoyaltySettings } from '@/lib/loyalty-settings';
 import {
   CUSTOMERS, accountView, ensureCustomerRole, fail, logConsents, readCustomer, requireUser, settleAccount,
 } from '@/lib/account-server';
+import { apiSay, requestLanguage } from '@/lib/i18n/messages';
 
 /**
  * The signed-in customer's own profile (Task 13.6).
@@ -22,7 +23,6 @@ import {
  */
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
-const PHONE_TAKEN = 'Овој број веќе има профил. Внеси друг број.';
 
 export async function GET(req: NextRequest) {
   const auth = await requireUser(req);
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(accountView(auth.user, row, settings));
   } catch (e) {
     console.error(`[ACCOUNT_READ_FAILED] user=${auth.user.id} ${(e as Error).message}`);
-    return fail(500, 'Профилот не може да се прочита во моментов.');
+    return fail(500, apiSay(req)('account.read'));
   }
 }
 
@@ -42,13 +42,15 @@ export async function PATCH(req: NextRequest) {
   const auth = await requireUser(req);
   if ('res' in auth) return auth.res;
   const { user } = auth;
-  if (isBackOffice(roleOf(user))) return fail(403, 'Ова е профил на вработен. За купување отвори профил со друга е-пошта.');
+  const say = apiSay(req);
+  const PHONE_TAKEN = say('account.phoneTaken');
+  if (isBackOffice(roleOf(user))) return fail(403, say('account.staff'));
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
-    return fail(400, 'Неважечко барање.');
+    return fail(400, say('badRequest'));
   }
   const input: ProfileInput = {
     firstName: str(body.firstName).trim(),
@@ -65,8 +67,8 @@ export async function PATCH(req: NextRequest) {
   const sb = getSupabaseAdmin();
   try {
     const row = await readCustomer(user.id);
-    const fields = validateProfile(input, new Date(), !row);
-    if (Object.keys(fields).length) return fail(400, 'Провери ги означените полиња.', { fields });
+    const fields = validateProfile(input, new Date(), !row, requestLanguage(req));
+    if (Object.keys(fields).length) return fail(400, say('checkFields'), { fields });
 
     const phoneNorm = normalizePhone(input.phone);
     if (!row || row.phone_norm !== phoneNorm) {
@@ -112,6 +114,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json(accountView(user, fresh, settings));
   } catch (e) {
     console.error(`[ACCOUNT_SAVE_FAILED] user=${user.id} ${(e as Error).message}`);
-    return fail(500, 'Профилот не може да се зачува во моментов.');
+    return fail(500, say('account.save'));
   }
 }

@@ -4,7 +4,6 @@ import { Truck, Headphones, ShieldCheck } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { SHIPPING_CONFIG } from '@/config/shipping';
 import { useTranslation } from '@/lib/i18n';
-import { mkNumber } from '@/lib/mk-format';
 
 interface Benefit {
   icon: LucideIcon;
@@ -13,7 +12,7 @@ interface Benefit {
 }
 
 export default function HomeBenefitsSection() {
-  const { t } = useTranslation();
+  const { t, price } = useTranslation();
 
   const benefits: Benefit[] = [
     {
@@ -25,7 +24,7 @@ export default function HomeBenefitsSection() {
       icon: Truck,
       title: t('benefits.freeShippingTitle'),
       description: t('benefits.freeShippingDescription', {
-        amount: mkNumber(SHIPPING_CONFIG.freeShippingThreshold),
+        amount: price(SHIPPING_CONFIG.freeShippingThreshold),
       }),
     },
     {

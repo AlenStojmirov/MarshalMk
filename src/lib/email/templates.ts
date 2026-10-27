@@ -30,7 +30,7 @@ function layout(body: string, button: { label: string; href: string } | null, fo
 </div></body></html>`;
 }
 
-const NOTICE_FOOTER = `Ова е известување за твојот профил на <a href="${SITE}/smetka" style="color:#78716c">marshal.mk</a>.`;
+const NOTICE_FOOTER = `Ова е известување за твојот профил на <a href="${SITE}/account" style="color:#78716c">marshal.mk</a>.`;
 const offerFooter = (unsubscribe: string) =>
   `Ја добиваш оваа порака затоа што сакаше понуди од Маршал. <a href="${unsubscribe}" style="color:#78716c">Не сакам понуди</a>.`;
 
@@ -62,10 +62,10 @@ export function pointsExpiringEmail(a: { firstName: string; points: number; unti
       `<p>${hi(a.firstName)}</p>
        <p>Имаш <strong>${mkNumber(a.points)} поени</strong> (= ${mkDen(a.points)} попуст) што истекуваат на <strong>${when}</strong>.</p>
        <p>${a.last ? 'Ова е последниот потсетник.' : 'Искористи ги на следната нарачка: на наплатата избираш колку поени да потрошиш.'}</p>`,
-      { label: 'Мои поени', href: `${SITE}/smetka?tab=poeni` },
+      { label: 'Мои поени', href: `${SITE}/account?tab=points` },
       NOTICE_FOOTER,
     ),
-    text: `${hi(a.firstName)}\n\nИмаш ${mkNumber(a.points)} поени што истекуваат на ${when}. Искористи ги на следната нарачка.\n\n${SITE}/smetka?tab=poeni`,
+    text: `${hi(a.firstName)}\n\nИмаш ${mkNumber(a.points)} поени што истекуваат на ${when}. Искористи ги на следната нарачка.\n\n${SITE}/account?tab=points`,
   };
 }
 
@@ -75,10 +75,10 @@ export function couponExpiringEmail(a: { firstName: string; code: string; what: 
     html: layout(
       `<p>${hi(a.firstName)}</p>
        <p>Твојот купон ${code(a.code)} (${a.what}) истекува на <strong>${mkDate(a.until)}</strong>.</p>`,
-      { label: 'Мои купони', href: `${SITE}/smetka?tab=kuponi` },
+      { label: 'Мои купони', href: `${SITE}/account?tab=coupons` },
       NOTICE_FOOTER,
     ),
-    text: `${hi(a.firstName)}\n\nТвојот купон ${a.code} (${a.what}) истекува на ${mkDate(a.until)}.\n\n${SITE}/smetka?tab=kuponi`,
+    text: `${hi(a.firstName)}\n\nТвојот купон ${a.code} (${a.what}) истекува на ${mkDate(a.until)}.\n\n${SITE}/account?tab=coupons`,
   };
 }
 
@@ -94,10 +94,10 @@ export function birthdayEmail(a: {
     html: layout(
       `<p>${hi(a.firstName)}</p>
        <p>Среќен роденден од сите нас во Маршал! Ти оставивме подарок на профилот: ${gifts.join(' и ')}.</p>`,
-      { label: 'Види го подарокот', href: `${SITE}/smetka` },
+      { label: 'Види го подарокот', href: `${SITE}/account` },
       offerFooter(a.unsubscribe),
     ),
-    text: `${hi(a.firstName)}\n\nСреќен роденден од Маршал! Подарок на твојот профил.\n\n${SITE}/smetka\n\nНе сакам понуди: ${a.unsubscribe}`,
+    text: `${hi(a.firstName)}\n\nСреќен роденден од Маршал! Подарок на твојот профил.\n\n${SITE}/account\n\nНе сакам понуди: ${a.unsubscribe}`,
   };
 }
 
@@ -195,7 +195,7 @@ export function newOrderEmail(o: NewOrderMail): Rendered {
 // ---------------------------------------------------------------------------
 
 /** The tracking page with the number already in it; the phone is never in a link (D-038). */
-export const trackOrderUrl = (orderNumber: string) => `${SITE}/track-order?broj=${encodeURIComponent(orderNumber)}`;
+export const trackOrderUrl = (orderNumber: string) => `${SITE}/track-order?number=${encodeURIComponent(orderNumber)}`;
 
 /**
  * The customer's copy of a new order: the number to keep, what was ordered,
@@ -238,7 +238,7 @@ export function orderConfirmationEmail(o: NewOrderMail): Rendered {
      <table style="width:100%;border-collapse:collapse;font-size:14px">${rows}</table>
      <p style="margin:12px 0 0"><strong>За плаќање: ${mkDen(o.total)}</strong>${pickup ? '' : ` <span style="color:#57534e;font-size:13px">(${delivery})</span>`}</p>
      <p style="margin:4px 0 0;font-size:14px">${esc(pay)}</p>
-     ${o.member ? `<p style="margin:12px 0 0;font-size:14px">Нарачката ја гледаш и во <a href="${SITE}/smetka?tab=naracki" style="color:#1c1917">твојот профил</a>.</p>` : ''}`,
+     ${o.member ? `<p style="margin:12px 0 0;font-size:14px">Нарачката ја гледаш и во <a href="${SITE}/account?tab=orders" style="color:#1c1917">твојот профил</a>.</p>` : ''}`,
     { label: 'Следи ја нарачката', href: track },
     `Ја добиваш оваа порака затоа што нарача на marshal.mk. За прашање или замена, одговори на оваа порака. <a href="${policy}" style="color:#78716c">${POLICIES.delivery.title}</a>.`,
   );

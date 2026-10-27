@@ -3,7 +3,6 @@
 import { Truck, PartyPopper } from 'lucide-react';
 import { SHIPPING_CONFIG } from '@/config/shipping';
 import { useTranslation } from '@/lib/i18n';
-import { mkNumber } from '@/lib/mk-format';
 
 interface FreeShippingProgressProps {
   subtotal: number;
@@ -17,7 +16,7 @@ export default function FreeShippingProgress({
   variant = 'default',
   className = '',
 }: FreeShippingProgressProps) {
-  const { t } = useTranslation();
+  const { t, price } = useTranslation();
   const threshold = SHIPPING_CONFIG.freeShippingThreshold;
   const remaining = Math.max(0, threshold - subtotal);
   const unlocked = remaining === 0;
@@ -51,7 +50,7 @@ export default function FreeShippingProgress({
           ) : (
             <>
               {t('cart.freeShippingRemaining', {
-                amount: mkNumber(remaining),
+                amount: price(remaining),
               })}
             </>
           )}

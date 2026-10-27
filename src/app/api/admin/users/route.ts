@@ -144,7 +144,7 @@ export async function PATCH(req: NextRequest) {
 
 /**
  * Delete an account for good (Task 8.8, D-037): while testing, and when a customer
- * asks for their profile to go (/privatnost). Everything hanging off the account
+ * asks for their profile to go (/privacy). Everything hanging off the account
  * goes with it, `on delete cascade` — the customer row, consents, points, personal
  * coupons and their uses, spins, notices — and the phone is free again. Orders stay:
  * the account is only noted in them, and they are the shop's records.

@@ -21,7 +21,7 @@ export default function MiniCart() {
     updateQuantity,
     removeFromCart,
   } = useCart();
-  const { t, language } = useTranslation();
+  const { t, language, price } = useTranslation();
 
   // Lock body scroll when drawer is open
   useEffect(() => {
@@ -80,7 +80,7 @@ export default function MiniCart() {
           </div>
           <button
             onClick={closeMiniCart}
-            aria-label="Close cart"
+            aria-label={t('cart.close')}
             className="p-2 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 active:scale-95 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
           >
             <X className="h-5 w-5" />
@@ -132,7 +132,7 @@ export default function MiniCart() {
                       {product.imageUrl ? (
                         <Image
                           src={product.imageUrl}
-                          alt={getProductDisplayName(product.name, product.category, product.brand)}
+                          alt={getProductDisplayName(product.name, product.category, product.brand, language)}
                           fill
                           className="object-cover transition-transform duration-300 group-hover:scale-105"
                           sizes="80px"
@@ -152,7 +152,7 @@ export default function MiniCart() {
                         onClick={closeMiniCart}
                         className="text-sm font-medium text-gray-900 hover:text-gray-600 line-clamp-2 leading-snug transition-colors duration-150"
                       >
-                        {getProductDisplayName(product.name, product.category, product.brand)}
+                        {getProductDisplayName(product.name, product.category, product.brand, language)}
                       </Link>
                       <button
                         onClick={() => removeFromCart(product.id, selectedSize)}
@@ -179,7 +179,7 @@ export default function MiniCart() {
                             updateQuantity(product.id, quantity - 1, selectedSize)
                           }
                           disabled={quantity <= 1}
-                          aria-label="Decrease quantity"
+                          aria-label={t('common.decreaseQuantity')}
                           className="p-1.5 text-gray-500 hover:bg-gray-100 active:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors duration-150"
                         >
                           <Minus className="h-3 w-3" />
@@ -192,7 +192,7 @@ export default function MiniCart() {
                             updateQuantity(product.id, quantity + 1, selectedSize)
                           }
                           disabled={quantity >= maxStock}
-                          aria-label="Increase quantity"
+                          aria-label={t('common.increaseQuantity')}
                           className="p-1.5 text-gray-500 hover:bg-gray-100 active:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors duration-150"
                         >
                           <Plus className="h-3 w-3" />
@@ -206,11 +206,11 @@ export default function MiniCart() {
                             onSale ? 'text-red-600' : 'text-gray-900'
                           }`}
                         >
-                          {lineTotal.toFixed(2)} ден.
+                          {price(lineTotal)}
                         </p>
                         {onSale && (
                           <p className="text-[10px] text-gray-400 line-through tabular-nums">
-                            {(product.price * quantity).toFixed(2)} ден.
+                            {price(product.price * quantity)}
                           </p>
                         )}
                       </div>
@@ -235,7 +235,7 @@ export default function MiniCart() {
                 {t('cart.subtotal')}
               </span>
               <span className="text-lg font-bold text-gray-900 tabular-nums">
-                {totalPrice.toFixed(2)} ден.
+                {price(totalPrice)}
               </span>
             </div>
 

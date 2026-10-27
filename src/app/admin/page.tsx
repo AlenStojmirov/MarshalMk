@@ -480,7 +480,7 @@ function AdminDashboard() {
         <div className="px-4 sm:px-6 py-3 border-b border-slate-200 bg-slate-50/50">
           <div className="flex items-center gap-2 mb-2">
             <Filter className="h-4 w-4 text-slate-400" />
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.filters') || 'Filters'}</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('admin.filters')}</span>
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}

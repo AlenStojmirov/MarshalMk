@@ -14,7 +14,7 @@ function page(title: string, text: string, status = 200) {
   const html = `<!doctype html><html lang="mk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${title}</title></head>
 <body style="margin:0;background:#f5f5f4;font-family:Arial,Helvetica,sans-serif;color:#1c1917"><div style="max-width:420px;margin:48px auto;padding:24px;background:#fff;border-radius:12px">
 <p style="font-weight:bold;letter-spacing:2px">MARSHAL</p><h1 style="font-size:20px">${title}</h1><p>${text}</p>
-<p><a href="https://marshal.mk/smetka?tab=profil" style="color:#1c1917">Кон профилот</a></p></div></body></html>`;
+<p><a href="https://marshal.mk/account?tab=profile" style="color:#1c1917">Кон профилот</a></p></div></body></html>`;
   return new NextResponse(html, { status, headers: { 'content-type': 'text/html; charset=utf-8' } });
 }
 

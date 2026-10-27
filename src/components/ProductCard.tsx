@@ -11,7 +11,7 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const { t } = useTranslation();
+  const { t, language, price } = useTranslation();
 
   const isValidImageUrl = product.imageUrl && (
                   product.imageUrl.startsWith('http://') ||
@@ -43,7 +43,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           {isValidImageUrl ? (
             <Image
               src={product.imageUrl}
-              alt={`${getProductDisplayName(product.name, product.category, product.brand)} — Men's ${product.category}`}
+              alt={getProductDisplayName(product.name, product.category, product.brand, language)}
               fill
               className={
                 onSale
@@ -98,25 +98,25 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Product Info */}
         <div>
           <h3 className="text-[13px] text-stone-900 leading-snug mb-1.5 tracking-wide group-hover/card:text-stone-600 transition-colors duration-200">
-            {getProductDisplayName(product.name, product.category, product.brand)}
+            {getProductDisplayName(product.name, product.category, product.brand, language)}
           </h3>
           {onSale ? (
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
               <span className="text-[14px] font-semibold text-red-600">
-                {product.sale!.salePrice.toFixed(2)} ден.
+                {price(product.sale!.salePrice)}
               </span>
               <span className="text-[12px] text-stone-400 line-through">
-                {product.price.toFixed(2)} ден.
+                {price(product.price)}
               </span>
               {savings > 0 && (
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-red-600 bg-red-50 px-1.5 py-0.5 rounded-sm">
-                  {t('product.save', { amount: savings.toFixed(0) })}
+                  {t('product.save', { amount: price(savings) })}
                 </span>
               )}
             </div>
           ) : (
             <span className="text-[13px] text-stone-900">
-              {product.price.toFixed(2)} ден.
+              {price(product.price)}
             </span>
           )}
         </div>

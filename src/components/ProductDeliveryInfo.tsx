@@ -3,11 +3,10 @@
 import Link from 'next/link';
 import { Banknote, Repeat, Store, Truck } from 'lucide-react';
 import { SHIPPING_CONFIG } from '@/config/shipping';
-import { EXCHANGE_REPORT_HOURS, STORE_ADDRESS, STORE_MAPS_URL } from '@/config/store';
+import { EXCHANGE_REPORT_HOURS, STORE_MAPS_URL, storeAddress } from '@/config/store';
 import { POLICIES } from '@/config/policies';
 import { useCart } from '@/context/CartContext';
 import { useTranslation } from '@/lib/i18n';
-import { mkDen } from '@/lib/mk-format';
 
 /**
  * Payment, delivery, pickup and exchange under the add-to-cart button (Task 9.11).
@@ -19,7 +18,7 @@ import { mkDen } from '@/lib/mk-format';
  * waiting on the lawyer, and it should change in one place.
  */
 export default function ProductDeliveryInfo() {
-  const { t } = useTranslation();
+  const { t, language, price } = useTranslation();
   const { totalItems, totalPrice } = useCart();
   const { shippingCost, freeShippingThreshold } = SHIPPING_CONFIG;
 
@@ -29,7 +28,7 @@ export default function ProductDeliveryInfo() {
     totalItems === 0
       ? null
       : remaining > 0
-      ? t('product.delivery.cartRemaining', { amount: mkDen(remaining) })
+      ? t('product.delivery.cartRemaining', { amount: price(remaining) })
       : t('product.delivery.cartFree');
 
   const rows = [
@@ -40,8 +39,8 @@ export default function ProductDeliveryInfo() {
     },
     {
       icon: Truck,
-      title: t('product.delivery.shipTitle', { amount: mkDen(shippingCost) }),
-      text: t('product.delivery.shipText', { amount: mkDen(freeShippingThreshold) }),
+      title: t('product.delivery.shipTitle', { amount: price(shippingCost) }),
+      text: t('product.delivery.shipText', { amount: price(freeShippingThreshold) }),
       extra: cartLine,
     },
     {
@@ -55,7 +54,7 @@ export default function ProductDeliveryInfo() {
             rel="noopener noreferrer"
             className="underline underline-offset-2 hover:text-stone-900"
           >
-            {STORE_ADDRESS}
+            {storeAddress(language)}
           </a>
           {t('product.delivery.pickupText')}
         </>
@@ -68,7 +67,7 @@ export default function ProductDeliveryInfo() {
         <>
           {t('product.delivery.exchangeText', { hours: EXCHANGE_REPORT_HOURS })}{' '}
           <Link
-            href={`${POLICIES.delivery.path}#zamena`}
+            href={`${POLICIES.delivery.path}#exchange`}
             className="underline underline-offset-2 hover:text-stone-900"
           >
             {t('product.delivery.exchangeLink')}

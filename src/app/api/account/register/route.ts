@@ -5,6 +5,7 @@ import { normalizePhone } from '@/lib/customers';
 import { RegistrationInput, validateRegistration } from '@/lib/account';
 import { POLICIES } from '@/config/policies';
 import { CUSTOMERS, clientIp, ensureCustomerRole, fail, logConsents, publicAuthClient } from '@/lib/account-server';
+import { apiSay, requestLanguage } from '@/lib/i18n/messages';
 
 /**
  * POST /api/account/register — a customer opens a profile (Task 13.6, D-033).
@@ -23,17 +24,18 @@ import { CUSTOMERS, clientIp, ensureCustomerRole, fail, logConsents, publicAuthC
 const MIN_FILL_MS = 3000;
 
 /** Where a sign-up may say it came from, for the reports (13.12). Anything else is dropped. */
-const SIGNUP_SOURCES = ['trkalo'] as const;
+const SIGNUP_SOURCES = ['wheel'] as const;
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
-  if (isBlocked(ip)) return fail(403, 'Пристапот е привремено ограничен. Пробај подоцна.');
+  const say = apiSay(req);
+  if (isBlocked(ip)) return fail(403, say('blocked'));
   if (isRateLimited(`account:${ip}`, 3, 10 * 60_000)) {
     recordViolation(ip);
     console.warn(`[ACCOUNT_RATE_LIMIT] ip=${ip}`);
-    return fail(429, 'Премногу обиди. Пробај повторно за неколку минути.');
+    return fail(429, say('tooManyMinutes'));
   }
 
   let body: Record<string, unknown>;
@@ -41,7 +43,7 @@ export async function POST(req: NextRequest) {
     body = await req.json();
   } catch {
     recordViolation(ip);
-    return fail(400, 'Неважечко барање.');
+    return fail(400, say('badRequest'));
   }
 
   // Honeypot: a person never fills it. Answer as if it worked.
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest) {
   if (loadedAt === 0 || Date.now() - loadedAt < MIN_FILL_MS) {
     recordViolation(ip);
     console.warn(`[ACCOUNT_TIMING] ip=${ip}`);
-    return fail(400, 'Пополни ја формата пред да ја испратиш.');
+    return fail(400, say('fillForm'));
   }
 
   const input: RegistrationInput = {
@@ -67,18 +69,18 @@ export async function POST(req: NextRequest) {
     marketing: body.marketing === true,
     consent: body.consent === true,
   };
-  const fields = validateRegistration(input);
-  if (Object.keys(fields).length) return fail(400, 'Провери ги означените полиња.', { fields });
+  const fields = validateRegistration(input, new Date(), requestLanguage(req));
+  if (Object.keys(fields).length) return fail(400, say('checkFields'), { fields });
 
   if (isRateLimited(`account-email:${input.email}`, 3, 60 * 60_000)) {
-    return fail(429, 'Премногу обиди за оваа е-пошта. Пробај повторно подоцна.');
+    return fail(429, say('account.tooManyForEmail'));
   }
 
   const sb = getSupabaseAdmin();
   const phoneNorm = normalizePhone(input.phone);
   const taken = await sb.from(CUSTOMERS).select('user_id').eq('phone_norm', phoneNorm).maybeSingle();
-  if (taken.error) return fail(500, 'Профилот не може да се направи во моментов.');
-  const phoneTaken = 'Овој број веќе има профил. Најави се, или внеси друг број.';
+  if (taken.error) return fail(500, say('account.create'));
+  const phoneTaken = say('account.phoneTakenSignIn');
   if (taken.data) return fail(409, phoneTaken, { fields: { phone: phoneTaken } });
 
   const origin = new URL(req.url).origin;
@@ -86,7 +88,7 @@ export async function POST(req: NextRequest) {
     email: input.email,
     password: input.password,
     options: {
-      emailRedirectTo: `${origin}/smetka?potvrdeno=1`,
+      emailRedirectTo: `${origin}/account?confirmed=1`,
       // Kept with the account (user metadata), no column needed: the wheel's report counts it.
       data: {
         first_name: input.firstName,
@@ -97,11 +99,11 @@ export async function POST(req: NextRequest) {
   if (error) {
     const code = (error as { code?: string }).code ?? '';
     if (code === 'user_already_exists' || code === 'email_exists') return NextResponse.json({ ok: true, email: input.email });
-    if (code === 'weak_password') return fail(400, 'Лозинката е преслаба.', { fields: { password: 'Лозинката е преслаба. Додај букви и бројки.' } });
-    if (error.status === 429 || code.startsWith('over_')) return fail(429, 'Премногу е-пошти за кратко време. Пробај повторно за неколку минути.');
-    if (code === 'signup_disabled') return fail(503, 'Регистрацијата е привремено исклучена.');
+    if (code === 'weak_password') return fail(400, say('account.weakPassword'), { fields: { password: say('account.weakPasswordField') } });
+    if (error.status === 429 || code.startsWith('over_')) return fail(429, say('account.tooManyEmails'));
+    if (code === 'signup_disabled') return fail(503, say('account.signupDisabled'));
     console.error(`[ACCOUNT_SIGNUP_FAILED] ${code} ${error.message}`);
-    return fail(500, 'Профилот не може да се направи во моментов.');
+    return fail(500, say('account.create'));
   }
 
   const user = data.user;
@@ -137,7 +139,7 @@ export async function POST(req: NextRequest) {
     ]);
   } catch (e) {
     console.error(`[ACCOUNT_PROFILE_FAILED] user=${user.id} ${(e as Error).message}`);
-    return fail(500, 'Профилот е направен, но не е довршен. Најави се откако ќе ја потврдиш е-поштата и пополни го.');
+    return fail(500, say('account.unfinished'));
   }
 
   return NextResponse.json({ ok: true, email: input.email });

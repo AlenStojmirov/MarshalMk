@@ -1,3 +1,5 @@
+import type { Language } from '@/lib/i18n/messages';
+
 /**
  * The physical shop.
  *
@@ -13,6 +15,14 @@ export const STORE_EMAIL = 'marshalvinica@gmail.com';
 export const STORE_INSTAGRAM_URL = 'https://www.instagram.com/marshalonlinemk';
 export const STORE_FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61581250984500';
 export const STORE_MESSENGER_URL = 'https://m.me/marshalonlinemk';
+
+/**
+ * The name and address in the page's language. The constants above stay
+ * Macedonian for what is always Macedonian: the e-mails, the posts, the previews.
+ */
+export const storeName = (lang: Language = 'mk'): string => (lang === 'en' ? 'Marshal' : STORE_NAME);
+export const storeAddress = (lang: Language = 'mk'): string =>
+  lang === 'en' ? 'Marshal Tito St. 60, Vinica' : STORE_ADDRESS;
 
 /**
  * Exchanges (owner, 2026-09-27 and 2026-10-18; D-032). An exchange has to be

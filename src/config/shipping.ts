@@ -1,3 +1,6 @@
+import { formatPrice } from '@/lib/i18n/format';
+import type { Language } from '@/lib/i18n/messages';
+
 export const SHIPPING_CONFIG = {
   /** Order total threshold for free shipping (in ден.) */
   freeShippingThreshold: 3000,
@@ -33,11 +36,11 @@ export function customerShippingFor(
 }
 
 /**
- * Returns a formatted shipping label (e.g. "170 ден." or the free translation).
+ * Returns a formatted shipping label (e.g. "170 ден." / "170 MKD", or the free translation).
  */
-export function getShippingLabel(orderTotal: number, freeText: string): string {
+export function getShippingLabel(orderTotal: number, freeText: string, lang: Language = 'mk'): string {
   const cost = getShippingCost(orderTotal);
-  return cost > 0 ? `${cost} ден.` : freeText;
+  return cost > 0 ? formatPrice(lang, cost) : freeText;
 }
 
 /**

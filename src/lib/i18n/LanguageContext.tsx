@@ -1,13 +1,9 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import en from './translations/en.json';
-import mk from './translations/mk.json';
+import { DEFAULT_LANGUAGE, TRANSLATIONS, isLanguage, type Language, type Translations } from './messages';
 
-export type Language = 'en' | 'mk';
-
-type TranslationValue = string | { [key: string]: TranslationValue };
-type Translations = { [key: string]: TranslationValue };
+export type { Language } from './messages';
 
 interface LanguageContextType {
   language: Language;
@@ -15,39 +11,39 @@ interface LanguageContextType {
   translations: Translations;
 }
 
-const translations: Record<Language, Translations> = {
-  en,
-  mk,
-};
-
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 const LANGUAGE_STORAGE_KEY = 'ecommerce-language';
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('mk');
+/**
+ * The visitor's language, kept in localStorage and in `<html lang>`.
+ * `fixed` pins a part of the site to one language whatever the visitor picked:
+ * the back office is Macedonian only (D-039).
+ */
+export function LanguageProvider({ children, fixed }: { children: ReactNode; fixed?: Language }) {
+  const [language, setLanguageState] = useState<Language>(fixed ?? DEFAULT_LANGUAGE);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load language from localStorage on mount
   useEffect(() => {
-    const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY) as Language;
-    if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'mk')) {
-      setLanguageState(savedLanguage);
-    }
+    if (fixed) return;
+    try {
+      const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+      if (isLanguage(savedLanguage)) setLanguageState(savedLanguage);
+    } catch { /* storage blocked: the default stays */ }
     setIsLoaded(true);
-  }, []);
+  }, [fixed]);
 
   // Save language to localStorage when it changes
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
-      // Update html lang attribute
-      document.documentElement.lang = language;
-    }
-  }, [language, isLoaded]);
+    if (fixed || !isLoaded) return;
+    try { localStorage.setItem(LANGUAGE_STORAGE_KEY, language); } catch { /* not kept, still shown */ }
+    // Update html lang attribute; pageLanguage() reads it for requests made outside React
+    document.documentElement.lang = language;
+  }, [language, isLoaded, fixed]);
 
   const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
+    if (!fixed) setLanguageState(lang);
   };
 
   return (
@@ -55,7 +51,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       value={{
         language,
         setLanguage,
-        translations: translations[language],
+        translations: TRANSLATIONS[language],
       }}
     >
       {children}

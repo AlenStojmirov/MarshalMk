@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { userFromRequest } from '@/lib/basket-server';
 import { wheelState } from '@/lib/wheel-server';
+import { apiSay } from '@/lib/i18n/messages';
 
 /**
  * GET /api/wheel — what the wheel offers now and what this visitor may do
@@ -14,6 +15,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(await wheelState(sb, user));
   } catch (e) {
     console.error(`[WHEEL_STATE_FAILED] ${(e as Error).message}`);
-    return NextResponse.json({ error: 'Тркалото не може да се вчита во моментов.' }, { status: 500 });
+    return NextResponse.json({ error: apiSay(req)('wheel.read') }, { status: 500 });
   }
 }

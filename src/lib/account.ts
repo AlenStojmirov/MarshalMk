@@ -12,6 +12,7 @@
  */
 
 import { normalizePhone } from './customers';
+import { DEFAULT_LANGUAGE, translate, type Language } from './i18n/messages';
 import type { LoyaltySettings } from './loyalty-settings';
 import type { OrderLoyalty, OrderOutcome, OrderStatus } from '@/types';
 
@@ -47,27 +48,29 @@ export type FieldErrors = Partial<Record<AccountField, string>>;
 
 export const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 
-export function validateProfile(p: ProfileInput, now = new Date(), needsConsent = false): FieldErrors {
+/** `lang`: the form passes the page's, the server the request's (D-039). */
+export function validateProfile(p: ProfileInput, now = new Date(), needsConsent = false, lang: Language = DEFAULT_LANGUAGE): FieldErrors {
+  const say = (key: string, params?: Record<string, string | number>) => translate(lang, `errors.fields.${key}`, params);
   const e: FieldErrors = {};
   const first = p.firstName.trim();
-  if (!first) e.firstName = 'Внеси име.';
-  else if (first.length > 60) e.firstName = 'Името е предолго.';
-  if (p.lastName.trim().length > 60) e.lastName = 'Презимето е предолго.';
-  if (!MK_PHONE.test(normalizePhone(p.phone))) e.phone = 'Внеси македонски телефонски број, на пример 070 123 456.';
+  if (!first) e.firstName = say('firstNameMissing');
+  else if (first.length > 60) e.firstName = say('firstNameLong');
+  if (p.lastName.trim().length > 60) e.lastName = say('lastNameLong');
+  if (!MK_PHONE.test(normalizePhone(p.phone))) e.phone = say('phone');
   if (p.birthDate) {
     const d = new Date(`${p.birthDate}T00:00:00`);
-    if (Number.isNaN(d.getTime()) || d.getFullYear() < 1900 || d > now) e.birthDate = 'Провери го датумот.';
+    if (Number.isNaN(d.getTime()) || d.getFullYear() < 1900 || d > now) e.birthDate = say('birthDate');
   }
-  if ((p.address ?? '').trim().length > 200) e.address = 'Адресата е предолга.';
-  if ((p.city ?? '').trim().length > 80) e.city = 'Градот е предолг.';
-  if (needsConsent && p.consent !== true) e.consent = 'За профил треба да се согласиш со правилата и политиката за приватност.';
+  if ((p.address ?? '').trim().length > 200) e.address = say('addressLong');
+  if ((p.city ?? '').trim().length > 80) e.city = say('cityLong');
+  if (needsConsent && p.consent !== true) e.consent = say('consent');
   return e;
 }
 
-export function validateRegistration(r: RegistrationInput, now = new Date()): FieldErrors {
-  const e = validateProfile(r, now, true);
-  if (!isEmail(r.email)) e.email = 'Внеси точна е-пошта.';
-  if (r.password.length < MIN_PASSWORD) e.password = `Лозинката треба да има најмалку ${MIN_PASSWORD} знаци.`;
+export function validateRegistration(r: RegistrationInput, now = new Date(), lang: Language = DEFAULT_LANGUAGE): FieldErrors {
+  const e = validateProfile(r, now, true, lang);
+  if (!isEmail(r.email)) e.email = translate(lang, 'errors.fields.email');
+  if (r.password.length < MIN_PASSWORD) e.password = translate(lang, 'errors.fields.passwordShort', { min: MIN_PASSWORD });
   return e;
 }
 

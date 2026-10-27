@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isBackOffice, roleOf } from '@/lib/roles';
 import { fail, readCustomer, requireUser } from '@/lib/account-server';
+import { apiSay } from '@/lib/i18n/messages';
 import type { CheckoutDetails } from '@/lib/account';
 
 /**
@@ -37,6 +38,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(details);
   } catch (e) {
     console.error(`[ACCOUNT_CHECKOUT_FAILED] user=${user.id} ${(e as Error).message}`);
-    return fail(500, 'Податоците од профилот не можат да се прочитаат во моментов.');
+    return fail(500, apiSay(req)('account.checkoutRead'));
   }
 }

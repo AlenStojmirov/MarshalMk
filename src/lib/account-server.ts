@@ -18,6 +18,7 @@ import { issuePersonalCoupon } from './coupons';
 import { creditPoints, expiryFor } from './points';
 import { hasPaidOrder } from './paid-orders';
 import { notifyWelcome } from './notifications-server';
+import { apiSay } from './i18n/messages';
 
 export const CUSTOMERS = 'customers';
 export const CUSTOMER_CONSENTS = 'customer_consents';
@@ -42,10 +43,11 @@ export function publicAuthClient() {
 }
 
 export async function requireUser(req: NextRequest): Promise<{ user: User } | { res: NextResponse }> {
+  const say = apiSay(req);
   const token = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-  if (!token) return { res: fail(401, 'Не си најавен.') };
+  if (!token) return { res: fail(401, say('notSignedIn')) };
   const { data, error } = await getSupabaseAdmin().auth.getUser(token);
-  if (error || !data.user) return { res: fail(401, 'Најавата е истечена. Најави се повторно.') };
+  if (error || !data.user) return { res: fail(401, say('sessionExpired')) };
   return { user: data.user };
 }
 

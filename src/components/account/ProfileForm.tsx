@@ -7,14 +7,16 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { CONSENT, POLICIES } from '@/config/policies';
+import { POLICIES } from '@/config/policies';
 import { AccountView, CustomerProfile, FieldErrors, ProfileInput, validateProfile } from '@/lib/account';
 import { accountFetch } from '@/lib/account-client';
+import { useTranslation } from '@/lib/i18n';
 import { BirthDateInput, Field, Notice, buttonCls, inputCls } from './AccountFrame';
 
 export default function ProfileForm({
   initial, requireConsent, onSaved,
 }: { initial: CustomerProfile | null; requireConsent: boolean; onSaved: (v: AccountView) => void }) {
+  const { t, language } = useTranslation();
   const [form, setForm] = useState<ProfileInput>({
     firstName: initial?.firstName ?? '',
     lastName: initial?.lastName ?? '',
@@ -40,7 +42,7 @@ export default function ProfileForm({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const found = validateProfile(form, new Date(), requireConsent);
+    const found = validateProfile(form, new Date(), requireConsent, language);
     setErrors(found);
     if (Object.keys(found).length) return;
     setBusy(true);
@@ -58,31 +60,31 @@ export default function ProfileForm({
   return (
     <form onSubmit={submit} className="space-y-4" noValidate>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Име" error={errors.firstName}>
+        <Field label={t('account.fields.firstName')} error={errors.firstName}>
           <input autoComplete="given-name" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} className={inputCls(errors.firstName)} />
         </Field>
-        <Field label="Презиме" error={errors.lastName}>
+        <Field label={t('account.fields.lastName')} error={errors.lastName}>
           <input autoComplete="family-name" value={form.lastName} onChange={(e) => set('lastName', e.target.value)} className={inputCls(errors.lastName)} />
         </Field>
       </div>
       <Field
-        label="Телефон"
+        label={t('account.fields.phone')}
         error={errors.phone}
-        hint={initial && !initial.phoneVerified ? 'Се потврдува со првата испорачана и платена нарачка.' : undefined}
+        hint={initial && !initial.phoneVerified ? t('account.profile.phoneHint') : undefined}
       >
         <input type="tel" autoComplete="tel" inputMode="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} className={inputCls(errors.phone)} />
       </Field>
       {form.address !== undefined && (
         <>
-          <Field label="Адреса за достава (улица и број)" error={errors.address} hint="Не е задолжително. Со неа наплатата се пополнува сама, а за секоја нарачка може да се смени.">
+          <Field label={t('account.profile.address')} error={errors.address} hint={t('account.profile.addressHint')}>
             <input autoComplete="street-address" value={form.address} onChange={(e) => set('address', e.target.value)} className={inputCls(errors.address)} />
           </Field>
-          <Field label="Град" error={errors.city}>
+          <Field label={t('account.fields.city')} error={errors.city}>
             <input autoComplete="address-level2" value={form.city ?? ''} onChange={(e) => set('city', e.target.value)} className={inputCls(errors.city)} />
           </Field>
         </>
       )}
-      <Field label="Датум на раѓање" error={errors.birthDate} hint="Не е задолжително. За подарок на твојот роденден.">
+      <Field label={t('account.profile.birthDate')} error={errors.birthDate} hint={t('account.profile.birthDateHint')}>
         <BirthDateInput value={form.birthDate} onChange={(v) => set('birthDate', v)} error={errors.birthDate} />
       </Field>
       {requireConsent && (
@@ -90,10 +92,10 @@ export default function ProfileForm({
           <label className="flex items-start gap-2.5 text-sm text-stone-700">
             <input type="checkbox" checked={!!form.consent} onChange={(e) => set('consent', e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
-              {CONSENT.required}{' '}
-              <Link href={POLICIES.rules.path} target="_blank" className="underline underline-offset-2">Правила</Link>
+              {t('account.consent.required')}{' '}
+              <Link href={POLICIES.rules.path} target="_blank" className="underline underline-offset-2">{t('account.consent.rulesLink')}</Link>
               {' · '}
-              <Link href={POLICIES.privacy.path} target="_blank" className="underline underline-offset-2">Приватност</Link>
+              <Link href={POLICIES.privacy.path} target="_blank" className="underline underline-offset-2">{t('account.consent.privacyLink')}</Link>
             </span>
           </label>
           {errors.consent && <p className="text-xs text-red-600 -mt-2">{errors.consent}</p>}
@@ -101,12 +103,12 @@ export default function ProfileForm({
       )}
       <label className="flex items-start gap-2.5 text-sm text-stone-700">
         <input type="checkbox" checked={form.marketing} onChange={(e) => set('marketing', e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
-        <span>{CONSENT.marketing}</span>
+        <span>{t('account.consent.marketing')}</span>
       </label>
       {error && <Notice tone="red">{error}</Notice>}
-      {saved && <Notice tone="green">Зачувано.</Notice>}
+      {saved && <Notice tone="green">{t('account.profile.saved')}</Notice>}
       <button type="submit" disabled={busy} className={buttonCls}>
-        {busy ? 'Се зачувува…' : requireConsent ? 'Доврши го профилот' : 'Зачувај'}
+        {busy ? t('account.common.saving') : requireConsent ? t('account.profile.finish') : t('account.profile.save')}
       </button>
     </form>
   );

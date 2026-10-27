@@ -6,8 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { CheckCircle, Package, Truck, Phone, Mail, MapPin, Copy, Check, Store, Search } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
-import { STORE_ADDRESS, STORE_MAPS_URL } from '@/config/store';
-import { mkNumber } from '@/lib/mk-format';
+import { STORE_MAPS_URL, storeAddress } from '@/config/store';
 import { fetchTrackedOrder, recallPlacedOrder, type PlacedOrder, type TrackedOrder } from '@/lib/order-track';
 
 /**
@@ -24,7 +23,7 @@ function ConfirmationContent() {
   const [order, setOrder] = useState<TrackedOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const { t } = useTranslation();
+  const { t, language, price } = useTranslation();
 
   const copyOrderNumber = () => {
     navigator.clipboard.writeText(order?.orderNumber || '');
@@ -66,7 +65,7 @@ function ConfirmationContent() {
               <p className="text-xl sm:text-2xl font-bold text-gray-900 break-words">{orderNumber}</p>
               <p className="mt-4 text-gray-600">{t('confirmation.trackHint')}</p>
               <Link
-                href={`/track-order?broj=${encodeURIComponent(orderNumber)}`}
+                href={`/track-order?number=${encodeURIComponent(orderNumber)}`}
                 className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
               >
                 <Search className="h-5 w-5" />
@@ -87,7 +86,7 @@ function ConfirmationContent() {
   }
 
   const isPickup = order.deliveryMethod === 'pickup';
-  const total = mkNumber(order.total);
+  const total = price(order.total);
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -172,7 +171,7 @@ function ConfirmationContent() {
             <hr className="my-2" />
             <div className="flex justify-between text-lg font-bold text-gray-900">
               <span>{t('confirmation.totalToPay')}</span>
-              <span>{total} ден.</span>
+              <span>{total}</span>
             </div>
           </div>
         </div>
@@ -208,7 +207,7 @@ function ConfirmationContent() {
             <MapPin className="h-4 w-4 mt-1 flex-shrink-0" />
             {isPickup ? (
               <div>
-                <p>{STORE_ADDRESS}</p>
+                <p>{storeAddress(language)}</p>
                 <a
                   href={STORE_MAPS_URL}
                   target="_blank"

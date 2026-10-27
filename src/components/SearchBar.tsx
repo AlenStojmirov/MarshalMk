@@ -39,7 +39,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
         <button
           type="button"
           onClick={handleClear}
-          aria-label="Clear search"
+          aria-label={t('a11y.clearSearch')}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 active:scale-90 p-1 rounded-full transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
           <X className="h-4 w-4" />

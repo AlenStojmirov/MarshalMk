@@ -12,7 +12,7 @@ export default function robots(): MetadataRoute.Robots {
           "/cart",
           "/checkout/",
           "/track-order",
-          "/smetka",
+          "/account",
         ],
       },
     ],

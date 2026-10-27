@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
+import { useTranslation } from '@/lib/i18n';
 import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react';
 
 interface ProductImageGalleryProps {
@@ -26,6 +27,7 @@ export default function ProductImageGallery({
   saleLabel = 'Sale',
   percentOff = 0,
 }: ProductImageGalleryProps) {
+  const { t } = useTranslation();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
@@ -190,7 +192,7 @@ export default function ProductImageGallery({
         <button
           onClick={() => setLightboxOpen(true)}
           className="absolute top-5 right-5 w-9 h-9 bg-white/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 hover:bg-white"
-          aria-label="View fullscreen"
+          aria-label={t('a11y.fullscreen')}
         >
           <ZoomIn className="h-4 w-4 text-stone-700" />
         </button>
@@ -201,14 +203,14 @@ export default function ProductImageGallery({
             <button
               onClick={() => emblaApi?.scrollPrev()}
               className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 hover:bg-white"
-              aria-label="Previous image"
+              aria-label={t('a11y.previousImage')}
             >
               <ChevronLeft className="h-5 w-5 text-stone-700" />
             </button>
             <button
               onClick={() => emblaApi?.scrollNext()}
               className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 hover:bg-white"
-              aria-label="Next image"
+              aria-label={t('a11y.nextImage')}
             >
               <ChevronRight className="h-5 w-5 text-stone-700" />
             </button>
@@ -230,7 +232,7 @@ export default function ProductImageGallery({
             <button
               key={index}
               onClick={() => scrollTo(index)}
-              aria-label={`View image ${index + 1}`}
+              aria-label={t('a11y.viewImage', { n: index + 1 })}
               className={`relative w-16 h-20 sm:w-20 sm:h-24 flex-shrink-0 overflow-hidden transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-1 ${
                 selectedIndex === index
                   ? 'ring-1 ring-stone-900 ring-offset-2'
@@ -260,7 +262,7 @@ export default function ProductImageGallery({
             <button
               onClick={() => setLightboxOpen(false)}
               className="w-10 h-10 flex items-center justify-center text-white/80 hover:text-white transition-colors"
-              aria-label="Close"
+              aria-label={t('a11y.close')}
             >
               <X className="h-6 w-6" />
             </button>
@@ -295,14 +297,14 @@ export default function ProductImageGallery({
                 <button
                   onClick={() => lightboxEmblaApi?.scrollPrev()}
                   className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-white/20 transition-colors z-10"
-                  aria-label="Previous image"
+                  aria-label={t('a11y.previousImage')}
                 >
                   <ChevronLeft className="h-6 w-6 text-white" />
                 </button>
                 <button
                   onClick={() => lightboxEmblaApi?.scrollNext()}
                   className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-white/20 transition-colors z-10"
-                  aria-label="Next image"
+                  aria-label={t('a11y.nextImage')}
                 >
                   <ChevronRight className="h-6 w-6 text-white" />
                 </button>

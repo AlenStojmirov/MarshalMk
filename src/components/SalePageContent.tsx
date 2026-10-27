@@ -20,7 +20,7 @@ export default function SalePageContent({ paginatedData }: SalePageContentProps)
           paginatedData={paginatedData}
           header={
             <>
-              <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+              <nav aria-label={t('a11y.breadcrumb')} className="flex items-center gap-2 text-sm text-gray-500 mb-6">
                 <Link href="/" className="hover:text-gray-900 transition-colors">
                   {t('header.home')}
                 </Link>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { fail, requireUser } from '@/lib/account-server';
+import { apiSay } from '@/lib/i18n/messages';
 import type { CustomerOrder } from '@/lib/account';
 
 /**
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
     .limit(50);
   if (error) {
     console.error(`[ACCOUNT_ORDERS_FAILED] user=${auth.user.id} ${error.message}`);
-    return fail(500, 'Нарачките не можат да се прочитаат во моментов.');
+    return fail(500, apiSay(req)('account.ordersRead'));
   }
   const orders: CustomerOrder[] = (data ?? []).map((o) => ({
     orderNumber: o.order_number,

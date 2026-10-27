@@ -1,4 +1,5 @@
 import brandCodesData from '@/config/brand-codes.json';
+import { TRANSLATIONS, type Language } from '@/lib/i18n/messages';
 
 const CATEGORY_LABELS: Record<string, string> = {
   vaucer: "Voucher",
@@ -77,13 +78,19 @@ export function categoryForSlug(slug: string): string | undefined {
  *   category="jeans", brand="X2Denim", name="002"  => "Jeans - #D002"
  *   category="shirts", brand="KalvinTR", name="015" => "Shirt - #K015"
  *   category="jeans", brand=undefined, name="002"   => "Jeans - #002"
+ *
+ * With `lang` (the storefront, D-039) the category is named in that language,
+ * `categoryNames` in the translations: "Кошули - #BR023" / "Shirts - #BR023".
+ * Without it, the English label above (the back office, labels, page titles until 9.7).
  */
 export function getProductDisplayName(
   name: string,
   category?: string,
   brand?: string,
+  lang?: Language,
 ): string {
-  const categoryLabel = category ? getCategoryLabel(category) : '';
+  const names = lang ? (TRANSLATIONS[lang].categoryNames as Record<string, string> | undefined) : undefined;
+  const categoryLabel = category ? names?.[category] ?? getCategoryLabel(category) : '';
   const brandCode = brand ? getBrandCode(brand) || '' : '';
 
   if (categoryLabel) {

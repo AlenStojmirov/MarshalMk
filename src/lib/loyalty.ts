@@ -21,6 +21,8 @@ import type { DeliveryMethod } from '@/types';
 import { SHIPPING_CONFIG, customerShippingFor } from '@/config/shipping';
 import { markdownFloorPrice } from './cost';
 import { DiscountBand, LoyaltySettings, discountBand, earnRatePctFor, redeemCapPctFor } from './loyalty-settings';
+import { DEFAULT_LANGUAGE, translate, type Language } from './i18n/messages';
+import { formatNumber, formatPrice } from './i18n/format';
 
 export interface BasketLine {
   productId: string;
@@ -306,24 +308,26 @@ export function publicQuote(q: BasketQuote): PublicBasketQuote {
   };
 }
 
-const den = (n: number) => `${Math.round(n).toLocaleString('mk-MK')} ден.`;
+const den = (lang: Language, n: number) => formatPrice(lang, Math.round(n));
 
 /** Why a coupon did not apply, in the customer's words. */
-export function couponRefusalText(r: CouponRefusal, c?: Pick<BasketCoupon, 'minBasket'>): string {
+export function couponRefusalText(r: CouponRefusal, c?: Pick<BasketCoupon, 'minBasket'>, lang: Language = DEFAULT_LANGUAGE): string {
+  const say = (key: string, params?: Record<string, string>) => translate(lang, `coupon.basketRefusal.${key}`, params);
   switch (r) {
-    case 'min_basket': return `Купонот важи за кошничка од најмалку ${den(c?.minBasket ?? 0)}`;
-    case 'no_items': return 'Купонот не важи за производите во кошничката.';
-    case 'no_room': return 'Производите во кошничката се веќе на најниската цена, па купонот не носи попуст. Зачуван е за друга нарачка.';
-    case 'pickup': return 'При подигање во продавница достава нема, па купонот е зачуван за друга нарачка.';
-    case 'already_free': return 'Доставата е веќе бесплатна за оваа кошничка, па купонот е зачуван за друга нарачка.';
+    case 'min_basket': return say('minBasket', { amount: den(lang, c?.minBasket ?? 0) });
+    case 'no_items': return say('noItems');
+    case 'no_room': return say('noRoom');
+    case 'pickup': return say('pickup');
+    case 'already_free': return say('alreadyFree');
   }
 }
 
 /** Why points cannot be used on this basket, in the customer's words. */
-export function pointsRefusalText(r: PointsRefusal, s: LoyaltySettings): string {
+export function pointsRefusalText(r: PointsRefusal, s: LoyaltySettings, lang: Language = DEFAULT_LANGUAGE): string {
+  const say = (key: string, params?: Record<string, string>) => translate(lang, `loyalty.pointsRefusal.${key}`, params);
   switch (r) {
-    case 'balance': return `Поените се трошат кога ќе собереш најмалку ${s.minPointsToRedeem.toLocaleString('mk-MK')}.`;
-    case 'order': return `Поени се трошат на нарачка од најмалку ${den(s.minOrderForRedeem)}`;
-    case 'no_room': return 'Производите во кошничката не може да се платат со поени (голем попуст или најниска цена).';
+    case 'balance': return say('balance', { points: formatNumber(lang, s.minPointsToRedeem) });
+    case 'order': return say('order', { amount: den(lang, s.minOrderForRedeem) });
+    case 'no_room': return say('noRoom');
   }
 }

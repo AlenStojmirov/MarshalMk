@@ -580,7 +580,7 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
                     placeholder="https://example.com/image.jpg"
                     className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <label className="block text-sm font-medium text-gray-700 mt-3 mb-1">{t('admin.additionalImages') || 'Additional Images'}</label>
+                  <label className="block text-sm font-medium text-gray-700 mt-3 mb-1">{t('admin.additionalImages')}</label>
                   <textarea
                     value={(formData.images || []).join('\n')}
                     onChange={(e) => {
@@ -591,7 +591,7 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <p className="text-xs text-gray-500 mt-1">{t('admin.additionalImagesHint') || 'One URL per line. These will show in the product gallery.'}</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('admin.additionalImagesHint')}</p>
                 </div>
               </div>
             </div>

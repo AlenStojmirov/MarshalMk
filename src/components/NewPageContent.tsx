@@ -42,7 +42,7 @@ export default function NewPageContent({ paginatedData }: NewPageContentProps) {
           paginatedData={paginatedData}
           header={
             <div className="mb-10">
-              <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[11px] text-stone-400 mb-8 uppercase tracking-[0.15em]">
+              <nav aria-label={t('a11y.breadcrumb')} className="flex items-center gap-2 text-[11px] text-stone-400 mb-8 uppercase tracking-[0.15em]">
                 <Link href="/" className="hover:text-stone-900 transition-colors duration-200">
                   {t('header.home')}
                 </Link>
