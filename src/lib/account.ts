@@ -152,3 +152,19 @@ export interface CustomerOrder {
   total: number;
   loyalty: OrderLoyalty | null;
 }
+
+/**
+ * What the checkout fills in for a signed-in customer, from /api/account/checkout
+ * (14.9). Empty where nothing is known; every field stays the customer's to change.
+ */
+export interface CheckoutDetails {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  /** From the last order with delivery: the profile holds no address. */
+  address: string;
+  city: string;
+}
+
+export const CHECKOUT_DETAIL_FIELDS = ['firstName', 'lastName', 'email', 'phone', 'address', 'city'] as const;

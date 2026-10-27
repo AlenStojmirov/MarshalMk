@@ -271,7 +271,8 @@
     "pickupAt": "Pickup at the store",
     "openInMaps": "Open in Google Maps",
     "noShipping": "No shipping",
-    "pickupLine": "Pickup"
+    "pickupLine": "Pickup",
+    "prefilled": "Filled in from your profile. You can change them for this order."
   },
   "confirmation": {
     "title": "Order Confirmed!",

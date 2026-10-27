@@ -18,6 +18,7 @@ import { supabase } from '@/lib/supabase';
 import { accountFetch } from '@/lib/account-client';
 import LoyaltyBox, { type QuoteResponse } from '@/components/checkout/LoyaltyBox';
 import { rememberPlacedOrder } from '@/lib/order-track';
+import { CHECKOUT_DETAIL_FIELDS, type CheckoutDetails } from '@/lib/account';
 
 /** The tracked link this visitor arrived by, if it is recent enough to explain the order (D-025). */
 function storedSource(): OrderSource | null {
@@ -86,6 +87,28 @@ export default function CheckoutPage() {
     }, 250);
     return () => { live = false; clearTimeout(timer); };
   }, [cartKey, deliveryMethod, couponCode, pointsWanted, userId, quoteReads]);
+
+  // ── A signed-in customer's details, filled in (14.9) ───────────────────
+  // From the profile, the address from their last delivery. Only empty fields
+  // are filled, so nothing already typed is lost, and every field stays theirs
+  // to change: a change here is for this order only, the profile stays as is.
+  const [prefilled, setPrefilled] = useState(false);
+  useEffect(() => {
+    if (!userId) return;
+    let live = true;
+    (async () => {
+      const r = await accountFetch<CheckoutDetails>('/api/account/checkout');
+      const d = r.data;
+      if (!live || !d || !CHECKOUT_DETAIL_FIELDS.some((k) => d[k])) return;
+      setFormData((prev) => {
+        const next = { ...prev };
+        for (const k of CHECKOUT_DETAIL_FIELDS) if (!prev[k].trim() && d[k]) next[k] = d[k];
+        return next;
+      });
+      setPrefilled(true);
+    })();
+    return () => { live = false; };
+  }, [userId]);
 
   const q = quote?.quote;
   const shippingNow = q ? q.shipping : customerShippingFor(deliveryMethod, totalPrice);
@@ -292,6 +315,7 @@ export default function CheckoutPage() {
               <h2 className="text-xl font-semibold text-gray-900 mb-4">
                 {t('checkout.contactInfo')}
               </h2>
+              {prefilled && <p className="-mt-2 mb-4 text-sm text-gray-500">{t('checkout.prefilled')}</p>}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label
