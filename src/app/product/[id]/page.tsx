@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const product = await getProductById(id);
 
   if (!product) {
-    return { title: 'Product Not Found' };
+    return { title: 'Страната не постои' };
   }
 
   const displayName = getProductDisplayName(product.name, product.category, product.brand);

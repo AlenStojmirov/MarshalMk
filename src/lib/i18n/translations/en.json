@@ -619,5 +619,20 @@
     "loginRequired": "Please log in to manage inventory",
     "goToLogin": "Go to Admin Login",
     "protectedFromSync": "{count} products were left untouched — they hold sales entered in this app that Firebase does not have, and syncing would erase them."
+  },
+  "notFound": {
+    "title": "This page does not exist",
+    "description": "The link may be old or mistyped, or the product is gone. Here is what we have now:",
+    "new": "New",
+    "sale": "Sale",
+    "categories": "All categories",
+    "home": "Home"
+  },
+  "errorPage": {
+    "title": "Something went wrong",
+    "description": "The page did not load. Try again, and if it still fails, go back to the home page.",
+    "retry": "Try again",
+    "home": "Home",
+    "code": "Error code"
   }
 }

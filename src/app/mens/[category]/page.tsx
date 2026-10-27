@@ -1,7 +1,8 @@
 import { Suspense } from 'react';
+import { notFound } from 'next/navigation';
 import CategoryPageContent from '@/components/CategoryPageContent';
 import { fetchPaginatedProducts, parseSearchParams } from '@/lib/products-server';
-import { getCategoryLabel } from '@/lib/product-display';
+import { categoryForSlug, getCategoryLabel } from '@/lib/product-display';
 import ProductGrid from '@/components/ProductGrid';
 import { jsonLd } from '@/lib/json-ld';
 
@@ -21,7 +22,9 @@ async function CategoryPageLoader({ params, searchParams }: CategoryPageProps) {
     category: slug,
   });
 
-  const categoryLabel = getCategoryLabel(slug);
+  // The raw key, so /mens/shortsjeans from the sitemap is named like /mens/shortsJeans from the header.
+  const key = categoryForSlug(slug) ?? slug;
+  const categoryLabel = getCategoryLabel(key);
 
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',
@@ -67,13 +70,26 @@ async function CategoryPageLoader({ params, searchParams }: CategoryPageProps) {
       />
       <CategoryPageContent
         paginatedData={paginatedData}
-        categoryName={category}
+        categoryName={key}
       />
     </>
   );
 }
 
 export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
+  // An unknown category is a 404 before anything streams, so the status is a
+  // real 404 rather than a 200 around an empty grid (14.6). Only an unknown slug
+  // waits for the database; a known one, empty for now or not, goes straight on.
+  let slug: string;
+  try {
+    slug = decodeURIComponent((await params).category);
+  } catch {
+    notFound();
+  }
+  if (!categoryForSlug(slug) &&(await fetchPaginatedProducts({ category: slug, limit: 1 })).totalCount === 0) {
+    notFound();
+  }
+
   return (
     <Suspense
       fallback={
@@ -92,7 +108,9 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 export async function generateMetadata({ params }: CategoryPageProps) {
   const { category } = await params;
   const slug = decodeURIComponent(category);
-  const categoryLabel = getCategoryLabel(slug);
+  const categoryLabel = getCategoryLabel(categoryForSlug(slug) ?? slug);
+  // One address per category, whichever spelling was asked for: the sitemap's lowercase.
+  const canonical = `/mens/${encodeURIComponent(slug.toLowerCase())}`;
 
   const title = `Men's ${categoryLabel} — Shop Online`;
   const description = `Browse our collection of men's ${categoryLabel.toLowerCase()}. Premium quality, great prices, free shipping available.`;
@@ -101,12 +119,12 @@ export async function generateMetadata({ params }: CategoryPageProps) {
     title,
     description,
     alternates: {
-      canonical: `/mens/${category}`,
+      canonical,
     },
     openGraph: {
       title,
       description,
-      url: `/mens/${category}`,
+      url: canonical,
       siteName: 'Marshal',
       images: [
         {

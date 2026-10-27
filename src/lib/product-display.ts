@@ -52,6 +52,19 @@ export function getCategoryLabel(category: string): string {
 }
 
 /**
+ * The category behind a /mens/{slug} (Task 14.6): its raw key (`shortsJeans`
+ * for `shortsjeans`), whether or not anything in it is on the shelf now, or
+ * undefined for one the shop does not know. Matched the way
+ * `fetchPaginatedProducts` matches a product: lowercased, spaces to dashes.
+ * The header links the raw key and the sitemap the lowercased one; both must
+ * find the same name.
+ */
+export function categoryForSlug(slug: string): string | undefined {
+  const s = slug.toLowerCase();
+  return Object.keys(CATEGORY_LABELS).find((c) => c.toLowerCase().replace(/\s+/g, '-') === s);
+}
+
+/**
  * Build the customer-facing product display name.
  *
  * Format: "{Translated Category} - #{BrandCode}{Name}"
