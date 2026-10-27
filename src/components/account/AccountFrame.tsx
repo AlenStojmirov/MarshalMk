@@ -32,6 +32,28 @@ export function Field({
 export const inputCls = (error?: string) =>
   `w-full rounded-lg border px-3 py-2.5 text-base sm:text-sm bg-white ${error ? 'border-red-400' : 'border-stone-300'} focus:outline-none focus:ring-2 focus:ring-stone-900/20 focus:border-stone-500`;
 
+/**
+ * The birth date (14.8): the browser's own date input and a way to empty it. A
+ * phone's date picker, an iPhone's above all, has no "clear", and the date is
+ * never required, so a date once picked could not be taken back.
+ */
+export function BirthDateInput({ value, onChange, error }: { value: string; onChange: (v: string) => void; error?: string }) {
+  return (
+    <div className="flex gap-2">
+      <input type="date" autoComplete="bday" value={value} onChange={(e) => onChange(e.target.value)} className={`${inputCls(error)} flex-1 min-w-0`} />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className="shrink-0 rounded-lg border border-stone-300 bg-white px-3 text-sm text-stone-700 hover:bg-stone-100"
+        >
+          Избриши
+        </button>
+      )}
+    </div>
+  );
+}
+
 export const buttonCls =
   'w-full rounded-lg bg-stone-900 text-white py-3 text-sm font-semibold hover:bg-black active:bg-black disabled:opacity-50 transition-colors';
 

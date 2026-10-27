@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { CONSENT, POLICIES } from '@/config/policies';
 import { AccountView, CustomerProfile, FieldErrors, ProfileInput, validateProfile } from '@/lib/account';
 import { accountFetch } from '@/lib/account-client';
-import { Field, Notice, buttonCls, inputCls } from './AccountFrame';
+import { BirthDateInput, Field, Notice, buttonCls, inputCls } from './AccountFrame';
 
 export default function ProfileForm({
   initial, requireConsent, onSaved,
@@ -70,7 +70,7 @@ export default function ProfileForm({
         <input type="tel" autoComplete="tel" inputMode="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} className={inputCls(errors.phone)} />
       </Field>
       <Field label="Датум на раѓање" error={errors.birthDate} hint="Не е задолжително. За подарок на твојот роденден.">
-        <input type="date" autoComplete="bday" value={form.birthDate} onChange={(e) => set('birthDate', e.target.value)} className={inputCls(errors.birthDate)} />
+        <BirthDateInput value={form.birthDate} onChange={(v) => set('birthDate', v)} error={errors.birthDate} />
       </Field>
       {requireConsent && (
         <>

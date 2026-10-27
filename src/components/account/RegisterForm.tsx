@@ -13,7 +13,7 @@ import { Eye, EyeOff, MailCheck } from 'lucide-react';
 import { CONSENT, POLICIES } from '@/config/policies';
 import { FieldErrors, MIN_PASSWORD, RegistrationInput, validateRegistration } from '@/lib/account';
 import { accountFetch, resendConfirmation } from '@/lib/account-client';
-import AccountFrame, { Field, Notice, buttonCls, inputCls } from './AccountFrame';
+import AccountFrame, { BirthDateInput, Field, Notice, buttonCls, inputCls } from './AccountFrame';
 
 export default function RegisterForm() {
   // Where the visitor came to sign up from, for the reports (13.12): `?od=trkalo` from the wheel.
@@ -110,7 +110,7 @@ export default function RegisterForm() {
           </div>
         </Field>
         <Field label="Датум на раѓање (не е задолжително)" error={errors.birthDate} hint="За подарок на твојот роденден.">
-          <input type="date" autoComplete="bday" value={form.birthDate} onChange={(e) => set('birthDate', e.target.value)} className={inputCls(errors.birthDate)} />
+          <BirthDateInput value={form.birthDate} onChange={(v) => set('birthDate', v)} error={errors.birthDate} />
         </Field>
 
         {/* Honeypot: hidden from people, filled by bots. */}
