@@ -22,7 +22,7 @@ export default function GlobalError({ error, retry }: { error: Error & { digest?
               onClick={() => retry()}
               style={{ padding: '12px 24px', background: '#2563eb', color: '#fff', border: 0, borderRadius: 8, fontSize: 16, fontWeight: 600, cursor: 'pointer', margin: 4 }}
             >
-              Пробај повторно
+              Пробајте повторно
             </button>
             {/* A plain link: the router may be what failed. */}
             {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}

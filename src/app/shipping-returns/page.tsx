@@ -61,14 +61,14 @@ export default function DeliveryPage() {
   return (
     <PolicyPage
       policy="delivery"
-      intro={<p>На marshal.mk не плаќаш однапред и не ти треба картичка: плаќаш кога ќе ја добиеш стоката.</p>}
+      intro={<p>На marshal.mk не плаќате однапред и не ви треба картичка: плаќате кога ќе ја добиете стоката.</p>}
       enIntro={<p>On marshal.mk you don&apos;t pay in advance and you don&apos;t need a card: you pay when you receive your goods.</p>}
       en={english}
     >
       <h2 id="payment">Плаќање</h2>
       <ul>
-        <li><strong>При достава:</strong> во готово, на курирот, кога ќе ја примиш пратката.</li>
-        <li><strong>При подигање во продавница:</strong> во продавницата, кога ќе дојдеш по нарачката.</li>
+        <li><strong>При достава:</strong> во готово, на курирот, кога ќе ја примите пратката.</li>
+        <li><strong>При подигање во продавница:</strong> во продавницата, кога ќе дојдете по нарачката.</li>
       </ul>
 
       <h2 id="delivery">Достава</h2>
@@ -79,17 +79,17 @@ export default function DeliveryPage() {
 
       <h2 id="pickup">Подигање во продавница</h2>
       <p>
-        Нарачката може да ја подигнеш во продавницата на <a href={STORE_MAPS_URL} target="_blank" rel="noopener noreferrer">{STORE_ADDRESS}</a>.
+        Нарачката можете да ја подигнете во продавницата на <a href={STORE_MAPS_URL} target="_blank" rel="noopener noreferrer">{STORE_ADDRESS}</a>.
         Тогаш нема трошок за достава.
       </p>
 
       <h2 id="exchange">Замена</h2>
-      <p>Ако големината или кројот не ти одговараат, производот може да го замениш:</p>
+      <p>Ако големината или кројот не ви одговараат, производот можете да го замените:</p>
       <ul>
-        <li>Замената пријави ја <strong>во првите {EXCHANGE_REPORT_HOURS} часа</strong> откако ќе ја примиш или подигнеш нарачката. Напиши ни го бројот на нарачката и што сакаш да замениш.</li>
-        <li>Кога ќе ја одобриме, производот ни го праќаш по карго, <strong>најдоцна {EXCHANGE_WINDOW_DAYS} дена</strong> од приемот.</li>
-        <li>Ние го заменуваме и ти го враќаме.</li>
-        <li><strong>Трошоците за двете пратки ги плаќаш ти.</strong></li>
+        <li>Замената пријавете ја <strong>во првите {EXCHANGE_REPORT_HOURS} часа</strong> откако ќе ја примите или подигнете нарачката. Напишете ни го бројот на нарачката и што сакате да замените.</li>
+        <li>Кога ќе ја одобриме, производот ни го праќате по карго, <strong>најдоцна {EXCHANGE_WINDOW_DAYS} дена</strong> од приемот.</li>
+        <li>Ние го заменуваме и ви го враќаме.</li>
+        <li><strong>Трошоците за двете пратки ги плаќате вие.</strong></li>
         <li>Пари не враќаме, правиме само замена.</li>
       </ul>
 

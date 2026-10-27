@@ -30,9 +30,9 @@ function layout(body: string, button: { label: string; href: string } | null, fo
 </div></body></html>`;
 }
 
-const NOTICE_FOOTER = `Ова е известување за твојот профил на <a href="${SITE}/account" style="color:#78716c">marshal.mk</a>.`;
+const NOTICE_FOOTER = `Ова е известување за вашиот профил на <a href="${SITE}/account" style="color:#78716c">marshal.mk</a>.`;
 const offerFooter = (unsubscribe: string) =>
-  `Ја добиваш оваа порака затоа што сакаше понуди од Маршал. <a href="${unsubscribe}" style="color:#78716c">Не сакам понуди</a>.`;
+  `Ја добивате оваа порака затоа што сакавте понуди од Маршал. <a href="${unsubscribe}" style="color:#78716c">Не сакам понуди</a>.`;
 
 const hi = (name: string) => (name ? `Здраво ${name},` : 'Здраво,');
 /** A code read off a phone: kept on one line. */
@@ -41,31 +41,31 @@ const code = (c: string) => `<strong style="white-space:nowrap">${c}</strong>`;
 export function welcomeEmail(a: { firstName: string; couponCode: string; pct: number; until: Date; minBasket: number }): Rendered {
   const basket = a.minBasket > 0 ? `, за кошничка од ${mkDen(a.minBasket)}` : '';
   return {
-    subject: `Добредојде во Маршал: −${mkNumber(a.pct)}% за прва нарачка`,
+    subject: `Добредојдовте во Маршал: −${mkNumber(a.pct)}% за прва нарачка`,
     html: layout(
       `<p>${hi(a.firstName)}</p>
-       <p>Ти благодариме што отвори профил. Еве подарок за првата нарачка:</p>
+       <p>Ви благодариме што отворивте профил. Еве подарок за првата нарачка:</p>
        <p style="font-size:22px;font-weight:bold;letter-spacing:2px;margin:12px 0;white-space:nowrap">${a.couponCode}</p>
-       <p>−${mkNumber(a.pct)}% попуст, важи до ${mkDate(a.until)}${basket}. Со секоја нарачка собираш и поени.</p>`,
+       <p>−${mkNumber(a.pct)}% попуст, важи до ${mkDate(a.until)}${basket}. Со секоја нарачка собирате и поени.</p>`,
       { label: 'Кон продавницата', href: SITE },
       NOTICE_FOOTER,
     ),
-    text: `${hi(a.firstName)}\n\nТи благодариме што отвори профил. Подарок за првата нарачка: купон ${a.couponCode}, −${mkNumber(a.pct)}%, важи до ${mkDate(a.until)}${basket}.\n\n${SITE}`,
+    text: `${hi(a.firstName)}\n\nВи благодариме што отворивте профил. Подарок за првата нарачка: купон ${a.couponCode}, −${mkNumber(a.pct)}%, важи до ${mkDate(a.until)}${basket}.\n\n${SITE}`,
   };
 }
 
 export function pointsExpiringEmail(a: { firstName: string; points: number; until: Date; last: boolean }): Rendered {
   const when = mkDate(a.until);
   return {
-    subject: a.last ? `Твоите ${mkNumber(a.points)} поени истекуваат на ${when}` : `${mkNumber(a.points)} поени истекуваат за еден месец`,
+    subject: a.last ? `Вашите ${mkNumber(a.points)} поени истекуваат на ${when}` : `${mkNumber(a.points)} поени истекуваат за еден месец`,
     html: layout(
       `<p>${hi(a.firstName)}</p>
-       <p>Имаш <strong>${mkNumber(a.points)} поени</strong> (= ${mkDen(a.points)} попуст) што истекуваат на <strong>${when}</strong>.</p>
-       <p>${a.last ? 'Ова е последниот потсетник.' : 'Искористи ги на следната нарачка: на наплатата избираш колку поени да потрошиш.'}</p>`,
+       <p>Имате <strong>${mkNumber(a.points)} поени</strong> (= ${mkDen(a.points)} попуст) што истекуваат на <strong>${when}</strong>.</p>
+       <p>${a.last ? 'Ова е последниот потсетник.' : 'Искористете ги на следната нарачка: на наплатата избирате колку поени да потрошите.'}</p>`,
       { label: 'Мои поени', href: `${SITE}/account?tab=points` },
       NOTICE_FOOTER,
     ),
-    text: `${hi(a.firstName)}\n\nИмаш ${mkNumber(a.points)} поени што истекуваат на ${when}. Искористи ги на следната нарачка.\n\n${SITE}/account?tab=points`,
+    text: `${hi(a.firstName)}\n\nИмате ${mkNumber(a.points)} поени што истекуваат на ${when}. Искористете ги на следната нарачка.\n\n${SITE}/account?tab=points`,
   };
 }
 
@@ -74,11 +74,11 @@ export function couponExpiringEmail(a: { firstName: string; code: string; what: 
     subject: `Купонот ${a.code} истекува на ${mkDate(a.until)}`,
     html: layout(
       `<p>${hi(a.firstName)}</p>
-       <p>Твојот купон ${code(a.code)} (${a.what}) истекува на <strong>${mkDate(a.until)}</strong>.</p>`,
+       <p>Вашиот купон ${code(a.code)} (${a.what}) истекува на <strong>${mkDate(a.until)}</strong>.</p>`,
       { label: 'Мои купони', href: `${SITE}/account?tab=coupons` },
       NOTICE_FOOTER,
     ),
-    text: `${hi(a.firstName)}\n\nТвојот купон ${a.code} (${a.what}) истекува на ${mkDate(a.until)}.\n\n${SITE}/account?tab=coupons`,
+    text: `${hi(a.firstName)}\n\nВашиот купон ${a.code} (${a.what}) истекува на ${mkDate(a.until)}.\n\n${SITE}/account?tab=coupons`,
   };
 }
 
@@ -93,11 +93,11 @@ export function birthdayEmail(a: {
     subject: `Среќен роденден${a.firstName ? `, ${a.firstName}` : ''}! Подарок од Маршал`,
     html: layout(
       `<p>${hi(a.firstName)}</p>
-       <p>Среќен роденден од сите нас во Маршал! Ти оставивме подарок на профилот: ${gifts.join(' и ')}.</p>`,
-      { label: 'Види го подарокот', href: `${SITE}/account` },
+       <p>Среќен роденден од сите нас во Маршал! Ви оставивме подарок на профилот: ${gifts.join(' и ')}.</p>`,
+      { label: 'Видете го подарокот', href: `${SITE}/account` },
       offerFooter(a.unsubscribe),
     ),
-    text: `${hi(a.firstName)}\n\nСреќен роденден од Маршал! Подарок на твојот профил.\n\n${SITE}/account\n\nНе сакам понуди: ${a.unsubscribe}`,
+    text: `${hi(a.firstName)}\n\nСреќен роденден од Маршал! Подарок на вашиот профил.\n\n${SITE}/account\n\nНе сакам понуди: ${a.unsubscribe}`,
   };
 }
 
@@ -215,12 +215,12 @@ export function orderConfirmationEmail(o: NewOrderMail): Rendered {
   const policy = `${SITE}${POLICIES.delivery.path}`;
 
   const next = pickup
-    ? 'Ќе те контактираме кога нарачката ќе биде спремна за подигање.'
-    : 'Наскоро ќе те контактираме за да ја потврдиме доставата.';
+    ? 'Ќе ве контактираме кога нарачката ќе биде спремна за подигање.'
+    : 'Наскоро ќе ве контактираме за да ја потврдиме доставата.';
   const delivery = o.shipping > 0 ? `со доставата од ${mkDen(o.shipping)}` : 'доставата е бесплатна';
   const pay = pickup
-    ? `Плаќаш во продавницата, кога ќе ја подигнеш нарачката: ${STORE_ADDRESS}.`
-    : `Плаќаш во готово на курирот, кога ќе ја примиш пратката. Достава до: ${c.city}.`;
+    ? `Плаќате во продавницата, кога ќе ја подигнете нарачката: ${STORE_ADDRESS}.`
+    : `Плаќате во готово на курирот, кога ќе ја примите пратката. Достава до: ${c.city}.`;
 
   const rows = o.items.map((i) =>
     `<tr>
@@ -231,38 +231,38 @@ export function orderConfirmationEmail(o: NewOrderMail): Rendered {
   const html = layout(
     `${o.test ? '<p style="background:#fef3c7;border-radius:6px;padding:8px 10px;margin:0 0 12px;font-size:13px">Ова е проба од Админ → Поставки: вака изгледа пораката што ја добива купувачот.</p>' : ''}
      <p>${hi(esc(c.firstName))}</p>
-     <p>Ти благодариме! Ја примивме твојата нарачка. ${next}</p>
+     <p>Ви благодариме! Ја примивме вашата нарачка. ${next}</p>
      <p style="margin:16px 0 0;font-size:13px;color:#57534e">Број на нарачка</p>
      <p style="margin:0;font-size:20px;font-weight:bold;letter-spacing:1px;white-space:nowrap">${esc(o.orderNumber)}</p>
-     <p style="margin:4px 0 16px;font-size:13px;color:#57534e">Чувај го: со него и со твојот телефон ја следиш нарачката.</p>
+     <p style="margin:4px 0 16px;font-size:13px;color:#57534e">Чувајте го: со него и со вашиот телефон ја следите нарачката.</p>
      <table style="width:100%;border-collapse:collapse;font-size:14px">${rows}</table>
      <p style="margin:12px 0 0"><strong>За плаќање: ${mkDen(o.total)}</strong>${pickup ? '' : ` <span style="color:#57534e;font-size:13px">(${delivery})</span>`}</p>
      <p style="margin:4px 0 0;font-size:14px">${esc(pay)}</p>
-     ${o.member ? `<p style="margin:12px 0 0;font-size:14px">Нарачката ја гледаш и во <a href="${SITE}/account?tab=orders" style="color:#1c1917">твојот профил</a>.</p>` : ''}`,
-    { label: 'Следи ја нарачката', href: track },
-    `Ја добиваш оваа порака затоа што нарача на marshal.mk. За прашање или замена, одговори на оваа порака. <a href="${policy}" style="color:#78716c">${POLICIES.delivery.title}</a>.`,
+     ${o.member ? `<p style="margin:12px 0 0;font-size:14px">Нарачката ја гледате и во <a href="${SITE}/account?tab=orders" style="color:#1c1917">вашиот профил</a>.</p>` : ''}`,
+    { label: 'Следете ја нарачката', href: track },
+    `Ја добивате оваа порака затоа што нарачавте на marshal.mk. За прашање или замена, одговорете на оваа порака. <a href="${policy}" style="color:#78716c">${POLICIES.delivery.title}</a>.`,
   );
 
   const text = [
     `${prefix}${hi(c.firstName)}`,
     '',
-    `Ти благодариме! Ја примивме твојата нарачка. ${next}`,
+    `Ви благодариме! Ја примивме вашата нарачка. ${next}`,
     '',
     `Број на нарачка: ${o.orderNumber}`,
-    'Чувај го: со него и со твојот телефон ја следиш нарачката.',
+    'Чувајте го: со него и со вашиот телефон ја следите нарачката.',
     '',
     ...o.items.map((i) => `${i.productName}${i.size ? ` (${i.size})` : ''} × ${i.quantity}`),
     '',
     `За плаќање: ${mkDen(o.total)}${pickup ? '' : ` (${delivery})`}`,
     pay,
     '',
-    `Следи ја нарачката: ${track}`,
+    `Следете ја нарачката: ${track}`,
     `${POLICIES.delivery.title}: ${policy}`,
-    'За прашање или замена, одговори на оваа порака.',
+    'За прашање или замена, одговорете на оваа порака.',
   ].join('\n');
 
   return {
-    subject: `${prefix}Ја примивме твојата нарачка ${o.orderNumber}`,
+    subject: `${prefix}Ја примивме вашата нарачка ${o.orderNumber}`,
     html,
     text,
   };

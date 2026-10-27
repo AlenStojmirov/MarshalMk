@@ -28,19 +28,19 @@ Authentication → **Email Templates**. `{{ .ConfirmationURL }}` го попол
 
 ### Confirm signup
 
-**Subject:** `Потврди го профилот на Маршал`
+**Subject:** `Потврдете го профилот на Маршал`
 
 ```html
 <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1c1917;">
-  <h2 style="margin-bottom: 8px;">Добредојде во Маршал</h2>
-  <p>Кликни на копчето за да ја потврдиш е-поштата. Потоа се најавуваш и собираш поени со секоја нарачка.</p>
+  <h2 style="margin-bottom: 8px;">Добредојдовте во Маршал</h2>
+  <p>Кликнете на копчето за да ја потврдите е-поштата. Потоа се најавувате и собирате поени со секоја нарачка.</p>
   <p style="margin: 28px 0;">
     <a href="{{ .ConfirmationURL }}"
        style="background: #1c1917; color: #ffffff; padding: 12px 22px; border-radius: 8px; text-decoration: none; font-weight: bold;">
-      Потврди ја е-поштата
+      Потврдете ја е-поштата
     </a>
   </p>
-  <p style="font-size: 13px; color: #57534e;">Ако не си отворил профил на marshal.mk, игнорирај ја оваа порака.</p>
+  <p style="font-size: 13px; color: #57534e;">Ако не сте отвориле профил на marshal.mk, игнорирајте ја оваа порака.</p>
 </div>
 ```
 
@@ -51,14 +51,14 @@ Authentication → **Email Templates**. `{{ .ConfirmationURL }}` го попол
 ```html
 <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1c1917;">
   <h2 style="margin-bottom: 8px;">Нова лозинка</h2>
-  <p>Некој побара нова лозинка за твојот профил на marshal.mk. Кликни на копчето и постави ја.</p>
+  <p>Некој побара нова лозинка за вашиот профил на marshal.mk. Кликнете на копчето и поставете ја.</p>
   <p style="margin: 28px 0;">
     <a href="{{ .ConfirmationURL }}"
        style="background: #1c1917; color: #ffffff; padding: 12px 22px; border-radius: 8px; text-decoration: none; font-weight: bold;">
-      Постави нова лозинка
+      Поставете нова лозинка
     </a>
   </p>
-  <p style="font-size: 13px; color: #57534e;">Ако не си барал нова лозинка, игнорирај ја оваа порака. Старата лозинка останува.</p>
+  <p style="font-size: 13px; color: #57534e;">Ако не сте барале нова лозинка, игнорирајте ја оваа порака. Старата лозинка останува.</p>
 </div>
 ```
 

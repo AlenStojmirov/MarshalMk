@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Тркало на среќа',
-  description: 'Заврти го тркалото на Маршал: секое вртење добива награда — поени, попуст или бесплатна достава.',
+  description: 'Завртете го тркалото на Маршал: секое вртење добива награда — поени, попуст или бесплатна достава.',
   alternates: { canonical: 'https://marshal.mk/wheel' },
 };
 

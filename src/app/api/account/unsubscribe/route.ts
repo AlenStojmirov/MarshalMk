@@ -22,10 +22,10 @@ export async function GET(req: NextRequest) {
   const u = req.nextUrl.searchParams.get('u') ?? '';
   const t = req.nextUrl.searchParams.get('t') ?? '';
   if (!/^[0-9a-f-]{36}$/i.test(u) || !t || !verifyUnsubscribe(u, t)) {
-    return page('Линкот не важи', 'Понудите можеш да ги исклучиш и во својот профил, под „Профил“.', 400);
+    return page('Линкот не важи', 'Понудите можете да ги исклучите и во својот профил, под „Профил“.', 400);
   }
   const sb = getSupabaseAdmin();
   const { data } = await sb.from(CUSTOMERS).update({ marketing_consent: false }).eq('user_id', u).eq('marketing_consent', true).select('user_id');
   if (data && data.length) await logConsents(u, [{ kind: 'marketing', version: null, granted: false }]).catch(() => {});
-  return page('Се одјави од понудите', 'Повеќе нема да ти праќаме понуди. Известувањата за твоите поени и купони ќе стигнуваат и понатаму.');
+  return page('Се одјавивте од понудите', 'Повеќе нема да ви праќаме понуди. Известувањата за вашите поени и купони ќе стигнуваат и понатаму.');
 }
