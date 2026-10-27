@@ -145,6 +145,12 @@ function computeFilterMeta(products: Product[]): PaginatedResult['filterMeta'] {
   return { priceRange, availableSizes };
 }
 
+/**
+ * The product page's product (/product/{id}). A hidden one is null, so a direct
+ * link to it is a 404 like a deleted one (14.7); the back office reads its own
+ * way. A sold-out one is returned on purpose: an old link from Instagram lands
+ * on "нема на залиха" and similar products rather than on a 404.
+ */
 export async function getProductById(id: string): Promise<Product | null> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
@@ -156,8 +162,11 @@ export async function getProductById(id: string): Promise<Product | null> {
   if (error) throw error;
   if (!data) return null;
 
+  const product = rowToProduct(data as ProductRow);
+  if (product.isVisible === false) return null;
+
   const imageMap = getProductImageMap();
-  return enrichWithLocalImages(rowToProduct(data as ProductRow), imageMap);
+  return enrichWithLocalImages(product, imageMap);
 }
 
 export async function fetchAllVisibleProducts(): Promise<Product[]> {
