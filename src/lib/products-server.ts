@@ -12,9 +12,12 @@ const PRODUCTS_PER_PAGE = 12;
  * handed to client components, so whatever is selected here is in the page's
  * HTML: `select('*')` put every product's `sold[]` (size, price charged, date,
  * the giveaways at 0) on the product, category, /new and /sale pages.
+ *
+ * The attributes are embedded the way the view's `attributes` column carries
+ * them (migration 023): the storefront's titles are written from them (9.7).
  */
 const PUBLIC_COLUMNS =
-  'id, name, description, price, category, image_url, images, stock, sizes, brand, color, featured, is_visible, sale, created_at, updated_at';
+  'id, name, description, price, category, image_url, images, stock, sizes, brand, color, featured, is_visible, sale, created_at, updated_at, product_attributes(composition, color, pattern, fit, size_advice, details, measurements)';
 
 function enrichWithLocalImages(product: Product, imageMap: ProductImageMap): Product {
   const localImages = imageMap[product.id];

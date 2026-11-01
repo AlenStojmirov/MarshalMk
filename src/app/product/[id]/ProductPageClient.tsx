@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Minus, Plus, ShoppingCart } from 'lucide-react';
 import { useProductsByCategory } from '@/hooks/useProducts';
 import { useCart } from '@/context/CartContext';
-import { getProductDisplayName } from '@/lib/product-display';
+import { productTitle } from '@/lib/product-display';
 import { useState } from 'react';
 import { useTranslation } from '@/lib/i18n';
 import ProductGrid from '@/components/ProductGrid';
@@ -98,7 +98,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
           {/* ─── Left Column: Product Images ─── */}
           <ProductImageGallery
             images={allImages}
-            alt={getProductDisplayName(product.name, product.category, product.brand, language)}
+            alt={productTitle(product, language)}
             featured={product.featured}
             featuredLabel={t('common.featured')}
             noImageLabel={t('common.noImage')}
@@ -126,7 +126,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
             </button>
             {/* Product Name */}
             <h1 className="text-2xl md:text-3xl font-light text-stone-900 leading-tight mb-4">
-              {getProductDisplayName(product.name, product.category, product.brand, language)}
+              {productTitle(product, language)}
             </h1>
 
             {/* Category */}

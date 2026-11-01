@@ -17,6 +17,7 @@ import { cancelOrderPoints, creditPoints, redeemPoints } from '@/lib/points';
 import { confirmOrderToCustomer, notifyShopOfOrder } from '@/lib/order-notify-server';
 import type { OrderLoyalty } from '@/types';
 import { apiSay, requestLanguage } from '@/lib/i18n/messages';
+import { productTitle } from '@/lib/product-display';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -115,6 +116,7 @@ export async function POST(request: NextRequest) {
   const items = body.items as Array<{
     productId: string;
     productName: string;
+    productCode?: string;
     productImage: string;
     price: number;
     originalPrice?: number;
@@ -233,7 +235,10 @@ export async function POST(request: NextRequest) {
       const product = sq.products.get(item.productId)!.product;
       return {
         productId: item.productId,
-        productName: product.name,
+        // The title the customer saw, in Macedonian like the e-mails (9.7), and
+        // the code the back office finds the product by.
+        productName: productTitle(product, 'mk'),
+        productCode: product.name,
         productImage: item.productImage,
         price: Math.round((line.toPay / line.quantity) * 100) / 100,
         originalPrice: product.price,
@@ -356,6 +361,7 @@ export async function POST(request: NextRequest) {
       items: orderItems.map((item) => ({
         productId: item.productId,
         productName: item.productName,
+        ...(item.productCode ? { productCode: item.productCode } : {}),
         productImage: item.productImage,
         price: item.price,
         ...(typeof item.originalPrice === 'number' && item.originalPrice > item.price

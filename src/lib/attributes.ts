@@ -285,6 +285,10 @@ export const DETAIL_FIELDS: Record<string, DetailField> = {
   hood:       { label: 'Качулка' },
   waterproof: { label: 'Водоотпорна' },
   reversible: { label: 'Двостран (со две лица)' },
+  // Task 9.7: what tells one jacket from another — the biggest group of same titles.
+  jacketType: { label: 'Тип', options: { puffer: 'пуфер (надуена)', quilted: 'штепана', bomber: 'бомбер', parka: 'парка', denim: 'џинс', leather: 'кожна (и вештачка кожа)', coat: 'палто', shacket: 'кошула-јакна', softshell: 'софтшел' } },
+  // Task 9.7: the weave or cloth a shirt or a pair of trousers is known by.
+  fabric:     { label: 'Ткаенина', options: { oxford: 'оксфорд', poplin: 'поплин', flannel: 'фланел', corduroy: 'кадифе (ребрасто)', denim: 'џинс', satin: 'сатен', muslin: 'муслин', chino: 'чино (кепер)' } },
   origin:     { label: 'Земја на производство', options: { TR: 'Турција', MK: 'Македонија', IT: 'Италија', PT: 'Португалија', CN: 'Кина', BD: 'Бангладеш', PK: 'Пакистан', IN: 'Индија' } },
 };
 
@@ -317,6 +321,8 @@ export const MEASURES: Record<string, Measure> = {
 export interface CategoryTemplate {
   /** Singular noun for a title — "Кошула", "Фармерки" (plural-only). */
   noun: string;
+  /** The same in the English storefront's titles (D-039). */
+  nounEn: string;
   gender: Gender;
   fits: string[];
   details: string[];
@@ -336,33 +342,33 @@ const LEG_FITS = ['skinny', 'slim', 'straight', 'relaxed', 'wide', 'baggy'];
  * the two the report groups miss (`dzemper`, `kosula`). `vaucer` is not clothing.
  */
 export const CATEGORY_TEMPLATES: Record<string, CategoryTemplate> = {
-  tShirts:           { noun: 'Маица',             gender: 'f',  fits: TOP_FITS, details: ['neckline', 'sleeve', 'weight', 'origin'], measures: TEE },
-  oversizeTshirts:   { noun: 'Оверсајз маица',    gender: 'f',  fits: ['oversize'], details: ['neckline', 'sleeve', 'weight', 'origin'], measures: TEE },
-  polos:             { noun: 'Поло маица',        gender: 'f',  fits: TOP_FITS, details: ['sleeve', 'weight', 'origin'], measures: TEE },
-  shirts:            { noun: 'Кошула',            gender: 'f',  fits: TOP_FITS, details: ['sleeve', 'collar', 'origin'], measures: TOP },
-  shortSleevedShirt: { noun: 'Кошула',            gender: 'f',  fits: TOP_FITS, details: ['sleeve', 'collar', 'origin'], measures: TEE },
-  blouses:           { noun: 'Блуза',             gender: 'f',  fits: TOP_FITS, details: ['neckline', 'weight', 'origin'], measures: TOP },
-  turtleNecks:       { noun: 'Ролка',             gender: 'f',  fits: TOP_FITS, details: ['weight', 'origin'], measures: TOP },
-  halfZips:          { noun: 'Полу зипер',        gender: 'm',  fits: TOP_FITS, details: ['weight', 'origin'], measures: TOP },
-  fullZips:          { noun: 'Зипер',             gender: 'm',  fits: TOP_FITS, details: ['hood', 'weight', 'origin'], measures: TOP },
-  hoodies:           { noun: 'Дуксер',            gender: 'm',  fits: TOP_FITS, details: ['hood', 'closure', 'weight', 'origin'], measures: TOP },
-  cardigans:         { noun: 'Кардиган',          gender: 'm',  fits: TOP_FITS, details: ['closure', 'weight', 'origin'], measures: TOP },
-  dzemper:           { noun: 'Џемпер',            gender: 'm',  fits: TOP_FITS, details: ['neckline', 'weight', 'origin'], measures: TOP },
-  jackets:           { noun: 'Јакна',             gender: 'f',  fits: TOP_FITS, details: ['closure', 'hood', 'lining', 'waterproof', 'reversible', 'weight', 'origin'], measures: TOP },
-  coats:             { noun: 'Капут',             gender: 'm',  fits: TOP_FITS, details: ['closure', 'lining', 'weight', 'origin'], measures: TOP },
-  vests:             { noun: 'Елек',              gender: 'm',  fits: TOP_FITS, details: ['closure', 'hood', 'lining', 'reversible', 'origin'], measures: ['chest', 'length', 'shoulders'] },
-  blazers:           { noun: 'Блејзер',           gender: 'm',  fits: ['slim', 'regular'], details: ['lining', 'origin'], measures: TOP },
-  suitJackets:       { noun: 'Сако',              gender: 'n',  fits: ['slim', 'regular'], details: ['lining', 'origin'], measures: TOP },
-  suits:             { noun: 'Одело',             gender: 'n',  fits: ['slim', 'regular'], details: ['lining', 'origin'], measures: [...TOP, 'waist', 'inseam'] },
-  jeans:             { noun: 'Фармерки',          gender: 'pl', fits: LEG_FITS, details: ['legLength', 'rise', 'origin'], measures: BOTTOM },
-  shortsJeans:       { noun: 'Шорцеви',           gender: 'pl', fits: ['slim', 'regular', 'relaxed', 'baggy'], details: ['origin'], measures: SHORTS },
-  pants:             { noun: 'Панталони',         gender: 'pl', fits: LEG_FITS, details: ['legLength', 'rise', 'origin'], measures: BOTTOM },
-  cargoTrousers:     { noun: 'Карго панталони',   gender: 'pl', fits: LEG_FITS, details: ['legLength', 'origin'], measures: BOTTOM },
-  belts:             { noun: 'Ремен',             gender: 'm',  fits: [], details: ['origin'], measures: [] },
-  accessories:       { noun: 'Додаток',           gender: 'm',  fits: [], details: ['origin'], measures: [] },
+  tShirts:           { noun: 'Маица',             nounEn: 'T-shirt', gender: 'f',  fits: TOP_FITS, details: ['neckline', 'sleeve', 'weight', 'origin'], measures: TEE },
+  oversizeTshirts:   { noun: 'Оверсајз маица',    nounEn: 'Oversized T-shirt', gender: 'f',  fits: ['oversize'], details: ['neckline', 'sleeve', 'weight', 'origin'], measures: TEE },
+  polos:             { noun: 'Поло маица',        nounEn: 'Polo shirt', gender: 'f',  fits: TOP_FITS, details: ['sleeve', 'weight', 'origin'], measures: TEE },
+  shirts:            { noun: 'Кошула',            nounEn: 'Shirt', gender: 'f',  fits: TOP_FITS, details: ['sleeve', 'collar', 'fabric', 'origin'], measures: TOP },
+  shortSleevedShirt: { noun: 'Кошула',            nounEn: 'Shirt', gender: 'f',  fits: TOP_FITS, details: ['sleeve', 'collar', 'fabric', 'origin'], measures: TEE },
+  blouses:           { noun: 'Блуза',             nounEn: 'Long-sleeve top', gender: 'f',  fits: TOP_FITS, details: ['neckline', 'weight', 'origin'], measures: TOP },
+  turtleNecks:       { noun: 'Ролка',             nounEn: 'Roll-neck', gender: 'f',  fits: TOP_FITS, details: ['weight', 'origin'], measures: TOP },
+  halfZips:          { noun: 'Полу зипер',        nounEn: 'Half-zip jumper', gender: 'm',  fits: TOP_FITS, details: ['weight', 'origin'], measures: TOP },
+  fullZips:          { noun: 'Зипер',             nounEn: 'Zip-up jumper', gender: 'm',  fits: TOP_FITS, details: ['hood', 'weight', 'origin'], measures: TOP },
+  hoodies:           { noun: 'Дуксер',            nounEn: 'Sweatshirt', gender: 'm',  fits: TOP_FITS, details: ['hood', 'closure', 'weight', 'origin'], measures: TOP },
+  cardigans:         { noun: 'Кардиган',          nounEn: 'Cardigan', gender: 'm',  fits: TOP_FITS, details: ['closure', 'weight', 'origin'], measures: TOP },
+  dzemper:           { noun: 'Џемпер',            nounEn: 'Jumper', gender: 'm',  fits: TOP_FITS, details: ['neckline', 'weight', 'origin'], measures: TOP },
+  jackets:           { noun: 'Јакна',             nounEn: 'Jacket', gender: 'f',  fits: TOP_FITS, details: ['jacketType', 'closure', 'hood', 'lining', 'waterproof', 'reversible', 'weight', 'origin'], measures: TOP },
+  coats:             { noun: 'Капут',             nounEn: 'Coat', gender: 'm',  fits: TOP_FITS, details: ['closure', 'lining', 'weight', 'origin'], measures: TOP },
+  vests:             { noun: 'Елек',              nounEn: 'Gilet', gender: 'm',  fits: TOP_FITS, details: ['jacketType', 'closure', 'hood', 'lining', 'reversible', 'origin'], measures: ['chest', 'length', 'shoulders'] },
+  blazers:           { noun: 'Блејзер',           nounEn: 'Blazer', gender: 'm',  fits: ['slim', 'regular'], details: ['lining', 'origin'], measures: TOP },
+  suitJackets:       { noun: 'Сако',              nounEn: 'Suit jacket', gender: 'n',  fits: ['slim', 'regular'], details: ['lining', 'origin'], measures: TOP },
+  suits:             { noun: 'Одело',             nounEn: 'Suit', gender: 'n',  fits: ['slim', 'regular'], details: ['lining', 'origin'], measures: [...TOP, 'waist', 'inseam'] },
+  jeans:             { noun: 'Фармерки',          nounEn: 'Jeans', gender: 'pl', fits: LEG_FITS, details: ['legLength', 'rise', 'origin'], measures: BOTTOM },
+  shortsJeans:       { noun: 'Шорцеви',           nounEn: 'Shorts', gender: 'pl', fits: ['slim', 'regular', 'relaxed', 'baggy'], details: ['fabric', 'origin'], measures: SHORTS },
+  pants:             { noun: 'Панталони',         nounEn: 'Trousers', gender: 'pl', fits: LEG_FITS, details: ['fabric', 'legLength', 'rise', 'origin'], measures: BOTTOM },
+  cargoTrousers:     { noun: 'Карго панталони',   nounEn: 'Cargo trousers', gender: 'pl', fits: LEG_FITS, details: ['legLength', 'origin'], measures: BOTTOM },
+  belts:             { noun: 'Ремен',             nounEn: 'Belt', gender: 'm',  fits: [], details: ['origin'], measures: [] },
+  accessories:       { noun: 'Додаток',           nounEn: 'Accessory', gender: 'm',  fits: [], details: ['origin'], measures: [] },
 };
 
 /** Template for a raw category; unknown ones get a bare template rather than nothing. */
 export function templateOf(category: string): CategoryTemplate {
-  return CATEGORY_TEMPLATES[category] ?? { noun: category, gender: 'm', fits: Object.keys(FITS), details: ['origin'], measures: [] };
+  return CATEGORY_TEMPLATES[category] ?? { noun: category, nounEn: category, gender: 'm', fits: Object.keys(FITS), details: ['origin'], measures: [] };
 }

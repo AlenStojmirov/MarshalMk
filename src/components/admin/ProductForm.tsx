@@ -373,9 +373,9 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
                 const suggested = generateTitle(formData.category, attrs);
                 return (
                   <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Предлог наслов · само преглед, сајтот уште го користи стариот</p>
-                    <p className="text-sm font-semibold text-slate-800">{suggested.title}</p>
-                    {suggested.missing.length > 0 && <p className="text-xs text-amber-700">за подобар наслов фали: {suggested.missing.join(', ')}</p>}
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Наслов на сајтот · се пишува сам од податоците подолу</p>
+                    <p className={`text-sm font-semibold ${suggested.missing.length ? 'text-slate-400' : 'text-slate-800'}`}>{suggested.title}</p>
+                    {suggested.missing.length > 0 && <p className="text-xs text-amber-700">Додека фали {suggested.missing.join(' и ')}, сајтот го покажува стариот наслов со шифрата.</p>}
                   </div>
                 );
               })()}

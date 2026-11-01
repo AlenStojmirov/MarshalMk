@@ -1,10 +1,9 @@
 'use client';
 
 /**
- * Old title next to the generated one, for every product (Task 9.6).
- *
- * PREVIEW. The storefront still shows getProductDisplayName() — "Кошули -
- * #BT045" — and will until the owner decides on Task 9.7. Nothing here writes.
+ * The code next to the title the storefront writes for it (Task 9.6, live
+ * since 9.7), for every product with stock. Nothing here writes: a title
+ * changes when the product's attributes do.
  */
 
 import { useMemo, useState } from 'react';
@@ -39,15 +38,16 @@ export default function TitlePreview({ items }: { items: Array<{ p: Product; a: 
   return (
     <div>
       <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-        <strong>Само преглед.</strong> Сајтот и понатаму ги прикажува старите наслови. Ништо не се менува додека не одлучиш
-        (картичка 9.7). Насловот се составува сам од категоријата, составот, бојата, кројот и деталите — без бренд.
+        <strong>Насловите на сајтот се пишуваат сами</strong> од категоријата, бојата, кројот, составот и деталите, без бренд (9.7).
+        Шифрата останува само во админот. Производ без боја или крој го задржува стариот наслов „Кошули - #BT045“.
+        Ако два производа имаат ист наслов, пополни го она што ги разликува: тип кај јакна, ткаенина или шара кај кошула, изрез и дебелина кај блуза.
       </div>
 
       <div className="flex flex-wrap gap-2 mb-3">
         {([
           ['all', `Сите · ${items.length}`],
           ['complete', `Готов наслов · ${counts.complete}`],
-          ['incomplete', `Фали податок · ${counts.incomplete}`],
+          ['incomplete', `Фали боја или крој · ${counts.incomplete}`],
           ['twins', `Ист наслов · ${counts.twins}`],
         ] as Array<[Filter, string]>).map(([k, label]) => (
           <button
@@ -63,9 +63,9 @@ export default function TitlePreview({ items }: { items: Array<{ p: Product; a: 
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
         <div className="hidden md:grid grid-cols-[minmax(10rem,0.8fr)_minmax(14rem,1.4fr)_minmax(14rem,1.4fr)] gap-4 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-          <span>Сега на сајтот</span>
-          <span>Нов наслов</span>
-          <span>Нов опис</span>
+          <span>Шифра</span>
+          <span>Наслов на сајтот</span>
+          <span>Опис (9.9)</span>
         </div>
         {shown.slice(0, 300).map(({ p, a }) => {
           const t = titles.get(p.id)!;
@@ -74,17 +74,17 @@ export default function TitlePreview({ items }: { items: Array<{ p: Product; a: 
             <div key={p.id} className="grid grid-cols-1 md:grid-cols-[minmax(10rem,0.8fr)_minmax(14rem,1.4fr)_minmax(14rem,1.4fr)] gap-2 md:gap-4 px-4 py-3">
               <div className="min-w-0">
                 <Link href={`/admin/product/${p.id}`} className="text-sm text-slate-500 hover:text-blue-600 truncate block">
-                  {getProductDisplayName(p.name, p.category, p.brand)}
+                  {p.name || p.id}
                 </Link>
               </div>
               <div className="min-w-0">
                 <p className={`text-sm font-semibold ${t.missing.length ? 'text-slate-400' : 'text-slate-900'}`}>{t.title}</p>
                 {t.missing.length > 0 && (
-                  <p className="text-xs text-amber-700 mt-0.5">фали: {t.missing.join(', ')}</p>
+                  <p className="text-xs text-amber-700 mt-0.5">фали: {t.missing.join(', ')} · на сајтот: {getProductDisplayName(p.name, p.category, p.brand, 'mk')}</p>
                 )}
                 {!t.missing.length && t.twins.length > 0 && (
                   <p className="text-xs text-rose-700 mt-0.5">
-                    ист наслов како {t.twins.map((id) => byId.get(id)?.name || id).join(', ')} — додади шара, детал или материјал
+                    ист наслов како {t.twins.map((id) => byId.get(id)?.name || id).join(', ')} — додади тип, ткаенина, шара или изрез
                   </p>
                 )}
               </div>

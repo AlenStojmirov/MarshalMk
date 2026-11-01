@@ -332,6 +332,8 @@ function OrderCard({
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 truncate text-sm sm:text-base">
                       {item.productName}
+                      {/* The code staff find it by on the shelf (9.7); older orders carry it as the name. */}
+                      {item.productCode && <span className="ml-2 text-xs font-normal text-gray-500">{item.productCode}</span>}
                     </p>
                     <p className="text-xs sm:text-sm text-gray-500">
                       {item.price.toFixed(2)} ден. x {item.quantity}

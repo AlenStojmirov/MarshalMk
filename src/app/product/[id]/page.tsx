@@ -1,7 +1,8 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getProductById } from '@/lib/products-server';
-import { getProductDisplayName, getCategoryLabel } from '@/lib/product-display';
+import { productTitle, getCategoryLabel } from '@/lib/product-display';
+import { generateDescription } from '@/lib/product-title';
 import { productShare, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from '@/lib/share-preview';
 import { jsonLd } from '@/lib/json-ld';
 import ProductPageClient from './ProductPageClient';
@@ -18,22 +19,17 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     return { title: 'Страната не постои' };
   }
 
-  const displayName = getProductDisplayName(product.name, product.category, product.brand);
-  const categoryLabel = getCategoryLabel(product.category);
-  const title = `${displayName} — Men's ${categoryLabel}`;
-  const description =
-    product.description?.slice(0, 155) ||
-    `Shop ${displayName} in men's ${categoryLabel}. Premium quality, great prices. Free shipping available.`;
+  // Macedonian, like all page metadata (D-039): the written title (9.7), and
+  // the share card's line — material, sizes on the shelf, delivery — for search.
   const share = productShare(product);
 
   return {
-    title,
-    description,
+    title: productTitle(product),
+    description: share.description.slice(0, 160),
     alternates: {
       canonical: `/product/${id}`,
     },
-    // The share card (Task 10.8): Macedonian, with price, sizes on the shelf and
-    // delivery. Title and description above stay for search until 9.7.
+    // The share card (Task 10.8): the title with the price.
     openGraph: {
       title: share.title,
       description: share.description,
@@ -74,7 +70,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     updatedAt: toDate(product.updatedAt),
   };
 
-  const displayName = getProductDisplayName(product.name, product.category, product.brand);
+  const displayName = productTitle(product);
   const categoryLabel = getCategoryLabel(product.category);
   const categorySlug = product.category.toLowerCase().replace(/\s+/g, '-');
 
@@ -82,7 +78,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: displayName,
-    description: product.description,
+    description: product.attributes
+      ? generateDescription(product.category, product.attributes).join(' ') || product.description
+      : product.description,
     image: [product.imageUrl, ...(product.images || [])].filter(Boolean),
     category: `Men's ${categoryLabel}`,
     offers: {

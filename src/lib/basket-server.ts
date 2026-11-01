@@ -52,7 +52,8 @@ export interface BasketProduct {
 export async function readBasketProducts(sb: SupabaseClient, ids: string[]): Promise<Map<string, BasketProduct>> {
   const unique = [...new Set(ids)];
   const [products, costs] = await Promise.all([
-    sb.from('products').select('*').in('id', unique),
+    // The attributes too: the order keeps the title the customer saw (9.7).
+    sb.from('products').select('*, product_attributes(composition, color, pattern, fit, size_advice, details, measurements)').in('id', unique),
     sb.from('product_costs').select('product_id, purchase_price').in('product_id', unique),
   ]);
   if (products.error) throw new Error(products.error.message);

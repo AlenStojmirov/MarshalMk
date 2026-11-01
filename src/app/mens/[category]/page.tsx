@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import CategoryPageContent from '@/components/CategoryPageContent';
 import { fetchPaginatedProducts, parseSearchParams } from '@/lib/products-server';
-import { categoryForSlug, getCategoryLabel } from '@/lib/product-display';
+import { categoryForSlug, getCategoryLabel, productTitle } from '@/lib/product-display';
 import ProductGrid from '@/components/ProductGrid';
 import { jsonLd } from '@/lib/json-ld';
 
@@ -53,7 +53,7 @@ async function CategoryPageLoader({ params, searchParams }: CategoryPageProps) {
       '@type': 'ListItem',
       position: i + 1,
       url: `https://marshal.mk/product/${p.id}`,
-      name: p.name,
+      name: productTitle(p),
     })),
   };
 

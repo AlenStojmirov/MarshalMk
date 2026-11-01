@@ -1,5 +1,7 @@
 import brandCodesData from '@/config/brand-codes.json';
 import { TRANSLATIONS, type Language } from '@/lib/i18n/messages';
+import type { Product } from '@/types';
+import { generateTitle } from './product-title';
 
 const CATEGORY_LABELS: Record<string, string> = {
   vaucer: "Voucher",
@@ -81,7 +83,10 @@ export function categoryForSlug(slug: string): string | undefined {
  *
  * With `lang` (the storefront, D-039) the category is named in that language,
  * `categoryNames` in the translations: "Кошули - #BR023" / "Shirts - #BR023".
- * Without it, the English label above (the back office, labels, page titles until 9.7).
+ * Without it, the English label above.
+ *
+ * Since Task 9.7 the storefront calls productTitle() below, and this is what
+ * it falls back to; the back office keeps it, because staff know the codes.
  */
 export function getProductDisplayName(
   name: string,
@@ -98,4 +103,30 @@ export function getProductDisplayName(
   }
 
   return `#${brandCode}${name}`;
+}
+
+/**
+ * Task 9.7 (D-041): the storefront's titles are written from the attributes.
+ * `false` puts every storefront title back to "Кошули - #BR023" at once;
+ * nothing in the database is renamed either way.
+ */
+export const GENERATED_TITLES = true;
+
+/**
+ * The title a customer reads — the card, the product page, its <title> and
+ * JSON-LD, the cart, the order and its e-mails: "Тенка поло блуза, слим крој,
+ * црна" / "Long-sleeve polo, slim fit, black". Written from the product's
+ * attributes once it has its colour (and its cut, where the category has
+ * cuts); until then, or when the read did not bring the attributes (an old
+ * cart, a page read before migration 023), the old "Кошули - #BR023".
+ */
+export function productTitle(
+  product: Pick<Product, 'name' | 'category' | 'brand' | 'attributes'>,
+  lang: Language = 'mk',
+): string {
+  if (GENERATED_TITLES && product.attributes) {
+    const g = generateTitle(product.category, product.attributes, { lang });
+    if (g.missing.length === 0) return g.title;
+  }
+  return getProductDisplayName(product.name, product.category, product.brand, lang);
 }

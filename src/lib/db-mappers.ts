@@ -25,11 +25,17 @@ export interface ProductRow {
   supplier_id: string | null;
   /** Absent until migration 006 has run. */
   no_reorder?: boolean | null;
+  /** products_public after migration 023: the product's attributes as one object, or null (Task 9.7). */
+  attributes?: Partial<ProductAttributesRow> | null;
+  /** The same, embedded by a server read (`product_attributes(...)`); PostgREST may give it as a one-row list. */
+  product_attributes?: Partial<ProductAttributesRow> | Partial<ProductAttributesRow>[] | null;
   created_at: string;
   updated_at: string;
 }
 
 export function rowToProduct(row: ProductRow): Product {
+  const embedded = Array.isArray(row.product_attributes) ? row.product_attributes[0] : row.product_attributes;
+  const attrs = row.attributes ?? embedded;
   return {
     id: row.id,
     name: row.name ?? '',
@@ -54,6 +60,7 @@ export function rowToProduct(row: ProductRow): Product {
     firstReceivedEstimated: row.first_received_estimated ?? undefined,
     supplierId: row.supplier_id ?? undefined,
     noReorder: row.no_reorder === true,
+    ...(attrs ? { attributes: rowToAttributes({ ...attrs, product_id: row.id } as ProductAttributesRow) } : {}),
     createdAt: row.created_at ? new Date(row.created_at) : new Date(),
     updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
   };

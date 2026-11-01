@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { X, ShoppingBag, ArrowRight, Minus, Plus, Trash2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useTranslation } from '@/lib/i18n';
-import { getProductDisplayName } from '@/lib/product-display';
+import { productTitle } from '@/lib/product-display';
 import { getEffectivePrice, isOnSale } from '@/lib/pricing';
 import FreeShippingProgress from './FreeShippingProgress';
 
@@ -132,7 +132,7 @@ export default function MiniCart() {
                       {product.imageUrl ? (
                         <Image
                           src={product.imageUrl}
-                          alt={getProductDisplayName(product.name, product.category, product.brand, language)}
+                          alt={productTitle(product, language)}
                           fill
                           className="object-cover transition-transform duration-300 group-hover:scale-105"
                           sizes="80px"
@@ -152,7 +152,7 @@ export default function MiniCart() {
                         onClick={closeMiniCart}
                         className="text-sm font-medium text-gray-900 hover:text-gray-600 line-clamp-2 leading-snug transition-colors duration-150"
                       >
-                        {getProductDisplayName(product.name, product.category, product.brand, language)}
+                        {productTitle(product, language)}
                       </Link>
                       <button
                         onClick={() => removeFromCart(product.id, selectedSize)}

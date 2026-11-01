@@ -7,7 +7,7 @@ import { Minus, Plus, Trash2 } from 'lucide-react';
 import { CartItem as CartItemType } from '@/types';
 import { useCart } from '@/context/CartContext';
 import { useTranslation } from '@/lib/i18n';
-import { getProductDisplayName } from '@/lib/product-display';
+import { productTitle } from '@/lib/product-display';
 import { getEffectivePrice, getPercentOff, isOnSale } from '@/lib/pricing';
 
 interface CartItemProps {
@@ -38,7 +38,7 @@ export default function CartItem({ item }: CartItemProps) {
           {product.imageUrl ? (
             <Image
               src={product.imageUrl}
-              alt={getProductDisplayName(product.name, product.category, product.brand, language)}
+              alt={productTitle(product, language)}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
               sizes="(max-width: 640px) 80px, 96px"
@@ -62,7 +62,7 @@ export default function CartItem({ item }: CartItemProps) {
         <div className="flex-1 min-w-0">
           <Link href={`/product/${product.id}`}>
             <h3 className="text-sm sm:text-base font-medium text-gray-900 hover:text-blue-600 transition-colors duration-200 line-clamp-2">
-              {getProductDisplayName(product.name, product.category, product.brand, language)}
+              {productTitle(product, language)}
             </h3>
           </Link>
           <p className="text-xs text-gray-400 mt-0.5">{t('categoryNames.' + product.category)}</p>

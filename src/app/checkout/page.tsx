@@ -19,7 +19,8 @@ import { accountFetch } from '@/lib/account-client';
 import { languageHeaders } from '@/lib/i18n/messages';
 import LoyaltyBox, { type QuoteResponse } from '@/components/checkout/LoyaltyBox';
 import { rememberPlacedOrder } from '@/lib/order-track';
-import { CHECKOUT_DETAIL_FIELDS, type CheckoutDetails } from '@/lib/account';
+import { CHECKOUT_DETAIL_FIELDS, type CheckoutDetails } from '@/lib/account';
+import { productTitle } from '@/lib/product-display';
 
 /** The tracked link this visitor arrived by, if it is recent enough to explain the order (D-025). */
 function storedSource(): OrderSource | null {
@@ -201,7 +202,7 @@ export default function CheckoutPage() {
         const onSale = isOnSale(item.product);
         return {
           productId: item.product.id,
-          productName: item.product.name,
+          productName: productTitle(item.product),
           productImage: item.product.imageUrl,
           price: effectivePrice,
           ...(onSale ? { originalPrice: item.product.price } : {}),
@@ -610,7 +611,7 @@ export default function CheckoutPage() {
                       <div className="relative h-16 w-16 sm:h-[68px] sm:w-[68px] flex-shrink-0">
                         <Image
                           src={item.product.imageUrl || '/placeholder.png'}
-                          alt={item.product.name}
+                          alt={productTitle(item.product, language)}
                           fill
                           className={`object-cover rounded-xl ring-1 ${onSale ? 'ring-red-200' : 'ring-gray-100'}`}
                         />
@@ -625,7 +626,7 @@ export default function CheckoutPage() {
                       </div>
                       <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
                         <p className="text-[13px] sm:text-sm font-semibold text-gray-900 truncate leading-tight">
-                          {item.product.name}
+                          {productTitle(item.product, language)}
                         </p>
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                           {item.selectedSize && (

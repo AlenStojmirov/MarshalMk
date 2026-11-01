@@ -7,9 +7,9 @@
  * exist), and a product read "Polos - #BR028 — Men's Polos" with "100% Памук"
  * or nothing under it, in English, for a Macedonian shop.
  *
- * Only the share card changes here — `<title>`, the search description and the
- * JSON-LD stay as they are (their change is Task 9.7). The internal code stays
- * in the product title until 9.7 decides the titles.
+ * Since Task 9.7 the card carries the product's written title ("Тенка поло
+ * блуза, слим крој, црна"), and the product page uses the same description
+ * for search.
  *
  * Numbers come from src/config, never typed in, so the card cannot promise a
  * delivery price the checkout does not charge. The price is the one the site
@@ -19,8 +19,9 @@
 import type { Product } from '@/types';
 import { SHIPPING_CONFIG } from '@/config/shipping';
 import { STORE_ADDRESS } from '@/config/store';
-import { templateOf } from './attributes';
+import { formatComposition } from './attributes';
 import { den } from './marketing';
+import { productTitle } from './product-display';
 import { getEffectivePrice } from './pricing';
 
 export const SHARE_LOCALE = 'mk_MK';
@@ -45,17 +46,18 @@ function compositionLine(description?: string): string | null {
 }
 
 export function productShare(p: Product): { title: string; description: string; alt: string } {
-  const noun = templateOf(p.category).noun;
+  const title = productTitle(p);
   const price = getEffectivePrice(p);
   const sizes = (p.sizes ?? []).filter((s) => Number(s.quantity) >= 1).map((s) => s.size);
+  const composition = p.attributes?.composition.length ? formatComposition(p.attributes.composition) : null;
   const parts = [
-    compositionLine(p.description),
+    composition ?? compositionLine(p.description),
     sizes.length ? `Големини: ${sizes.join(' · ')}` : null,
     DELIVERY,
   ].filter(Boolean);
   return {
-    title: `${noun} ${p.name} — ${den(price)}`.trim(),
+    title: `${title} — ${den(price)}`,
     description: (parts as string[]).map(sentence).join(' '),
-    alt: `${noun} ${p.name}`.trim(),
+    alt: title,
   };
 }

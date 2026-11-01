@@ -22,8 +22,8 @@ const SAMPLE: NewOrderMail = {
     loyalty: { couponCode: 'DOBREDOJDE', couponDiscount: 150, pointsUsed: 100 },
   },
   items: [
-    { productName: 'Кошула - #BF020', size: 'L', quantity: 1, price: 1350 },
-    { productName: 'Фармерки - #DY006', size: '32', quantity: 1, price: 1500 },
+    { productName: 'Карирана кошула, слим крој, црвена', size: 'L', quantity: 1, price: 1350 },
+    { productName: 'Фармерки, слим крој, сини', size: '32', quantity: 1, price: 1500 },
   ],
   subtotal: 2850,
   shipping: 170,

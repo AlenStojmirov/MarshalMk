@@ -54,6 +54,12 @@ export interface Product {
   supplierId?: string;
   /** Owner's call: never suggest this in the reorder plan (migration 006). */
   noReorder?: boolean;
+  /**
+   * Composition, colour, cut, details (EPIC 9), when the read brought them:
+   * the storefront's reads do (products_public after 023, the server's own
+   * reads always), and the title is written from them (Task 9.7).
+   */
+  attributes?: ProductAttributes;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -147,7 +153,10 @@ export interface OrderLoyalty {
 
 export interface OrderItem {
   productId: string;
+  /** The title the customer saw when ordering (Task 9.7: written from the attributes). */
   productName: string;
+  /** The internal code (`products.name`), so the back office finds it on the shelf. Orders before 9.7 have none. */
+  productCode?: string;
   productImage: string;
   price: number;
   originalPrice?: number;
