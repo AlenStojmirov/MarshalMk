@@ -98,6 +98,20 @@ async function main() {
       (error ? '· ' + error.message.split('.')[0] : ''));
   }
 
+  // 022 narrows what the wheel's prize function returns: the service role may
+  // still call it, but the weight (the chance) is no longer among its columns.
+  // Asking for that column fails only once the migration has run.
+  {
+    const { error } = await sb.rpc('wheel_available_prizes').select('weight').limit(0);
+    const landed = !!error && /weight/.test(error.message);
+    if (!landed) {
+      missing += 1;
+      missingMigrations.add('022');
+    }
+    console.log('  ' + (landed ? 'ИМА ' : 'НЕМА') + '  022  ' + 'шансите на тркалото само за админ'.padEnd(34) +
+      (landed ? '' : '· функцијата сè уште ги враќа шансите'));
+  }
+
   // 007 is about what anon can NOT do, which the service role cannot see.
   // Probe with the key that ships in the storefront: it must not reach the
   // purchase price.

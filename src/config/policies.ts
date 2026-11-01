@@ -17,7 +17,7 @@
 export const POLICIES = {
   delivery: { path: '/shipping-returns', title: 'Достава, плаќање и замена', version: '2026-10-18', live: true },
   privacy: { path: '/privacy', title: 'Политика за приватност', version: '2026-10-27', live: true },
-  rules: { path: '/terms', title: 'Правила за поени и купони', version: '2026-10-18', live: true },
+  rules: { path: '/terms', title: 'Правила за поени и купони', version: '2026-11-01', live: true },
 } as const;
 
 export type PolicyKey = keyof typeof POLICIES;

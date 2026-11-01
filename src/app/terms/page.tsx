@@ -3,7 +3,7 @@ import PolicyPage from '@/components/PolicyPage';
 import { POLICIES } from '@/config/policies';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { LOYALTY_DEFAULTS, LoyaltySettings, fetchLoyaltySettings } from '@/lib/loyalty-settings';
-import { WheelPrize, chances, fetchPrizes } from '@/lib/wheel';
+import { WheelPrize, fetchPrizes } from '@/lib/wheel';
 import { formatNumber, formatPrice } from '@/lib/i18n/format';
 
 /** The numbers come from the owner's settings; a change shows here within five minutes. */
@@ -32,12 +32,13 @@ const prizeEn = (p: WheelPrize) =>
 export default async function RulesPage() {
   // Never fails the page: without the settings the agreed defaults apply.
   let s: LoyaltySettings = LOYALTY_DEFAULTS;
-  let prizes: Array<WheelPrize & { chance: number }> = [];
+  let prizes: WheelPrize[] = [];
   try {
     const sb = getSupabaseAdmin();
     s = (await fetchLoyaltySettings(sb)).settings;
-    // The chances as published: every prize switched on, before any daily or monthly limit (13.10).
-    if (s.wheelEnabled) prizes = chances((await fetchPrizes(sb)).data.filter((p) => p.active));
+    // Every prize switched on, before any daily or monthly limit. Their chances are not published
+    // (the owner, 2026-11-01, D-040).
+    if (s.wheelEnabled) prizes = (await fetchPrizes(sb)).data.filter((p) => p.active);
   } catch {
     // keep the defaults
   }
@@ -112,14 +113,11 @@ export default async function RulesPage() {
           </ul>
           {prizes.length > 0 && (
             <>
-              <p><strong>Prizes and chances:</strong></p>
+              <p><strong>Prizes:</strong></p>
               <ul>
-                {prizes.map((p) => <li key={p.id}>{prizeEn(p)}: {formatNumber('en', p.chance, 1)}%</li>)}
+                {prizes.map((p) => <li key={p.id}>{prizeEn(p)}</li>)}
               </ul>
-              <p>
-                A prize that reaches its daily or monthly limit is temporarily off the wheel,
-                and the chances of the other prizes go up in proportion.
-              </p>
+              <p>A prize that reaches its daily or monthly limit is temporarily off the wheel.</p>
             </>
           )}
         </>
@@ -203,14 +201,11 @@ export default async function RulesPage() {
           </ul>
           {prizes.length > 0 && (
             <>
-              <p><strong>Награди и шанси:</strong></p>
+              <p><strong>Награди:</strong></p>
               <ul>
-                {prizes.map((p) => <li key={p.id}>{p.label}: {n(p.chance)}%</li>)}
+                {prizes.map((p) => <li key={p.id}>{p.label}</li>)}
               </ul>
-              <p>
-                Наградата што ќе го достигне својот дневен или месечен лимит привремено не е на тркалото,
-                а шансите на другите награди растат сразмерно.
-              </p>
+              <p>Наградата што ќе го достигне својот дневен или месечен лимит привремено не е на тркалото.</p>
             </>
           )}
         </>

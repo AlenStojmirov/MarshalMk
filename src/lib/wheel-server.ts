@@ -9,13 +9,19 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { fetchLoyaltySettings } from './loyalty-settings';
 import { loyaltyMember } from './basket-server';
-import { PublicPrize, SpinResult, WheelPrizeRow, WheelState, chances, rowToPrize } from './wheel';
+import { PublicPrize, SpinResult, WheelState } from './wheel';
 
+/**
+ * The prizes on the wheel now, as the customer sees them: no chances, no
+ * limits (the owner keeps those to the admin, 2026-11-01). Since 022 the
+ * function returns only these four columns; before it, whole rows, of which
+ * only these are taken.
+ */
 async function availablePrizes(sb: SupabaseClient): Promise<PublicPrize[]> {
   const { data, error } = await sb.rpc('wheel_available_prizes');
   if (error) throw new Error(error.message);
-  const prizes = ((data ?? []) as WheelPrizeRow[]).map(rowToPrize);
-  return chances(prizes).map((p) => ({ id: p.id!, label: p.label, kind: p.kind, value: p.value, chance: p.chance }));
+  return ((data ?? []) as Array<Pick<PublicPrize, 'id' | 'label' | 'kind'> & { value: number | string }>)
+    .map((r) => ({ id: r.id, label: r.label, kind: r.kind, value: Number(r.value) || 0 }));
 }
 
 async function memberPhone(sb: SupabaseClient, userId: string): Promise<string | null> {
@@ -74,7 +80,7 @@ export async function spinWheel(sb: SupabaseClient, user: User | null): Promise<
   // is put back in if its limit just took it off, so the animation lands on it.
   let prizes = await availablePrizes(sb);
   if (!prizes.some((p) => p.id === r.prize_id)) {
-    prizes = [...prizes, { id: r.prize_id, label: r.label, kind: r.prize_kind, value: Number(r.value) || 0, chance: 0 }];
+    prizes = [...prizes, { id: r.prize_id, label: r.label, kind: r.prize_kind, value: Number(r.value) || 0 }];
   }
   return {
     result: {

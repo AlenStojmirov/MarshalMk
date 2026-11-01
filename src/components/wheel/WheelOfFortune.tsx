@@ -4,9 +4,8 @@
  * The wheel itself (Task 13.10): equal slices, the pointer at the top. It only
  * ever turns to a result the server has already decided and given: the page
  * computes the turn when the prize arrives (`turnTo`) and the wheel animates
- * to it. Equal slices on purpose: the chances are printed beside the wheel and
- * on the rules page, not drawn as slice sizes that would make a 1% prize
- * invisible.
+ * to it. Equal slices on purpose: slice sizes would give away the chances,
+ * which are not published (2026-11-01), and would make a 1% prize invisible.
  */
 
 import { useTranslation } from '@/lib/i18n';

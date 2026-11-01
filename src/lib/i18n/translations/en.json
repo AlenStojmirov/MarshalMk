@@ -775,9 +775,7 @@
     "bonusSpinsOther": "You have {n} bonus spins from your orders.",
     "nextSpin": "Next spin on {date}.",
     "spinEvery": "One spin every {days}, plus a bonus spin for every delivered order.",
-    "chances": "Prize chances",
-    "limitNote": "A prize that has hit its daily or monthly limit is off the wheel for now, and the other prizes' chances go up.",
-    "rules": "Rules"
+    "rules": "Wheel rules"
   },
   "account": {
     "common": {

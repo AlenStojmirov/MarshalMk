@@ -2,9 +2,10 @@
  * The wheel of fortune (EPIC 13, Task 13.10, migration 018, D-035).
  *
  * Shared by the admin screen, the public page and the server: the prize
- * shape, the chances as the wheel shows them, and a simulation the owner can
- * run before switching it on. The spin itself is decided in the database
- * (`wheel_spin`), never here.
+ * shape, the chances as the owner's screen shows them, and a simulation the
+ * owner can run before switching it on. The chances are the owner's only:
+ * customers see the prizes, never how likely each is (2026-11-01, 022). The
+ * spin itself is decided in the database (`wheel_spin`), never here.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -132,13 +133,12 @@ export interface SpinResult {
   prizes: PublicPrize[];
 }
 
-/** A prize as the public sees it: no limits, no internal ids beyond what draws the wheel. */
+/** A prize as the public sees it: no chance, no limits, no internal ids beyond what draws the wheel. */
 export interface PublicPrize {
   id: string;
   label: string;
   kind: PrizeKind;
   value: number;
-  chance: number;
 }
 
 /** What GET /api/wheel answers. */

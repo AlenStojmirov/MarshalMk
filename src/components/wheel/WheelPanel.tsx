@@ -2,7 +2,8 @@
 
 /**
  * The wheel with everything around it (Task 13.10): who may spin and when,
- * the spin, the prize, and the chances in plain view. Used on /wheel, open
+ * the spin, the prize, and a link to the rules. The chances are not shown
+ * (the owner's choice, 2026-11-01). Used on /wheel, open
  * to everyone, and in the customer's dashboard.
  *
  * A guest sees the wheel and "sign up to spin" — collecting accounts is what
@@ -163,21 +164,9 @@ export default function WheelPanel() {
         )}
         {error && <p className="text-sm text-red-600 text-center">{error}</p>}
 
-        <details className="rounded-xl bg-white border border-stone-200 p-4 text-sm">
-          <summary className="font-semibold text-stone-900 cursor-pointer">{t('wheel.chances')}</summary>
-          <ul className="mt-2 divide-y divide-stone-100">
-            {state.prizes.map((p) => (
-              <li key={p.id} className="py-1.5 flex justify-between">
-                <span>{p.label}</span>
-                <span className="tabular-nums text-stone-600">{number(p.chance, 1)}%</span>
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-stone-500 mt-2">
-            {t('wheel.limitNote')}{' '}
-            <Link href={`${POLICIES.rules.path}#wheel`} className="underline underline-offset-2">{t('wheel.rules')}</Link>
-          </p>
-        </details>
+        <p className="text-xs text-stone-500 text-center">
+          <Link href={`${POLICIES.rules.path}#wheel`} className="underline underline-offset-2">{t('wheel.rules')}</Link>
+        </p>
       </div>
     </div>
   );
