@@ -197,6 +197,9 @@ export interface PaginatedResult {
   filterMeta: {
     priceRange: { min: number; max: number };
     availableSizes: { size: string; count: number }[];
+    /** With `categories`: how many products each of them has on the shelf,
+     * counted before `type` narrows them — the chips of a group (2.4). */
+    types?: { category: string; count: number }[];
   };
 }
 
@@ -204,7 +207,11 @@ export interface ProductQueryParams {
   page?: number;
   limit?: number;
   sort?: string;
-  category?: string;
+  /** Raw categories to list (a group's, or one no group holds), matched
+   * through their aliases: `pantaloni` is listed with `pants` (2.4). */
+  categories?: readonly string[];
+  /** One of `categories`, any spelling: the chip a customer chose. */
+  type?: string;
   saleOnly?: boolean;
   minPrice?: number;
   maxPrice?: number;

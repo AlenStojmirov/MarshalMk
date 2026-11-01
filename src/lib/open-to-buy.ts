@@ -53,6 +53,8 @@
 
 import { Product } from '@/types';
 import { NON_MERCHANDISE } from './seasons';
+import { groupOfCategory } from '@/config/categories';
+import { groupName } from './product-display';
 
 const DAY = 86_400_000;
 
@@ -161,22 +163,15 @@ export const SHARE_WINDOW_DAYS = 182;
 export const MIN_SHARE_SALES = 20;
 
 /**
- * Raw categories under the nine headings of the proposed merge (Task 2.4).
- * Headings only since D-030: the money is split by raw category, and a group's
- * figures are the sums of its categories.
+ * The heading a raw category sits under: the name of its group on the site
+ * (Task 2.4, D-042 — src/config/categories.ts), so the back office and the
+ * customer see the same ten. Headings only since D-030: the money is split by
+ * raw category, and a group's figures are the sums of its categories.
  */
-export const CATEGORY_GROUPS: Record<string, string> = {
-  tShirts: 'Маици & Поло', oversizeTshirts: 'Маици & Поло', polos: 'Маици & Поло',
-  shirts: 'Кошули', shortSleevedShirt: 'Кошули', blouses: 'Кошули',
-  cardigans: 'Плетиво', turtleNecks: 'Плетиво', halfZips: 'Плетиво', dzemper: 'Плетиво',
-  hoodies: 'Дуксери', fullZips: 'Дуксери',
-  jeans: 'Фармерки', shortsJeans: 'Фармерки',
-  pants: 'Панталони', cargoTrousers: 'Панталони',
-  jackets: 'Јакни & Мантили', coats: 'Јакни & Мантили', vests: 'Јакни & Мантили',
-  suits: 'Свечено', blazers: 'Свечено', suitJackets: 'Свечено',
-  belts: 'Аксесоари', accessories: 'Аксесоари',
+export const groupOf = (category: string): string => {
+  const group = groupOfCategory(category);
+  return group ? groupName(group.key, 'mk') : category || '—';
 };
-export const groupOf = (category: string): string => CATEGORY_GROUPS[category] ?? category ?? '—';
 
 /** The figures a category has, and a group sums. */
 export interface StockLine {

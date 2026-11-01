@@ -9,10 +9,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation, useLanguage, Language } from '@/lib/i18n';
 import { useCategories } from '@/hooks/useProducts';
 import { SHIPPING_CONFIG } from '@/config/shipping';
+import type { MenuEntry } from '@/config/categories';
 
 export default function Header() {
   const { totalItems, openMiniCart } = useCart();
-  const { categories } = useCategories();
+  const { entries: categories } = useCategories();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
   const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false);
@@ -60,6 +61,13 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // A group by its name; a raw category no group holds yet by its own, or its key.
+  const entryLabel = (entry: MenuEntry) => {
+    const key = entry.kind === 'group' ? `categoryGroups.${entry.key}` : `categoryNames.${entry.key}`;
+    const label = t(key);
+    return label === key ? entry.key : label;
+  };
+
   const handleLanguageChange = (lang: Language) => {
     setLanguage(lang);
     setLangMenuOpen(false);
@@ -104,19 +112,16 @@ export default function Header() {
                 </button>
                 {categoriesDropdownOpen && (
                   <div className="absolute left-0 mt-4 w-52 bg-white shadow-md border border-gray-100 py-3 z-50 max-h-80 overflow-y-auto">
-                    {categories.map((category) => {
-                      const translated = t(`categoryNames.${category}`);
-                      return (
-                        <Link
-                          key={category}
-                          href={`/mens/${encodeURIComponent(category)}`}
-                          className="block px-5 py-2.5 text-sm text-gray-700 hover:text-black hover:bg-gray-50/80 transition-colors duration-200"
-                          onClick={() => setCategoriesDropdownOpen(false)}
-                        >
-                          {translated.startsWith('categoryNames.') ? category : translated}
-                        </Link>
-                      );
-                    })}
+                    {categories.map((entry) => (
+                      <Link
+                        key={entry.href}
+                        href={entry.href}
+                        className="block px-5 py-2.5 text-sm text-gray-700 hover:text-black hover:bg-gray-50/80 transition-colors duration-200"
+                        onClick={() => setCategoriesDropdownOpen(false)}
+                      >
+                        {entryLabel(entry)}
+                      </Link>
+                    ))}
                     {categories.length === 0 && (
                       <span className="block px-5 py-2.5 text-gray-400 text-sm">
                         {t('categories.noCategories')}
@@ -286,22 +291,19 @@ export default function Header() {
                   }`}
                 >
                   <div className="flex flex-col items-center gap-1 pb-3">
-                    {categories.map((category) => {
-                      const translated = t(`categoryNames.${category}`);
-                      return (
-                        <Link
-                          key={category}
-                          href={`/mens/${encodeURIComponent(category)}`}
-                          className="w-full text-center py-2.5 text-gray-500 hover:text-black text-sm tracking-wider transition-all duration-200 hover:bg-gray-50 rounded-lg"
-                          onClick={() => {
-                            setMobileMenuOpen(false);
-                            setMobileCategoriesOpen(false);
-                          }}
-                        >
-                          {translated.startsWith('categoryNames.') ? category : translated}
-                        </Link>
-                      );
-                    })}
+                    {categories.map((entry) => (
+                      <Link
+                        key={entry.href}
+                        href={entry.href}
+                        className="w-full text-center py-2.5 text-gray-500 hover:text-black text-sm tracking-wider transition-all duration-200 hover:bg-gray-50 rounded-lg"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          setMobileCategoriesOpen(false);
+                        }}
+                      >
+                        {entryLabel(entry)}
+                      </Link>
+                    ))}
                     {categories.length === 0 && (
                       <span className="py-2.5 text-gray-400 text-xs tracking-wide">
                         {t('categories.noCategories')}

@@ -38,6 +38,21 @@ export const HOME_SHARE = {
   description: ['Кошули, фармерки, јакни и плетиво', DELIVERY, `Дуќан: ${STORE_ADDRESS}`].map(sentence).join(' '),
 };
 
+/**
+ * A category page's search snippet and card (Task 2.4): what the group holds,
+ * in the customer's words, and how it reaches them. No count: it would need
+ * a read of its own, and it is stale by the time anyone reads it.
+ */
+export function categoryShare(title: string, holds: string[]): { title: string; description: string } {
+  // "Машко плетиво во Маршал, Виница: блузи, џемпери, ролки и кардигани."
+  const kinds = holds.map((h) => h.toLowerCase());
+  const list = kinds.length > 1 ? `: ${kinds.slice(0, -1).join(', ')} и ${kinds[kinds.length - 1]}` : '';
+  return {
+    title,
+    description: [`${title} во Маршал, Виница${list}`, DELIVERY].map(sentence).join(' '),
+  };
+}
+
 /** "98% Памук" out of an old free-text description, when that is all it says. */
 function compositionLine(description?: string): string | null {
   const d = (description ?? '').trim();

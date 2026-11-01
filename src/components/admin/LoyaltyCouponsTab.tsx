@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import mk from '@/lib/i18n/translations/mk.json';
-import { CATEGORY_GROUPS } from '@/lib/open-to-buy';
+import { ALL_CATEGORIES } from '@/config/categories';
 import type { CouponKind } from '@/lib/loyalty';
 import { findUserByEmail } from '@/lib/points';
 import {
@@ -26,7 +26,7 @@ const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
 const day = (d?: Date) => (d ? d.toLocaleDateString('mk-MK') : '');
 const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const CATEGORY_NAMES = (mk as { categoryNames: Record<string, string> }).categoryNames;
-const CATEGORIES = Object.keys(CATEGORY_GROUPS).filter((k) => k !== 'vaucer');
+const CATEGORIES = ALL_CATEGORIES;
 const catLabel = (k: string) => CATEGORY_NAMES[k] ?? k;
 
 interface Draft {

@@ -36,10 +36,7 @@
     "account": "My account"
   },
   "home": {
-    "seoTitle": "Marshal — Men's Fashion & Clothing Store",
-    "categoryPolos": "Polo Shirts",
-    "categoryJeans": "Jeans",
-    "categoryVests": "Vests"
+    "seoTitle": "Marshal — Men's Fashion & Clothing Store"
   },
   "benefits": {
     "secureShoppingTitle": "SECURE SHOPPING",
@@ -157,26 +154,39 @@
     "hoodies": "Hoodies",
     "tShirts": "T-Shirts",
     "shirts": "Shirts",
-    "pants": "Pants",
+    "pants": "Trousers",
     "jackets": "Jackets",
     "belts": "Belts",
     "accessories": "Accessories",
     "jeans": "Jeans",
-    "shortsJeans": "Short jeans",
+    "shortsJeans": "Shorts",
     "suits": "Suits",
     "cardigans": "Cardigans",
     "blazers": "Blazers",
     "polos": "Polos",
     "oversizeTshirts": "Oversize T-Shirts",
-    "blouses": "Blouses",
+    "blouses": "Sweaters & Tops",
     "vests": "Vests",
     "coats": "Coats",
-    "turtleNecks": "Turtle Necks",
+    "turtleNecks": "Turtlenecks",
     "suitJackets": "Suit Jackets",
     "halfZips": "Half-Zips",
     "fullZips": "Full-Zips",
     "shortSleevedShirt": "Short-Sleeved Shirts",
-    "cargoTrousers": "Cargo Trousers"
+    "cargoTrousers": "Cargo Trousers",
+    "dzemper": "Jumpers"
+  },
+  "categoryGroups": {
+    "jackets": "Jackets & Coats",
+    "knitwear": "Knitwear",
+    "hoodies": "Hoodies",
+    "shirts": "Shirts",
+    "tshirts": "T-Shirts & Polos",
+    "jeans": "Jeans",
+    "pants": "Trousers",
+    "shorts": "Shorts",
+    "suits": "Suits & Blazers",
+    "accessories": "Accessories"
   },
   "categoryPage": {
     "filters": "Filters",

@@ -1,7 +1,8 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getProductById } from '@/lib/products-server';
-import { productTitle, getCategoryLabel } from '@/lib/product-display';
+import { productTitle, categoryName, groupName } from '@/lib/product-display';
+import { categoryHref, groupHref, groupOfCategory } from '@/config/categories';
 import { generateDescription } from '@/lib/product-title';
 import { productShare, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from '@/lib/share-preview';
 import { jsonLd } from '@/lib/json-ld';
@@ -71,8 +72,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
   };
 
   const displayName = productTitle(product);
-  const categoryLabel = getCategoryLabel(product.category);
-  const categorySlug = product.category.toLowerCase().replace(/\s+/g, '-');
+  // Macedonian, like the title (9.7): the group, then the kind (Task 2.4).
+  const group = groupOfCategory(product.category);
+  const crumbs = [
+    ...(group ? [{ name: groupName(group.key), item: `https://marshal.mk${groupHref(group.key)}` }] : []),
+    ...(!group || group.categories.length > 1
+      ? [{ name: categoryName(product.category), item: `https://marshal.mk${categoryHref(product.category)}` }]
+      : []),
+  ];
 
   const productJsonLd = {
     '@context': 'https://schema.org',
@@ -82,7 +89,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       ? generateDescription(product.category, product.attributes).join(' ') || product.description
       : product.description,
     image: [product.imageUrl, ...(product.images || [])].filter(Boolean),
-    category: `Men's ${categoryLabel}`,
+    category: crumbs.map((c) => c.name).join(' > '),
     offers: {
       '@type': 'Offer',
       price: product.sale?.isActive ? product.sale.salePrice : product.price,
@@ -101,18 +108,18 @@ export default async function ProductPage({ params }: ProductPageProps) {
       {
         '@type': 'ListItem',
         position: 1,
-        name: 'Home',
+        name: 'Маршал',
         item: 'https://marshal.mk',
       },
+      ...crumbs.map((c, i) => ({
+        '@type': 'ListItem',
+        position: i + 2,
+        name: c.name,
+        item: c.item,
+      })),
       {
         '@type': 'ListItem',
-        position: 2,
-        name: categoryLabel,
-        item: `https://marshal.mk/mens/${categorySlug}`,
-      },
-      {
-        '@type': 'ListItem',
-        position: 3,
+        position: crumbs.length + 2,
         name: displayName,
       },
     ],

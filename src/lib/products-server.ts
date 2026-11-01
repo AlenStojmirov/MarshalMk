@@ -3,6 +3,7 @@ import { rowToProduct, ProductRow } from './db-mappers';
 import { Product, PaginatedResult, ProductQueryParams } from '@/types';
 import { getProductImageMap, ProductImageMap } from './product-images';
 import { canonicalSize } from './sizes';
+import { canonicalCategory, slugOf } from '@/config/categories';
 
 const PRODUCTS_PER_PAGE = 12;
 
@@ -42,7 +43,8 @@ export async function fetchPaginatedProducts(
     page = 1,
     limit = PRODUCTS_PER_PAGE,
     sort = 'latest',
-    category,
+    categories,
+    type,
     saleOnly,
     minPrice,
     maxPrice,
@@ -71,17 +73,29 @@ export async function fetchPaginatedProducts(
     allProducts = allProducts.filter((p) => p.sale?.isActive);
   }
 
-  // Filter by category slug (client-side match since categories are stored as display names)
-  if (category) {
-    const slugToMatch = category.toLowerCase();
-    allProducts = allProducts.filter((p) => {
-      const productSlug = p.category.toLowerCase().replace(/\s+/g, '-');
-      return productSlug === slugToMatch;
-    });
+  // A group's categories, or one category: matched by slug, through the
+  // aliases (`pantaloni` is `pants`), so any spelling in the database lists.
+  let types: { category: string; count: number }[] | undefined;
+  if (categories) {
+    const wanted = new Map(categories.map((c) => [slugOf(canonicalCategory(c)), canonicalCategory(c)]));
+    const keyOf = (p: Product) => slugOf(canonicalCategory(p.category ?? ''));
+    allProducts = allProducts.filter((p) => wanted.has(keyOf(p)));
+
+    // The chips: every category asked for that has something, in the order asked.
+    const counts = new Map<string, number>();
+    allProducts.forEach((p) => counts.set(keyOf(p), (counts.get(keyOf(p)) ?? 0) + 1));
+    types = [...wanted.entries()]
+      .filter(([key]) => counts.has(key))
+      .map(([key, category]) => ({ category, count: counts.get(key)! }));
+
+    if (type) {
+      const t = slugOf(canonicalCategory(type));
+      if (wanted.has(t)) allProducts = allProducts.filter((p) => keyOf(p) === t);
+    }
   }
 
   // Compute filter metadata from the base result set (before user filters)
-  const filterMeta = computeFilterMeta(allProducts);
+  const filterMeta = { ...computeFilterMeta(allProducts), ...(types ? { types } : {}) };
 
   if (minPrice !== undefined || maxPrice !== undefined) {
     allProducts = allProducts.filter((p) => {
@@ -197,6 +211,7 @@ export function parseSearchParams(
   const maxPrice = searchParams.maxPrice ? Number(searchParams.maxPrice) : undefined;
   const sizesParam = searchParams.sizes as string | undefined;
   const sizes = sizesParam ? sizesParam.split(',').filter(Boolean) : undefined;
+  const type = typeof searchParams.type === 'string' && searchParams.type ? searchParams.type : undefined;
 
-  return { page, sort, minPrice, maxPrice, sizes };
+  return { page, sort, minPrice, maxPrice, sizes, type };
 }

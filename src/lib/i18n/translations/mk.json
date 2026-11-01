@@ -36,10 +36,7 @@
     "account": "Мој профил"
   },
   "home": {
-    "seoTitle": "Marshal — Машка мода и продавница за облека",
-    "categoryPolos": "Поло Маици",
-    "categoryJeans": "Фармерки",
-    "categoryVests": "Елеци"
+    "seoTitle": "Marshal — Машка мода и продавница за облека"
   },
   "benefits": {
     "secureShoppingTitle": "БЕЗБЕДЕН ШОПИНГ",
@@ -154,7 +151,7 @@
   },
   "categoryNames": {
     "vaucer": "Ваучер",
-    "hoodies": "Дуксер",
+    "hoodies": "Дуксери",
     "tShirts": "Маици",
     "shirts": "Кошули",
     "pants": "Панталони",
@@ -169,14 +166,27 @@
     "polos": "Поло маици",
     "oversizeTshirts": "Oversize маици",
     "blouses": "Блузи",
-    "vests": "Елек",
+    "vests": "Елеци",
     "coats": "Капути",
     "turtleNecks": "Ролки",
-    "suitJackets": "Сако",
-    "halfZips": "Полу Зипери",
+    "suitJackets": "Сакоа",
+    "halfZips": "Полузипери",
     "fullZips": "Зипери",
-    "shortSleevedShirt": "Кошула со кратки ракави",
-    "cargoTrousers": "Карго панталони"
+    "shortSleevedShirt": "Кошули со кратки ракави",
+    "cargoTrousers": "Карго панталони",
+    "dzemper": "Џемпери"
+  },
+  "categoryGroups": {
+    "jackets": "Јакни и капути",
+    "knitwear": "Плетиво",
+    "hoodies": "Дуксери",
+    "shirts": "Кошули",
+    "tshirts": "Маици и поло",
+    "jeans": "Фармерки",
+    "pants": "Панталони",
+    "shorts": "Шорцеви",
+    "suits": "Одела и сакоа",
+    "accessories": "Додатоци"
   },
   "categoryPage": {
     "filters": "Филтри",

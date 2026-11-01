@@ -2,6 +2,7 @@ import brandCodesData from '@/config/brand-codes.json';
 import { TRANSLATIONS, type Language } from '@/lib/i18n/messages';
 import type { Product } from '@/types';
 import { generateTitle } from './product-title';
+import { canonicalCategory, type GroupKey } from '@/config/categories';
 
 const CATEGORY_LABELS: Record<string, string> = {
   vaucer: "Voucher",
@@ -55,16 +56,19 @@ export function getCategoryLabel(category: string): string {
 }
 
 /**
- * The category behind a /mens/{slug} (Task 14.6): its raw key (`shortsJeans`
- * for `shortsjeans`), whether or not anything in it is on the shelf now, or
- * undefined for one the shop does not know. Matched the way
- * `fetchPaginatedProducts` matches a product: lowercased, spaces to dashes.
- * The header links the raw key and the sitemap the lowercased one; both must
- * find the same name.
+ * A raw category's name in a language, for the storefront and its metadata
+ * (`categoryNames` in the translations): "Ролки" / "Turtlenecks". An alias is
+ * named as what it is (`pantaloni` → "Панталони"); a category the
+ * translations lack falls back to the English label.
  */
-export function categoryForSlug(slug: string): string | undefined {
-  const s = slug.toLowerCase();
-  return Object.keys(CATEGORY_LABELS).find((c) => c.toLowerCase().replace(/\s+/g, '-') === s);
+export function categoryName(category: string, lang: Language = 'mk'): string {
+  const names = TRANSLATIONS[lang].categoryNames as Record<string, string> | undefined;
+  return names?.[canonicalCategory(category)] ?? getCategoryLabel(category);
+}
+
+/** A group's name (Task 2.4, `categoryGroups`): "Јакни и капути" / "Jackets & Coats". */
+export function groupName(group: GroupKey, lang: Language = 'mk'): string {
+  return (TRANSLATIONS[lang].categoryGroups as Record<string, string> | undefined)?.[group] ?? group;
 }
 
 /**

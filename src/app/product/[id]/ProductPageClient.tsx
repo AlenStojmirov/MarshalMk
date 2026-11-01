@@ -7,6 +7,8 @@ import { ArrowLeft, Minus, Plus, ShoppingCart } from 'lucide-react';
 import { useProductsByCategory } from '@/hooks/useProducts';
 import { useCart } from '@/context/CartContext';
 import { productTitle } from '@/lib/product-display';
+import { aliasesOf, canonicalCategory, categoryHref, groupOfCategory } from '@/config/categories';
+import Link from 'next/link';
 import { useState } from 'react';
 import { useTranslation } from '@/lib/i18n';
 import ProductGrid from '@/components/ProductGrid';
@@ -15,13 +17,17 @@ import ProductDeliveryInfo from '@/components/ProductDeliveryInfo';
 import { Product } from '@/types';
 
 function RelatedProducts({ category, excludeId }: { category: string; excludeId: string }) {
-  const { products, loading } = useProductsByCategory(category);
+  // The same kind first, then the rest of its group (Task 2.4): the one
+  // cardigan on the shelf is shown other knitwear rather than nothing.
+  const group = groupOfCategory(category);
+  const { products, loading } = useProductsByCategory(group ? [...group.categories, ...aliasesOf(group.categories)] : [category]);
   const { t } = useTranslation();
 
-  const relatedProducts = useMemo(
-    () => products.filter((p) => p.id !== excludeId && p.isVisible !== false).slice(0, 4),
-    [products, excludeId]
-  );
+  const relatedProducts = useMemo(() => {
+    const same = (p: Product) => canonicalCategory(p.category) === canonicalCategory(category);
+    const others = products.filter((p) => p.id !== excludeId && p.isVisible !== false);
+    return [...others.filter(same), ...others.filter((p) => !same(p))].slice(0, 4);
+  }, [products, excludeId, category]);
 
   if (!loading && relatedProducts.length === 0) return null;
 
@@ -131,7 +137,9 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
 
             {/* Category */}
             <p className="text-[11px] uppercase tracking-[0.2em] text-stone-400 mb-3">
-              {t('categoryNames.' + product.category)}
+              <Link href={categoryHref(product.category)} className="hover:text-stone-900 transition-colors">
+                {t('categoryNames.' + canonicalCategory(product.category))}
+              </Link>
             </p>
 
             {/* Price */}

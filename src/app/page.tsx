@@ -1,43 +1,45 @@
-'use client';
+import HomeContent from '@/components/HomeContent';
+import type { HomeCard } from '@/components/HomeCategoriesSection';
+import { fetchAllVisibleProducts } from '@/lib/products-server';
+import { groupHref, groupOfCategory, groupsInSeasonOrder, type GroupKey } from '@/config/categories';
+import type { Product } from '@/types';
 
-import { useMemo } from 'react';
-import { usePublicProducts } from '@/hooks/useProducts';
-import HomeCategoriesSection from '@/components/HomeCategoriesSection';
-import HomeBenefitsSection from '@/components/HomeBenefitsSection';
-import NewProductsSection from '@/components/NewProductsSection';
-import { useTranslation } from '@/lib/i18n';
+/**
+ * The home page reads on the server (Task 2.4): its big cards follow the
+ * season and what is on the shelf, and are in the HTML from the start rather
+ * than waiting for the browser to read the catalogue. Rebuilt at most once a
+ * minute; a new product shows within one.
+ */
+export const revalidate = 60;
 
-export default function Home() {
-  const { t } = useTranslation();
-  const { products, loading, error } = usePublicProducts();
+const HOME_CARDS = 3;
+const NEW_PRODUCTS = 12;
 
-  // Get 12 newest available products (already sorted by createdAt desc from hook)
-  const newProducts = useMemo(() => {
-    return products.filter((p) => p.stock > 0 && p.isVisible).slice(0, 12);
-  }, [products]);
+const hasPhoto = (p: Product) => /^(https?:\/\/|\/)/.test(p.imageUrl?.trim() ?? '');
 
-  if (error) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center py-12">
-          <p className="text-red-500">{error}</p>
-        </div>
-      </div>
-    );
+/**
+ * The first three groups of this season's order that have something with a
+ * photo on the shelf, each with the photo of its newest product (a featured
+ * one first), so the card changes as the stock does.
+ */
+function seasonCards(products: Product[]): HomeCard[] {
+  const byGroup = new Map<GroupKey, Product[]>();
+  for (const p of products) {
+    const g = groupOfCategory(p.category);
+    if (!g || !hasPhoto(p)) continue;
+    byGroup.set(g.key, [...(byGroup.get(g.key) ?? []), p]);
   }
+  return groupsInSeasonOrder()
+    .filter((g) => byGroup.has(g.key))
+    .slice(0, HOME_CARDS)
+    .map((g) => {
+      const shelf = byGroup.get(g.key)!; // newest first, as read
+      const pick = shelf.find((p) => p.featured) ?? shelf[0];
+      return { group: g.key, href: groupHref(g.key), imageSrc: pick.imageUrl.trim() };
+    });
+}
 
-  return (
-    <div>
-      <h1 className="sr-only">{t('home.seoTitle')}</h1>
-
-      {/* Section 1: Category Heroes */}
-      <HomeCategoriesSection />
-
-      {/* Section 2: Store Benefits */}
-      <HomeBenefitsSection />
-
-      {/* Section 3: New Products */}
-      <NewProductsSection products={newProducts} loading={loading} />
-    </div>
-  );
+export default async function Home() {
+  const products = await fetchAllVisibleProducts(); // visible, in stock, newest first
+  return <HomeContent cards={seasonCards(products)} newProducts={products.slice(0, NEW_PRODUCTS)} />;
 }

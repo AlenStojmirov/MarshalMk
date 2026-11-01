@@ -26,7 +26,9 @@ import { useProducts, updateProduct } from '@/hooks/useProducts';
 import { Product, ProductFormData } from '@/types';
 import { getEffectivePrice } from '@/lib/pricing';
 import { grossMargin } from '@/lib/cost';
-import { getProductDisplayName } from '@/lib/product-display';
+import { getProductDisplayName, groupName } from '@/lib/product-display';
+import { CATEGORY_GROUPS, NON_MERCHANDISE } from '@/config/categories';
+import { groupOf } from '@/lib/open-to-buy';
 import { brandOf, brandsOf } from '@/lib/brands';
 import BrandFilter from '@/components/admin/BrandFilter';
 import { useTranslation } from '@/lib/i18n';
@@ -41,25 +43,11 @@ import {
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
-// Grouping — same 23 -> 9 consolidation the reports use
+// Grouping — the site's ten groups (Task 2.4, src/config/categories.ts)
 // ---------------------------------------------------------------------------
 
-const CATEGORY_GROUPS: Record<string, string> = {
-  tShirts: 'Маици & Поло', oversizeTshirts: 'Маици & Поло', polos: 'Маици & Поло',
-  shirts: 'Кошули', shortSleevedShirt: 'Кошули', blouses: 'Кошули',
-  cardigans: 'Плетиво', turtleNecks: 'Плетиво', halfZips: 'Плетиво',
-  hoodies: 'Дуксери', fullZips: 'Дуксери',
-  jeans: 'Фармерки', shortsJeans: 'Фармерки',
-  pants: 'Панталони', cargoTrousers: 'Панталони',
-  jackets: 'Јакни & Мантили', coats: 'Јакни & Мантили', vests: 'Јакни & Мантили',
-  suits: 'Свечено', blazers: 'Свечено', suitJackets: 'Свечено',
-  belts: 'Аксесоари', accessories: 'Аксесоари',
-};
-const NON_MERCHANDISE = new Set(['vaucer']);
-const groupOf = (c: string) => CATEGORY_GROUPS[c] ?? c ?? '—';
-
 /** Groups whose season runs autumn into winter. */
-const AUTUMN_GROUPS = new Set(['Јакни & Мантили', 'Плетиво', 'Дуксери']);
+const AUTUMN_GROUPS = new Set(CATEGORY_GROUPS.filter((g) => g.season === 'AW').map((g) => groupName(g.key, 'mk')));
 
 const DAY = 86_400_000;
 const fmt = (n: number) => Math.round(n).toLocaleString('mk-MK');
