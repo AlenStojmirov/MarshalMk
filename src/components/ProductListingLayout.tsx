@@ -1,8 +1,9 @@
 'use client';
 
-import { ReactNode, useCallback, useState, useTransition } from 'react';
+import { ReactNode, useCallback, useMemo, useState, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { PaginatedResult } from '@/types';
+import { FacetParam, PaginatedResult } from '@/types';
+import { FACETS } from '@/lib/facets';
 import ProductGrid from './ProductGrid';
 import CategorySidebar from './CategorySidebar';
 import SortSelect, { SortOption } from './SortSelect';
@@ -21,7 +22,7 @@ export default function ProductListingLayout({
   emptyState,
 }: ProductListingLayoutProps) {
   const { products, totalCount, totalPages, currentPage, filterMeta } = paginatedData;
-  const { priceRange, availableSizes } = filterMeta;
+  const { priceRange, availableSizes, facets } = filterMeta;
 
   const router = useRouter();
   const pathname = usePathname();
@@ -37,11 +38,20 @@ export default function ProductListingLayout({
 
   const sortValue = searchParams.get('sort') || 'latest';
   const selectedSizes = searchParams.get('sizes')?.split(',').filter(Boolean) || [];
+  // Colour, material, cut (9.9), one comma list each: ?color=blue,black
+  const selectedFacets = useMemo(
+    () =>
+      Object.fromEntries(
+        FACETS.map((f) => [f, searchParams.get(f)?.split(',').filter(Boolean) || []])
+      ) as Record<FacetParam, string[]>,
+    [searchParams]
+  );
 
   const hasActiveFilters =
     searchParams.has('minPrice') ||
     searchParams.has('maxPrice') ||
-    searchParams.has('sizes');
+    searchParams.has('sizes') ||
+    FACETS.some((f) => searchParams.has(f));
 
   const sortOptions: SortOption[] = [
     { label: t('categoryPage.sortLatest'), value: 'latest' },
@@ -101,9 +111,24 @@ export default function ProductListingLayout({
     [selectedSizes, updateParams]
   );
 
+  const handleFacetChange = useCallback(
+    (facet: FacetParam, value: string) => {
+      const current = selectedFacets[facet];
+      const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
+      updateParams({ [facet]: next.length > 0 ? next.join(',') : null });
+    },
+    [selectedFacets, updateParams]
+  );
+
   const handleClearFilters = useCallback(() => {
     setLocalPriceRange([priceRange.min, priceRange.max]);
-    updateParams({ minPrice: null, maxPrice: null, sizes: null, sort: null });
+    updateParams({
+      minPrice: null,
+      maxPrice: null,
+      sizes: null,
+      sort: null,
+      ...Object.fromEntries(FACETS.map((f) => [f, null])),
+    });
   }, [priceRange, updateParams]);
 
   const sidebarProps = {
@@ -115,6 +140,9 @@ export default function ProductListingLayout({
     onPriceCommit: handlePriceCommit,
     selectedSizes,
     onSizeChange: handleSizeChange,
+    facets: facets ?? {},
+    selectedFacets,
+    onFacetChange: handleFacetChange,
     onClearFilters: handleClearFilters,
   };
 
@@ -128,7 +156,7 @@ export default function ProductListingLayout({
             {hasActiveFilters
               ? t('categoryPage.filterCount', {
                   filtered: totalCount.toString(),
-                  total: totalCount.toString(),
+                  total: (filterMeta.unfilteredCount ?? totalCount).toString(),
                 })
               : t('categoryPage.productCount', { count: totalCount.toString() })}
           </p>

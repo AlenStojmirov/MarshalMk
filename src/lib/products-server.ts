@@ -4,6 +4,7 @@ import { Product, PaginatedResult, ProductQueryParams } from '@/types';
 import { getProductImageMap, ProductImageMap } from './product-images';
 import { canonicalSize } from './sizes';
 import { canonicalCategory, slugOf } from '@/config/categories';
+import { FACETS, facetValues, sortFacet } from './facets';
 
 const PRODUCTS_PER_PAGE = 12;
 
@@ -49,6 +50,7 @@ export async function fetchPaginatedProducts(
     minPrice,
     maxPrice,
     sizes,
+    facets,
   } = params;
 
   const supabase = getSupabaseAdmin();
@@ -95,7 +97,11 @@ export async function fetchPaginatedProducts(
   }
 
   // Compute filter metadata from the base result set (before user filters)
-  const filterMeta = { ...computeFilterMeta(allProducts), ...(types ? { types } : {}) };
+  const filterMeta = {
+    ...computeFilterMeta(allProducts),
+    ...(types ? { types } : {}),
+    unfilteredCount: allProducts.length,
+  };
 
   if (minPrice !== undefined || maxPrice !== undefined) {
     allProducts = allProducts.filter((p) => {
@@ -113,6 +119,13 @@ export async function fetchPaginatedProducts(
     allProducts = allProducts.filter((p) =>
       p.sizes?.some((s) => wanted.has(canonicalSize(s.size)) && s.quantity > 0)
     );
+  }
+
+  // Colour, material, cut (9.9): any value ticked within a filter, every filter across.
+  for (const facet of FACETS) {
+    const wanted = new Set(facets?.[facet] ?? []);
+    if (wanted.size === 0) continue;
+    allProducts = allProducts.filter((p) => facetValues(p, facet).some((v) => wanted.has(v)));
   }
 
   if (sort === 'price_asc') {
@@ -159,7 +172,14 @@ function computeFilterMeta(products: Product[]): PaginatedResult['filterMeta'] {
     count,
   }));
 
-  return { priceRange, availableSizes };
+  const facets: NonNullable<PaginatedResult['filterMeta']['facets']> = {};
+  for (const facet of FACETS) {
+    const counts = new Map<string, number>();
+    products.forEach((p) => facetValues(p, facet).forEach((v) => counts.set(v, (counts.get(v) ?? 0) + 1)));
+    facets[facet] = sortFacet(facet, [...counts.entries()].map(([value, count]) => ({ value, count })));
+  }
+
+  return { priceRange, availableSizes, facets };
 }
 
 /**
@@ -212,6 +232,10 @@ export function parseSearchParams(
   const sizesParam = searchParams.sizes as string | undefined;
   const sizes = sizesParam ? sizesParam.split(',').filter(Boolean) : undefined;
   const type = typeof searchParams.type === 'string' && searchParams.type ? searchParams.type : undefined;
+  const facets = Object.fromEntries(
+    FACETS.map((f) => [f, typeof searchParams[f] === 'string' ? (searchParams[f] as string).split(',').filter(Boolean) : []])
+      .filter(([, values]) => values.length > 0)
+  );
 
-  return { page, sort, minPrice, maxPrice, sizes, type };
+  return { page, sort, minPrice, maxPrice, sizes, type, facets };
 }

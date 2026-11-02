@@ -95,6 +95,58 @@
       "exchangeTitle": "Size exchange",
       "exchangeText": "Report it within {hours} hours of receiving the order.",
       "exchangeLink": "Exchange terms"
+    },
+    "sizeGuideLink": "Size guide",
+    "fitHint": {
+      "adviceLarger": "This model runs small: take one size up from your usual.",
+      "adviceSmaller": "This model runs large: take one size down from your usual.",
+      "adviceTrue": "True to size: take your usual size.",
+      "tight": "Slim cut: if you are between two sizes, take the larger.",
+      "loose": "Loose cut: if you are between two sizes, take the smaller."
+    },
+    "details": {
+      "title": "Product details",
+      "material": "Material",
+      "stretch": "stretch",
+      "fit": "Fit",
+      "color": "Color",
+      "pattern": "Pattern",
+      "origin": "Made in",
+      "careTitle": "Care",
+      "careNote": "General advice for the material. The care label comes first."
+    },
+    "sizeGuide": {
+      "title": "Size and fit",
+      "intro": "Body measurements, in cm. The chart is the standard for the Turkish cuts we carry and holds for most models.",
+      "size": "Size",
+      "chest": "Chest",
+      "waist": "Waist",
+      "noteWaist": "The number is the waist in inches (1 inch = 2.54 cm).",
+      "noteEu": "European sizing: the chest is roughly twice the number.",
+      "howTitle": "How to measure",
+      "howChest": "Chest: tape level around the fullest part of the chest, under the arms.",
+      "howWaist": "Waist: around your waist, where you wear your trousers.",
+      "finderTitle": "Find my size",
+      "finderChest": "Chest (cm)",
+      "finderWaist": "Waist (cm)",
+      "finderSubmit": "Find",
+      "finderInvalid": "Enter the measurement in centimetres, for example {example}.",
+      "result": "We recommend size {size}.",
+      "reason": {
+        "fits": "Your measurement is within this size.",
+        "adviceLarger": "This model runs small, so we suggest one size up.",
+        "adviceSmaller": "This model runs large, so we suggest one size down.",
+        "betweenTight": "You are between two sizes and the cut is slim, so we suggest the larger.",
+        "betweenNormal": "You are between two sizes. For a closer fit, take {alternative}.",
+        "betweenLoose": "You are between two sizes and the cut is loose, so we suggest the smaller."
+      },
+      "choose": "Select {size}",
+      "outOfStock": "Size {size} is out of stock at the moment.",
+      "notMade": "This model does not come in {size}.",
+      "below": "That is below the smallest size in the chart.",
+      "above": "That is above the largest size in the chart.",
+      "garmentTitle": "This model's measurements",
+      "garmentNote": "Measured on the garment, laid flat, in cm. Chest width is armpit to armpit."
     }
   },
   "homeScreen": {
@@ -201,7 +253,10 @@
     "noResults": "No products match your filters",
     "noProducts": "No products found",
     "minPrice": "Minimum price",
-    "maxPrice": "Maximum price"
+    "maxPrice": "Maximum price",
+    "color": "Color",
+    "material": "Material",
+    "fit": "Fit"
   },
   "pagination": {
     "label": "Pagination",
@@ -1032,6 +1087,125 @@
         "returned": "Returned",
         "not_collected": "Not collected"
       }
+    }
+  },
+  "attributes": {
+    "detail": {
+      "sleeve": "Sleeve",
+      "collar": "Collar",
+      "neckline": "Neckline",
+      "closure": "Fastening",
+      "weight": "Weight",
+      "legLength": "Leg length",
+      "rise": "Rise",
+      "jacketType": "Type",
+      "fabric": "Fabric"
+    },
+    "option": {
+      "sleeve": {
+        "short": "Short",
+        "long": "Long",
+        "sleeveless": "Sleeveless"
+      },
+      "collar": {
+        "classic": "Classic",
+        "buttonDown": "Button-down",
+        "mandarin": "Mandarin",
+        "cuban": "Cuban"
+      },
+      "neckline": {
+        "crew": "Crew neck",
+        "v": "V-neck",
+        "polo": "Polo collar",
+        "turtle": "Roll neck",
+        "hooded": "Hooded",
+        "half_zip": "Half zip"
+      },
+      "closure": {
+        "buttons": "Buttons",
+        "zip": "Zip",
+        "pullover": "None (pull-on)",
+        "snaps": "Snaps"
+      },
+      "weight": {
+        "light": "Lightweight",
+        "medium": "Midweight",
+        "heavy": "Heavyweight"
+      },
+      "rise": {
+        "low": "Low",
+        "mid": "Mid",
+        "high": "High"
+      },
+      "jacketType": {
+        "puffer": "Puffer",
+        "quilted": "Quilted",
+        "bomber": "Bomber",
+        "parka": "Parka",
+        "denim": "Denim",
+        "leather": "Leather",
+        "coat": "Overcoat",
+        "shacket": "Overshirt",
+        "softshell": "Softshell"
+      },
+      "fabric": {
+        "oxford": "Oxford",
+        "poplin": "Poplin",
+        "flannel": "Flannel",
+        "corduroy": "Corduroy",
+        "denim": "Denim",
+        "satin": "Satin",
+        "muslin": "Muslin",
+        "chino": "Chino twill"
+      }
+    },
+    "flag": {
+      "lining": "Lined",
+      "hood": "Hooded",
+      "waterproof": "Waterproof",
+      "reversible": "Reversible, wear either side out"
+    },
+    "origin": {
+      "TR": "Türkiye",
+      "MK": "North Macedonia",
+      "IT": "Italy",
+      "PT": "Portugal",
+      "CN": "China",
+      "BD": "Bangladesh",
+      "PK": "Pakistan",
+      "IN": "India"
+    },
+    "pattern": {
+      "solid": "Solid",
+      "striped": "Striped",
+      "checked": "Checked",
+      "print": "Print"
+    },
+    "measure": {
+      "chest": "Chest width",
+      "length": "Length",
+      "shoulders": "Shoulders",
+      "sleeve": "Sleeve",
+      "waist": "Waist",
+      "hip": "Hip",
+      "thigh": "Thigh",
+      "inseam": "Inseam",
+      "legOpening": "Leg opening"
+    },
+    "care": {
+      "leatherWipe": "Do not machine wash — wipe with a damp cloth",
+      "leatherHeat": "Keep away from direct heat",
+      "woolWash": "Hand wash or wool programme, up to 30°C",
+      "woolDry": "Do not wring or tumble dry — dry flat",
+      "delicateWash": "Gentle wash up to 30°C",
+      "delicateIron": "Do not wring hard; iron on low heat",
+      "linenWash": "Wash up to 40°C",
+      "linenIron": "Iron while slightly damp",
+      "syntheticWash": "Wash at 30–40°C",
+      "syntheticIron": "Iron on low heat",
+      "cottonWash": "Wash up to 40°C with similar colours",
+      "cottonShrink": "Pure cotton may shrink a little in a tumble dryer",
+      "stretchHeat": "No high-heat drying — it keeps the elastane"
     }
   }
 }

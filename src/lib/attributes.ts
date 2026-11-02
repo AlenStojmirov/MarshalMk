@@ -15,6 +15,7 @@
  */
 
 import type { FiberShare, SizeAdvice } from '@/types';
+import { translate } from './i18n/messages';
 
 export type Gender = 'm' | 'f' | 'n' | 'pl';
 
@@ -115,35 +116,44 @@ export function isStretch(composition: FiberShare[]): boolean {
 
 const SYNTHETIC = new Set(['polyester', 'polyamide', 'acrylic']);
 
+/** A line of care advice; its text is `attributes.care.{key}` in the translations. */
+export type CareKey =
+  | 'leatherWipe' | 'leatherHeat' | 'woolWash' | 'woolDry' | 'delicateWash' | 'delicateIron'
+  | 'linenWash' | 'linenIron' | 'syntheticWash' | 'syntheticIron' | 'cottonWash' | 'cottonShrink' | 'stretchHeat';
+
 /**
  * General care advice from the fibres. It is advice, not the label: the sewn-in
  * label wins, and the product page says so. Dominant fibre decides the wash;
- * elastane and leather add their own rule.
+ * elastane and leather add their own rule. Keys, so the storefront can say it
+ * in either language (Task 9.9).
  */
-export function careFromComposition(composition: FiberShare[]): string[] {
+export function careKeys(composition: FiberShare[]): CareKey[] {
   if (composition.length === 0) return [];
   const main = sortComposition(composition)[0].fiber;
   const share = (keys: string[]) =>
     composition.filter((f) => keys.includes(f.fiber)).reduce((s, f) => s + f.pct, 0);
-  const lines: string[] = [];
+  const lines: CareKey[] = [];
 
-  if (main === 'leather') {
-    return ['Не се пере во машина — чистете со влажна крпа', 'Чувајте подалеку од директна топлина'];
-  }
+  if (main === 'leather') return ['leatherWipe', 'leatherHeat'];
   if (share(['wool', 'cashmere', 'silk']) >= 30) {
-    lines.push('Рачно перење или програма за волна, до 30°C', 'Не цедете и не сушете во машина — сушете на рамно');
+    lines.push('woolWash', 'woolDry');
   } else if (main === 'viscose' || main === 'modal' || main === 'lyocell') {
-    lines.push('Нежно перење до 30°C', 'Не цедете силно; пеглајте на ниска температура');
+    lines.push('delicateWash', 'delicateIron');
   } else if (main === 'linen') {
-    lines.push('Перење до 40°C', 'Пеглајте додека е малку влажно');
+    lines.push('linenWash', 'linenIron');
   } else if (share([...SYNTHETIC]) >= 50) {
-    lines.push('Перење до 30–40°C', 'Пеглајте на ниска температура');
+    lines.push('syntheticWash', 'syntheticIron');
   } else {
-    lines.push('Перење до 40°C, со слични бои');
-    if (share(['cotton']) >= 90) lines.push('Чистиот памук може малку да се собере при сушење во машина');
+    lines.push('cottonWash');
+    if (share(['cotton']) >= 90) lines.push('cottonShrink');
   }
-  if (isStretch(composition)) lines.push('Без сушење на висока температура — го чува еластинот');
+  if (isStretch(composition)) lines.push('stretchHeat');
   return lines;
+}
+
+/** The same advice in Macedonian words, for the back office and the product's written description. */
+export function careFromComposition(composition: FiberShare[]): string[] {
+  return careKeys(composition).map((k) => translate('mk', `attributes.care.${k}`));
 }
 
 // ---------------------------------------------------------------------------

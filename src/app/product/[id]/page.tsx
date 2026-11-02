@@ -6,6 +6,9 @@ import { categoryHref, groupHref, groupOfCategory } from '@/config/categories';
 import { generateDescription } from '@/lib/product-title';
 import { productShare, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from '@/lib/share-preview';
 import { jsonLd } from '@/lib/json-ld';
+import { productFacts } from '@/lib/product-facts';
+import { COLORS, FITS, PATTERNS, formatComposition } from '@/lib/attributes';
+import { sizeLabel } from '@/lib/sizes';
 import ProductPageClient from './ProductPageClient';
 
 interface ProductPageProps {
@@ -81,6 +84,23 @@ export default async function ProductPage({ params }: ProductPageProps) {
       : []),
   ];
 
+  // What a search engine can filter apparel by (9.9), in Macedonian like the
+  // rest of the page's data: colour, material, the sizes on the shelf, the cut.
+  const facts = productFacts(product);
+  const colorKey = product.attributes?.color;
+  const pattern = product.attributes?.pattern;
+  const sizesOnShelf = (product.sizes ?? []).filter((s) => s.quantity >= 1).map((s) => sizeLabel(s.size));
+  const attributeJsonLd = {
+    ...(colorKey && COLORS[colorKey] ? { color: COLORS[colorKey].mk } : {}),
+    ...(facts.composition.length ? { material: formatComposition(facts.composition) } : {}),
+    ...(pattern && pattern !== 'solid' && PATTERNS[pattern] ? { pattern: PATTERNS[pattern].mk } : {}),
+    ...(sizesOnShelf.length ? { size: sizesOnShelf } : {}),
+    audience: { '@type': 'PeopleAudience', suggestedGender: 'male' },
+    ...(facts.fit && FITS[facts.fit]
+      ? { additionalProperty: [{ '@type': 'PropertyValue', name: 'Крој', value: FITS[facts.fit].mk }] }
+      : {}),
+  };
+
   const productJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -90,6 +110,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       : product.description,
     image: [product.imageUrl, ...(product.images || [])].filter(Boolean),
     category: crumbs.map((c) => c.name).join(' > '),
+    ...attributeJsonLd,
     offers: {
       '@type': 'Offer',
       price: product.sale?.isActive ? product.sale.salePrice : product.price,

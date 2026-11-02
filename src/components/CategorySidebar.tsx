@@ -3,6 +3,8 @@
 import * as Slider from '@radix-ui/react-slider';
 import { useTranslation } from '@/lib/i18n';
 import { groupSizes, sizeLabel } from '@/lib/sizes';
+import { FACETS, facetLabel, facetSwatch } from '@/lib/facets';
+import type { FacetParam, PaginatedResult } from '@/types';
 
 interface CategorySidebarProps {
   priceRange: { min: number; max: number };
@@ -13,6 +15,10 @@ interface CategorySidebarProps {
   onPriceCommit: (min: number, max: number) => void;
   selectedSizes: string[];
   onSizeChange: (size: string) => void;
+  /** Colour, material, cut (9.9): the values on this page, with how many products have each. */
+  facets: NonNullable<PaginatedResult['filterMeta']['facets']>;
+  selectedFacets: Record<FacetParam, string[]>;
+  onFacetChange: (facet: FacetParam, value: string) => void;
   onClearFilters: () => void;
 }
 
@@ -25,6 +31,9 @@ export default function CategorySidebar({
   onPriceCommit,
   selectedSizes,
   onSizeChange,
+  facets,
+  selectedFacets,
+  onFacetChange,
   onClearFilters,
 }: CategorySidebarProps) {
   const { t, language, price } = useTranslation();
@@ -34,7 +43,12 @@ export default function CategorySidebar({
   const hasActiveFilters =
     currentMinPrice !== absoluteMin ||
     currentMaxPrice !== absoluteMax ||
-    selectedSizes.length > 0;
+    selectedSizes.length > 0 ||
+    FACETS.some((f) => selectedFacets[f].length > 0);
+
+  const lang = language === 'en' ? 'en' : 'mk';
+  // A filter shows when it can split the page: two values or more, or one already ticked.
+  const shownFacets = FACETS.filter((f) => (facets[f]?.length ?? 0) >= 2 || selectedFacets[f].length > 0);
 
   const sliderDisabled = absoluteMin === absoluteMax;
 
@@ -120,6 +134,44 @@ export default function CategorySidebar({
             </div>
           </div>
         )}
+
+        {/* Colour, material, cut (9.9) */}
+        {shownFacets.map((facet) => (
+          <div key={facet} className="mb-6 last:mb-0">
+            <h3 className="text-[11px] uppercase tracking-[0.1em] text-stone-500 mb-3">
+              {t(`categoryPage.${facet}`)}
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {(facets[facet] ?? []).map(({ value, count }) => {
+                const active = selectedFacets[facet].includes(value);
+                const swatch = facetSwatch(facet, value);
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => onFacetChange(facet, value)}
+                    aria-pressed={active}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 border text-[11px] tracking-wide transition-all duration-150 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-1 ${
+                      active
+                        ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
+                        : 'border-stone-200 text-stone-600 hover:border-stone-900 hover:text-stone-900 hover:shadow-sm'
+                    }`}
+                  >
+                    {swatch && (
+                      <span
+                        aria-hidden="true"
+                        className="inline-block h-2.5 w-2.5 rounded-full border border-stone-300"
+                        style={{ backgroundColor: swatch }}
+                      />
+                    )}
+                    {facetLabel(facet, value, lang)}
+                    <span className={active ? 'text-stone-300' : 'text-stone-400'}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </aside>
   );

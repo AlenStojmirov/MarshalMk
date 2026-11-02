@@ -3,7 +3,11 @@
 import { useMemo } from 'react';
 import { lastPieces, sizeLabel } from '@/lib/sizes';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Minus, Plus, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Ruler, ShoppingCart } from 'lucide-react';
+import { productFacts } from '@/lib/product-facts';
+import { fitHint, sizeChartFor } from '@/lib/size-chart';
+import { CareFold, ProductDetailsFold } from '@/components/ProductDetails';
+import SizeGuide, { SIZE_GUIDE_ID } from '@/components/SizeGuide';
 import { useProductsByCategory } from '@/hooks/useProducts';
 import { useCart } from '@/context/CartContext';
 import { productTitle } from '@/lib/product-display';
@@ -53,7 +57,27 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [addedToCart, setAddedToCart] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const { t, language, price } = useTranslation();
+
+  // Task 9.9: what the attributes say, the standard chart for these sizes,
+  // and the one line on how this cut fits.
+  const facts = useMemo(() => productFacts(product), [product]);
+  const chart = useMemo(
+    () => sizeChartFor(product.category, (product.sizes ?? []).map((s) => s.size)),
+    [product.category, product.sizes]
+  );
+  const measurements = product.attributes?.measurements ?? {};
+  const hasGuide = !!chart || Object.keys(measurements).length > 0;
+  const hint = fitHint(facts.fit, product.attributes?.sizeAdvice);
+
+  const openGuide = () => {
+    setGuideOpen(true);
+    // After the fold has opened, so the scroll lands on its content.
+    requestAnimationFrame(() =>
+      document.getElementById(SIZE_GUIDE_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    );
+  };
 
   const hasSizes = product?.sizes && product.sizes.length > 0;
   const selectedSizeData = hasSizes
@@ -173,16 +197,10 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
             {/* Divider */}
             <div className="h-px bg-stone-200 mb-6" />
 
-            {/* Color */}
-            {product.color && (
-              <p className="text-sm text-stone-500 mb-5">
-                <span className="text-stone-700">{t('product.color')}:</span>{' '}
-                {product.color}
-              </p>
+            {/* Description: only what it says beyond the details below (9.9) */}
+            {facts.rest && (
+              <p className="text-sm text-stone-500 leading-relaxed mb-8 whitespace-pre-line">{facts.rest}</p>
             )}
-
-            {/* Description */}
-            <p className="text-sm text-stone-500 leading-relaxed mb-8 whitespace-pre-line">{product.description}</p>
 
             {/* ─── Size Selector ─── */}
             {hasSizes && (
@@ -191,8 +209,18 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
                   <span className="text-xs uppercase tracking-[0.15em] text-stone-700">
                     {t('product.size')}
                   </span>
-                  {!selectedSize && (
-                    <span className="text-xs text-stone-400">{t('product.selectSize')}</span>
+                  {hasGuide ? (
+                    <button
+                      type="button"
+                      onClick={openGuide}
+                      aria-controls={SIZE_GUIDE_ID}
+                      className="inline-flex items-center gap-1.5 text-xs text-stone-600 underline underline-offset-4 decoration-stone-300 hover:text-stone-900 hover:decoration-stone-900 transition-colors"
+                    >
+                      <Ruler className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t('product.sizeGuideLink')}
+                    </button>
+                  ) : (
+                    !selectedSize && <span className="text-xs text-stone-400">{t('product.selectSize')}</span>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -226,6 +254,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
                     );
                   })}
                 </div>
+                {hint && <p className="mt-3 text-xs text-stone-500">{t(`product.fitHint.${hint}`)}</p>}
               </div>
             )}
 
@@ -335,7 +364,28 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
               {t('product.askOnInstagram')}
             </a>
 
-            <ProductDeliveryInfo />
+            {/* ─── Details, size and fit, care (9.9), then delivery: one list of rows ─── */}
+            <div className="mt-8">
+              <ProductDetailsFold product={product} facts={facts} />
+              {hasSizes && (
+                <SizeGuide
+                  chart={chart}
+                  measurements={measurements}
+                  sizes={product.sizes ?? []}
+                  fit={facts.fit}
+                  advice={product.attributes?.sizeAdvice}
+                  selectedSize={selectedSize}
+                  onChoose={(size) => {
+                    setSelectedSize(size);
+                    setQuantity(1);
+                  }}
+                  open={guideOpen}
+                  onToggle={setGuideOpen}
+                />
+              )}
+              <CareFold facts={facts} />
+              <ProductDeliveryInfo />
+            </div>
           </div>
         </div>
       </div>

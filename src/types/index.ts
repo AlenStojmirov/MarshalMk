@@ -189,6 +189,9 @@ export interface Order {
   outcomeAt?: Date;
 }
 
+/** The attribute filters on a listing (Task 9.9), by their query parameter: `?color=blue,black`. */
+export type FacetParam = 'color' | 'material' | 'fit';
+
 export interface PaginatedResult {
   products: Product[];
   totalCount: number;
@@ -200,6 +203,10 @@ export interface PaginatedResult {
     /** With `categories`: how many products each of them has on the shelf,
      * counted before `type` narrows them — the chips of a group (2.4). */
     types?: { category: string; count: number }[];
+    /** Colour, material and cut (9.9), counted like the sizes: before the customer's filters. */
+    facets?: Partial<Record<FacetParam, { value: string; count: number }[]>>;
+    /** How many products the page holds before the customer's filters ("5 од 23"). */
+    unfilteredCount?: number;
   };
 }
 
@@ -216,4 +223,6 @@ export interface ProductQueryParams {
   minPrice?: number;
   maxPrice?: number;
   sizes?: string[];
+  /** Colour families, main fibres, cuts: any value within one filter, every filter across (9.9). */
+  facets?: Partial<Record<FacetParam, string[]>>;
 }

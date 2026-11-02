@@ -78,7 +78,7 @@ export default function ProductDeliveryInfo() {
   ];
 
   return (
-    <ul className="mt-8 border-t border-stone-200 divide-y divide-stone-100">
+    <ul className="border-t border-stone-200 divide-y divide-stone-100">
       {rows.map(({ icon: Icon, title, text, extra }) => (
         <li key={title} className="flex gap-3 py-4">
           <Icon className="h-4 w-4 mt-0.5 shrink-0 text-stone-500" aria-hidden="true" />
