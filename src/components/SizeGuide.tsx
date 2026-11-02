@@ -81,7 +81,8 @@ export default function SizeGuide({
     <Fold id={SIZE_GUIDE_ID} title={t('product.sizeGuide.title')} open={open} onToggle={onToggle}>
       {chart && (
         <>
-          <p className="text-xs text-stone-500 mb-3">{t('product.sizeGuide.intro')}</p>
+          <p className="text-xs text-stone-500">{t('product.sizeGuide.intro')}</p>
+          <p className="text-xs text-stone-700 font-medium mt-1 mb-3">{t('product.sizeGuide.approx')}</p>
           <table className="w-full text-sm border-collapse">
             <caption className="sr-only">{t('product.sizeGuideLink')}</caption>
             <thead>
@@ -168,6 +169,7 @@ export default function SizeGuide({
                       alternative: suggested.alternative ? sizeLabel(suggested.alternative, lang) : '',
                     })}
                   </p>
+                  <p className="text-xs text-stone-500">{t('product.sizeGuide.resultNote')}</p>
                   {!onShelf ? (
                     <p className="text-stone-600">{t('product.sizeGuide.notMade', { size: sizeLabel(suggested.size, lang) })}</p>
                   ) : onShelf.quantity > 0 ? (

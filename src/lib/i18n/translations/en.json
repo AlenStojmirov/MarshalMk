@@ -118,6 +118,7 @@
     "sizeGuide": {
       "title": "Size and fit",
       "intro": "Body measurements, in cm. The chart is the standard for the Turkish cuts we carry and holds for most models.",
+      "approx": "The numbers are approximate, not exact measurements of each model: a single model can differ by a centimetre or two.",
       "size": "Size",
       "chest": "Chest",
       "waist": "Waist",
@@ -132,6 +133,7 @@
       "finderSubmit": "Find",
       "finderInvalid": "Enter the measurement in centimetres, for example {example}.",
       "result": "We recommend size {size}.",
+      "resultNote": "This is a guide only, based on the approximate chart.",
       "reason": {
         "fits": "Your measurement is within this size.",
         "adviceLarger": "This model runs small, so we suggest one size up.",
