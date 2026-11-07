@@ -1,13 +1,20 @@
 import type { Metadata } from 'next';
+import { pageShare } from '@/lib/share-preview';
 import Link from 'next/link';
 import PolicyPage from '@/components/PolicyPage';
 import { POLICIES } from '@/config/policies';
 import { STORE_ADDRESS, STORE_EMAIL, STORE_NAME, storeAddress, storeName } from '@/config/store';
 
+const pageTitle = POLICIES.privacy.title;
+const pageDescription =
+  'Кои лични податоци собира Маршал, зошто, колку долго ги чува и какви права имате.';
+
 export const metadata: Metadata = {
-  title: POLICIES.privacy.title,
-  description: 'Кои лични податоци собира Маршал, зошто, колку долго ги чува и какви права имате.',
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: `https://marshal.mk${POLICIES.privacy.path}` },
+  // Its own share card, not the home page's (16.3).
+  ...pageShare(pageTitle, pageDescription, POLICIES.privacy.path),
 };
 
 export default function PrivacyPage() {

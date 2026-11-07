@@ -1,12 +1,14 @@
 import { Suspense } from 'react';
 import { notFound, permanentRedirect } from 'next/navigation';
 import CategoryPageContent from '@/components/CategoryPageContent';
-import { fetchPaginatedProducts, parseSearchParams } from '@/lib/products-server';
+import { fetchPaginatedProducts, fetchShelfCategories, parseSearchParams } from '@/lib/products-server';
+import { onPage, pageOf, withPage } from '@/lib/page-number';
 import { categoryName, groupName, productTitle } from '@/lib/product-display';
 import ProductGrid from '@/components/ProductGrid';
 import { jsonLd } from '@/lib/json-ld';
 import { categorySearch, categoryShare, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from '@/lib/share-preview';
 import {
+  canonicalCategory,
   categoryForSlug,
   groupForSlug,
   groupHref,
@@ -33,12 +35,6 @@ interface CategoryPageProps {
 }
 
 const BASE = 'https://marshal.mk';
-
-/** ?page=N as a whole number from 1; anything else is page 1. */
-function pageOf(value: string | string[] | undefined): number {
-  const n = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : 1;
-  return n >= 1 ? n : 1;
-}
 
 /** The chip asked for, if it is one of this group's; a group of one has none. */
 function typeIn(group: CategoryGroup, type: string | string[] | undefined): string | undefined {
@@ -182,11 +178,22 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
     : categoryShare(`Машки ${categoryName(slug).toLowerCase()}`, []);
   const search = group && !type ? categorySearch(group, group.categories.map((c) => categoryName(c))) : shared;
   const page = pageOf(resolvedSearchParams.page);
-  const onPage = (t: string) => (page > 1 ? `${t} · страна ${page}` : t);
-  const title = onPage(search.title);
+  const title = onPage(search.title, page);
   const description = search.description;
-  const first = group ? groupHref(group.key, type) : `/mens/${encodeURIComponent(slugOf(slug))}`;
-  const canonical = page > 1 ? `${first}${first.includes('?') ? '&' : '?'}page=${page}` : first;
+
+  // What is on the shelf decides two things (16.3). A group or a kind with
+  // nothing in it is kept out of the index until it has: an empty page is not
+  // a promise the shop can keep (the menu leaves it out too). A kind that is
+  // the only one of its group on the shelf is the group's own page under a
+  // second address, so it names the group as its canonical.
+  const shelf = group ? await fetchShelfCategories().catch(() => null) : null;
+  const kindsOnShelf = new Set(
+    (shelf ?? []).filter((c) => groupOfCategory(c)?.key === group?.key).map((c) => slugOf(canonicalCategory(c))),
+  );
+  const empty = shelf !== null && (type ? !kindsOnShelf.has(slugOf(type)) : kindsOnShelf.size === 0);
+  const soleKind = !!type && kindsOnShelf.size === 1 && kindsOnShelf.has(slugOf(type));
+  const first = group ? groupHref(group.key, soleKind ? undefined : type) : `/mens/${encodeURIComponent(slugOf(slug))}`;
+  const canonical = withPage(first, page);
 
   return {
     title,
@@ -194,8 +201,9 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
     alternates: {
       canonical,
     },
+    ...(empty ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
-      title: onPage(shared.title),
+      title: onPage(shared.title, page),
       description: shared.description,
       url: canonical,
       siteName: SHARE_SITE_NAME,
@@ -205,7 +213,7 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
     },
     twitter: {
       card: 'summary_large_image' as const,
-      title: onPage(shared.title),
+      title: onPage(shared.title, page),
       description: shared.description,
       images: [SHARE_IMAGE.url],
     },

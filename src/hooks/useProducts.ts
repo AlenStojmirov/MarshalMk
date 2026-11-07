@@ -54,61 +54,6 @@ function isMissingRelation(err: { code?: string; message?: string } | null): boo
   return err.code === '42P01' || err.code === 'PGRST205' || /does not exist|schema cache/i.test(err.message ?? '');
 }
 
-async function readPublicProducts(categories?: readonly string[]) {
-  const run = (table: string) => {
-    let q = supabase.from(table).select('*').order('created_at', { ascending: false });
-    if (categories) q = q.in('category', [...categories]);
-    return q;
-  };
-  const res = await run(PUBLIC_PRODUCTS);
-  return isMissingRelation(res.error) ? run('products') : res;
-}
-
-/**
- * Everything the storefront lists. Same rule as the server pages: visible and
- * with at least one unit on a size — the view already applies it, this also
- * covers the fallback.
- */
-function isShoppable(p: Product): boolean {
-  return p.isVisible !== false && (p.sizes ?? []).some((s) => s.quantity >= 1);
-}
-
-/** With `categories`, only those raw categories (a product's group, Task 2.4). */
-export function usePublicProducts(categories?: readonly string[]) {
-  // A key, so a new array with the same categories does not read again.
-  const key = categories ? categories.join('|') : null;
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const [{ data, error: dbError }, imageMap] = await Promise.all([
-          readPublicProducts(key === null ? undefined : key.split('|')),
-          fetchImageMap(),
-        ]);
-        if (dbError) throw dbError;
-        const fetched = ((data as ProductRow[] | null) ?? [])
-          .map(rowToProduct)
-          .filter(isShoppable)
-          .map((p) => enrichWithLocalImages(p, imageMap));
-        if (!cancelled) { setProducts(fetched); setError(null); }
-      } catch (err) {
-        if (!cancelled) setError('Failed to fetch products');
-        console.error(err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [key]);
-
-  return { products, loading, error };
-}
-
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);

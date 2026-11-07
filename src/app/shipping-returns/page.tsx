@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageShare } from '@/lib/share-preview';
 import PolicyPage from '@/components/PolicyPage';
 import { POLICIES } from '@/config/policies';
 import { SHIPPING_CONFIG } from '@/config/shipping';
@@ -10,10 +11,16 @@ import { formatPrice } from '@/lib/i18n/format';
 const den = (n: number) => `${n.toLocaleString('mk-MK')} ден.`;
 const denEn = (n: number) => formatPrice('en', n);
 
+const pageTitle = POLICIES.delivery.title;
+const pageDescription =
+  `Плаќање при достава или при подигање во продавница. Достава ${den(SHIPPING_CONFIG.shippingCost)}, бесплатна од ${den(SHIPPING_CONFIG.freeShippingThreshold)} Замена пријавена во ${EXCHANGE_REPORT_HOURS} часа.`;
+
 export const metadata: Metadata = {
-  title: POLICIES.delivery.title,
-  description: `Плаќање при достава или при подигање во продавница. Достава ${den(SHIPPING_CONFIG.shippingCost)}, бесплатна од ${den(SHIPPING_CONFIG.freeShippingThreshold)}. Замена пријавена во ${EXCHANGE_REPORT_HOURS} часа.`,
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: `https://marshal.mk${POLICIES.delivery.path}` },
+  // Its own share card, not the home page's (16.3).
+  ...pageShare(pageTitle, pageDescription, POLICIES.delivery.path),
 };
 
 export default function DeliveryPage() {

@@ -1,7 +1,8 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Track Order',
+  // Macedonian, like all page metadata (D-039, 16.3); the words the site uses.
+  title: 'Следи нарачка',
   robots: { index: false, follow: false },
 };
 

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageShare } from '@/lib/share-preview';
 import PolicyPage from '@/components/PolicyPage';
 import { POLICIES } from '@/config/policies';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
@@ -9,12 +10,18 @@ import { formatNumber, formatPrice } from '@/lib/i18n/format';
 /** The numbers come from the owner's settings; a change shows here within five minutes. */
 export const revalidate = 300;
 
+const pageTitle = POLICIES.rules.title;
+const pageDescription =
+  'Како се заработуваат и трошат поени на marshal.mk, кога истекуваат, и како работат купоните.';
+
 export const metadata: Metadata = {
-  title: POLICIES.rules.title,
-  description: 'Како се заработуваат и трошат поени на marshal.mk, кога истекуваат, и како работат купоните.',
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: `https://marshal.mk${POLICIES.rules.path}` },
   // Not indexed until there is an account to collect points with (13.6).
   ...(POLICIES.rules.live ? {} : { robots: { index: false, follow: false } }),
+  // Its own share card, not the home page's (16.3).
+  ...pageShare(pageTitle, pageDescription, POLICIES.rules.path),
 };
 
 const n = (v: number) => v.toLocaleString('mk-MK');

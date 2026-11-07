@@ -136,7 +136,7 @@ export default function ProductImageGallery({
                 >
                   <Image
                     src={img}
-                    alt={`${alt} - Image ${index + 1} of ${images.length}`}
+                    alt={t('product.imageAlt', { name: alt, n: String(index + 1), total: String(images.length) })}
                     fill
                     className="object-cover pointer-events-none"
                     sizes="(max-width: 1024px) 100vw, 50vw"
@@ -241,7 +241,7 @@ export default function ProductImageGallery({
             >
               <Image
                 src={img}
-                alt={`${alt} - Thumbnail ${index + 1}`}
+                alt={t('product.thumbnailAlt', { name: alt, n: String(index + 1) })}
                 fill
                 className="object-cover"
                 sizes="80px"
@@ -280,7 +280,7 @@ export default function ProductImageGallery({
                     <div className="relative w-full h-full max-w-4xl mx-auto">
                       <Image
                         src={img}
-                        alt={`${alt} - ${index + 1}`}
+                        alt={t('product.imageAlt', { name: alt, n: String(index + 1), total: String(images.length) })}
                         fill
                         className="object-contain"
                         sizes="100vw"

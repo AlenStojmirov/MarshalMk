@@ -71,6 +71,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.9,
     },
+    // The groups by name, each with its kinds (16.3).
+    {
+      url: `${BASE_URL}/categories`,
+      lastModified: newest(products),
+      changeFrequency: "weekly",
+      priority: 0.5,
+    },
     {
       url: `${BASE_URL}/sale`,
       lastModified: newest(onSale.length ? onSale : products),

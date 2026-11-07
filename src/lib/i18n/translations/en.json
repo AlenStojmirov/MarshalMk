@@ -149,7 +149,9 @@
       "above": "That is above the largest size in the chart.",
       "garmentTitle": "This model's measurements",
       "garmentNote": "Measured on the garment, laid flat, in cm. Chest width is armpit to armpit."
-    }
+    },
+    "imageAlt": "{name}, image {n} of {total}",
+    "thumbnailAlt": "{name}, thumbnail {n}"
   },
   "homeScreen": {
     "footerLink": "Add to home screen",

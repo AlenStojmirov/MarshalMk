@@ -240,29 +240,36 @@ export async function fetchRelatedProducts(product: Product, limit = 4): Promise
 }
 
 /**
- * The menu's groups with something on the shelf (Task 16.2), for the header
- * and footer, read on the server so they are links in every page's HTML.
- * Drawn in the browser they were links no search engine saw: Jeans and
- * Trousers had no link from anywhere. Five minutes old at most, so a new
- * group shows without a deploy; one that has just sold out still opens, on
- * its empty note. The five minutes also redraw the pages with nothing of
- * their own to read (/cart, the rules pages), built once before. Only the
- * three columns the menu needs.
+ * The raw category of every product on the shelf, one per product (Task
+ * 16.2): what the menu, /categories and a group page's indexing (16.3) are
+ * worked out from. Five minutes old at most, so a new group shows without a
+ * deploy; one that has just sold out still opens, on its empty note. The five
+ * minutes also redraw the pages with nothing of their own to read (/cart, the
+ * rules pages), built once before. Only the three columns it needs.
  */
-export const fetchMenuEntries = unstable_cache(
-  async (): Promise<MenuEntry[]> => {
+export const fetchShelfCategories = unstable_cache(
+  async (): Promise<string[]> => {
     const { data, error } = await getSupabaseAdmin().from('products').select('category, is_visible, sizes');
     if (error) throw error;
     const rows = (data ?? []) as { category: string | null; is_visible: boolean | null; sizes: ProductRow['sizes'] }[];
     // The storefront's rule, as on every page: visible, and some size on the shelf.
-    const shelf = rows
+    return rows
       .filter((r) => r.category && r.is_visible !== false && r.sizes?.some((s) => s.quantity >= 1))
       .map((r) => r.category as string);
-    return menuEntries(shelf);
   },
-  ['menu-entries'],
+  ['shelf-categories'],
   { revalidate: 300 },
 );
+
+/**
+ * The menu's groups with something on the shelf, in this season's order, for
+ * the header and footer (Task 16.2), read on the server so they are links in
+ * every page's HTML. Drawn in the browser they were links no search engine
+ * saw: Jeans and Trousers had no link from anywhere.
+ */
+export async function fetchMenuEntries(): Promise<MenuEntry[]> {
+  return menuEntries(await fetchShelfCategories());
+}
 
 export function parseSearchParams(
   searchParams: Record<string, string | string[] | undefined>

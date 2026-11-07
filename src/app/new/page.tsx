@@ -1,43 +1,25 @@
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
+import { NEW_SEARCH, pageShare } from '@/lib/share-preview';
+import { onPage, pageOf, withPage } from '@/lib/page-number';
 import NewPageContent from '@/components/NewPageContent';
 import { fetchPaginatedProducts, parseSearchParams } from '@/lib/products-server';
 import ProductGrid from '@/components/ProductGrid';
 
-export const metadata = {
-  title: "New Arrivals — Latest Men's Fashion",
-  description:
-    "Discover our latest men's clothing arrivals — new t-shirts, polos, shirts, pants, jackets and more. Fresh styles added regularly.",
-  alternates: {
-    canonical: '/new',
-  },
-  openGraph: {
-    title: "New Arrivals — Latest Men's Fashion",
-    description:
-      "Discover our latest men's clothing arrivals — fresh styles added regularly.",
-    url: '/new',
-    siteName: 'Marshal',
-    images: [
-      {
-        url: '/og-image.jpg',
-        width: 1200,
-        height: 630,
-        alt: "Marshal — New Arrivals in Men's Fashion",
-      },
-    ],
-    type: 'website',
-    locale: 'en_US',
-  },
-  twitter: {
-    card: 'summary_large_image' as const,
-    title: "New Arrivals — Latest Men's Fashion",
-    description:
-      "Discover our latest men's clothing arrivals — fresh styles added regularly.",
-    images: ['/og-image.jpg'],
-  },
-};
-
 interface NewPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+/** Macedonian, like all page metadata (D-039, Task 16.3); ?page=N keeps its own canonical (16.2). */
+export async function generateMetadata({ searchParams }: NewPageProps): Promise<Metadata> {
+  const page = pageOf((await searchParams).page);
+  const path = withPage('/new', page);
+  return {
+    title: onPage(NEW_SEARCH.title, page),
+    description: NEW_SEARCH.description,
+    alternates: { canonical: path },
+    ...pageShare(onPage(NEW_SEARCH.shareTitle, page), NEW_SEARCH.description, path),
+  };
 }
 
 async function NewPageLoader({ searchParams }: NewPageProps) {

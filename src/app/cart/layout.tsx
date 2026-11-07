@@ -1,7 +1,8 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Shopping Cart',
+  // Macedonian, like all page metadata (D-039, 16.3); the words the site uses.
+  title: 'Кошничка',
   robots: { index: false, follow: false },
 };
 

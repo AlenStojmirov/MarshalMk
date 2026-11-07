@@ -16,6 +16,7 @@
  * shows; a discount is not the message (D-022).
  */
 
+import type { Metadata } from 'next';
 import type { Product } from '@/types';
 import { SHIPPING_CONFIG } from '@/config/shipping';
 import { STORE_ADDRESS } from '@/config/store';
@@ -57,6 +58,54 @@ export const HOME_SEARCH = {
  * in the customer's words, and how it reaches them. No count: it would need
  * a read of its own, and it is stale by the time anyone reads it.
  */
+/**
+ * A page's own share card (Task 16.3): its title, its text, its address and
+ * the shop's image. Next takes `openGraph` from the nearest page or layout
+ * that sets one, whole, so a page without it showed the home page's card:
+ * the rules pages, shared, read "Маршал · машка облека, Виница".
+ */
+export function pageShare(title: string, description: string, path: string): Pick<Metadata, 'openGraph' | 'twitter'> {
+  return {
+    openGraph: {
+      type: 'website',
+      locale: SHARE_LOCALE,
+      siteName: SHARE_SITE_NAME,
+      title,
+      description,
+      url: path,
+      images: [SHARE_IMAGE],
+    },
+    twitter: { card: 'summary_large_image', title, description, images: [SHARE_IMAGE.url] },
+  };
+}
+
+/** /new and /sale for search, Macedonian (D-039, Task 16.3). Only /new carries a
+ * Latin form: people search "nova kolekcija"; for a sale nothing in Latin was
+ * searched (Google autocomplete, 2026-11-07). */
+export const NEW_SEARCH = {
+  title: 'Нови производи · машка облека · nova kolekcija',
+  shareTitle: 'Нови производи · машка облека',
+  description: ['Најновото во Маршал: машки јакни, плетиво, кошули и фармерки, од последното што стигнало', DELIVERY]
+    .map(sentence)
+    .join(' '),
+};
+export const SALE_SEARCH = {
+  title: 'Машка облека на попуст',
+  description: ['Машка облека на попуст во Маршал, со старата и новата цена на секој производ', DELIVERY]
+    .map(sentence)
+    .join(' '),
+};
+
+/** /categories: the groups on the shelf by name, "јакни и капути · плетиво · …"
+ * (dots, not "и": the names have their own, "маици и поло"). */
+export function categoriesSearch(groupNames: string[]): { title: string; description: string } {
+  const list = groupNames.map((n) => n.toLowerCase()).join(' · ');
+  return {
+    title: 'Машка облека по категории',
+    description: [list ? `Сите категории во Маршал: ${list}` : 'Сите категории во Маршал', DELIVERY].map(sentence).join(' '),
+  };
+}
+
 /** "Машко плетиво во Маршал, Виница: блузи, џемпери, ролки и кардигани" */
 function categoryLead(title: string, holds: string[]): string {
   const kinds = holds.map((h) => h.toLowerCase());

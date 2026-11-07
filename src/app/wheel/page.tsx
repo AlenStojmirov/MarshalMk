@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageShare } from '@/lib/share-preview';
 import { notFound } from 'next/navigation';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { fetchLoyaltySettings } from '@/lib/loyalty-settings';
@@ -8,10 +9,16 @@ import WheelHeading from '@/components/wheel/WheelHeading';
 /** The switch is read on every visit: off means this page does not exist. */
 export const dynamic = 'force-dynamic';
 
+const pageTitle = 'Тркало на среќа';
+const pageDescription =
+  'Завртете го тркалото на Маршал: секое вртење добива награда — поени, попуст или бесплатна достава.';
+
 export const metadata: Metadata = {
-  title: 'Тркало на среќа',
-  description: 'Завртете го тркалото на Маршал: секое вртење добива награда — поени, попуст или бесплатна достава.',
+  title: pageTitle,
+  description: pageDescription,
   alternates: { canonical: 'https://marshal.mk/wheel' },
+  // Its own share card, not the home page's (16.3).
+  ...pageShare(pageTitle, pageDescription, '/wheel'),
 };
 
 export default async function WheelPage() {
