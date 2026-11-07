@@ -110,7 +110,7 @@ D-039. Code, file and folder names, URLs, query parameters and anchors are Engli
 
 ## SEO
 
-`src/app/layout.tsx` (metadata, hreflang, JSON-LD), `sitemap.ts`, `robots.ts`, `public/llms.txt` / `llms-full.txt`. Canonical base `https://marshal.mk`. Admin is `noindex`.
+EPIC 16 (Trello 16.N). `src/app/layout.tsx` (metadata defaults, `Organization` on every page), `sitemap.ts`, `robots.ts`. Canonical base `https://marshal.mk`; every indexed page sets its own canonical (the layout sets none). Admin is `noindex`. Google reads only the Macedonian page — English has no address of its own, no hreflang (D-044). The name for search is `STORE_BRAND` "Marshal"; customer text keeps "Маршал". Titles carry the Latin spelling people search with next to the Cyrillic ("maska obleka", D-045). The home page carries `WebSite` and `ClothingStore` (address, map pin, seasonal opening hours from `src/config/store.ts`) through `src/lib/store-json-ld.ts`; its search title and snippet are `HOME_SEARCH` in `share-preview.ts`.
 
 JSON-LD goes into its `<script>` only through `jsonLd()` (`src/lib/json-ld.ts`), never a bare `JSON.stringify`: a `</script>` in a product name, or in a category slug typed into the URL, would otherwise run as code (15.3). Security headers for every response (frames denied, `nosniff`, referrer, permissions) are in `next.config.ts`.
 

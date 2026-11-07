@@ -39,6 +39,19 @@ export const HOME_SHARE = {
 };
 
 /**
+ * The home page in search results (Task 16.1, owner 2026-11-07). The title
+ * carries no town, since the shop may grow beyond Vinica, and the Latin
+ * spelling people type into Google ("maska obleka", D-045); the description
+ * names the shop's address as a fact.
+ */
+export const HOME_SEARCH = {
+  title: 'Marshal · машка облека онлајн · maska obleka',
+  description: ['Машка облека: кошули, фармерки, јакни и плетиво', DELIVERY, `Продавница: ${STORE_ADDRESS}`]
+    .map(sentence)
+    .join(' '),
+};
+
+/**
  * A category page's search snippet and card (Task 2.4): what the group holds,
  * in the customer's words, and how it reaches them. No count: it would need
  * a read of its own, and it is stale by the time anyone reads it.

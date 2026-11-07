@@ -8,8 +8,9 @@ import Header from "@/components/Header";
 import FloatingContactButton from "@/components/FloatingContactButton";
 import AttributionCapture from "@/components/AttributionCapture";
 import HomeScreenGuide from "@/components/HomeScreenGuide";
-import { HOME_SHARE, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from "@/lib/share-preview";
+import { HOME_SEARCH, HOME_SHARE, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from "@/lib/share-preview";
 import { jsonLd } from "@/lib/json-ld";
+import { organizationJsonLd } from "@/lib/store-json-ld";
 import Footer from "@/components/Footer";
 import MiniCart from "@/components/MiniCart";
 import { Analytics } from "@vercel/analytics/next";
@@ -24,27 +25,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// No canonical and no share address here: they are the home page's own
+// (src/app/page.tsx). Set here, they were inherited by every page without its
+// own, and Google read /categories as a copy of the home page (Task 16.1).
 export const metadata: Metadata = {
   metadataBase: new URL("https://marshal.mk"),
+  // Macedonian, like all page metadata (D-039, Task 16.1).
   title: {
-    default: "Marshal — Men's Fashion & Clothing Store",
+    default: HOME_SEARCH.title,
     template: "%s | Marshal",
   },
-  description:
-    "Shop premium men's clothing — t-shirts, polos, shirts, pants, jackets and more. Quality fashion at great prices with free shipping.",
-  keywords: [
-    "men's fashion",
-    "men's clothing",
-    "t-shirts",
-    "polos",
-    "shirts",
-    "pants",
-    "jackets",
-    "men's wear",
-  ],
-  alternates: {
-    canonical: "/",
-  },
+  description: HOME_SEARCH.description,
   // Kept on an iPhone's home screen, the shop opens as an app under its own
   // name (Task 14.1); the icon is src/app/apple-icon.png, the rest manifest.ts.
   appleWebApp: {
@@ -58,7 +49,6 @@ export const metadata: Metadata = {
     type: "website",
     locale: SHARE_LOCALE,
     alternateLocale: ["en_US"],
-    url: "/",
     siteName: SHARE_SITE_NAME,
     title: HOME_SHARE.title,
     description: HOME_SHARE.description,
@@ -100,22 +90,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
       >
+        {/* The shop as an organization, on every page; the home page adds the store (16.1). */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: jsonLd({
-              "@context": "https://schema.org",
-              "@type": "Organization",
-              name: "Marshal",
-              url: "https://marshal.mk",
-              logo: "https://marshal.mk/logo_white.png",
-              description:
-                "Men's fashion and clothing store — premium t-shirts, polos, shirts, pants, jackets and more.",
-              sameAs: [
-                "https://www.instagram.com/marshalonlinemk",
-              ],
-            }),
-          }}
+          dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd()) }}
         />
         <LanguageProvider>
           <AuthProvider>

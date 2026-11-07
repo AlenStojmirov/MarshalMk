@@ -1,4 +1,8 @@
+import type { Metadata } from 'next';
 import HomeContent from '@/components/HomeContent';
+import { jsonLd } from '@/lib/json-ld';
+import { storeJsonLd, websiteJsonLd } from '@/lib/store-json-ld';
+import { HOME_SEARCH, HOME_SHARE, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from '@/lib/share-preview';
 import type { HomeCard } from '@/components/HomeCategoriesSection';
 import { fetchAllVisibleProducts } from '@/lib/products-server';
 import { groupHref, groupOfCategory, groupsInSeasonOrder, type GroupKey } from '@/config/categories';
@@ -39,7 +43,35 @@ function seasonCards(products: Product[]): HomeCard[] {
     });
 }
 
+/**
+ * Its title and snippet in search (Task 16.1), its own canonical, and the
+ * share card (10.8) with its own address. `absolute`: the home page is the
+ * one title without "| Marshal" after it.
+ */
+export const metadata: Metadata = {
+  title: { absolute: HOME_SEARCH.title },
+  description: HOME_SEARCH.description,
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    locale: SHARE_LOCALE,
+    alternateLocale: ['en_US'],
+    url: '/',
+    siteName: SHARE_SITE_NAME,
+    title: HOME_SHARE.title,
+    description: HOME_SHARE.description,
+    images: [SHARE_IMAGE],
+  },
+};
+
 export default async function Home() {
   const products = await fetchAllVisibleProducts(); // visible, in stock, newest first
-  return <HomeContent cards={seasonCards(products)} newProducts={products.slice(0, NEW_PRODUCTS)} />;
+  return (
+    <>
+      {/* The website and the shop in Vinica (16.1); the organization comes from the layout. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(websiteJsonLd()) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(storeJsonLd(products)) }} />
+      <HomeContent cards={seasonCards(products)} newProducts={products.slice(0, NEW_PRODUCTS)} />
+    </>
+  );
 }
