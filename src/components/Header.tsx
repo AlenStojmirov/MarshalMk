@@ -9,11 +9,13 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation, useLanguage, Language } from '@/lib/i18n';
 import { useCategories } from '@/hooks/useProducts';
 import { SHIPPING_CONFIG } from '@/config/shipping';
+import { menuEntryName } from '@/lib/product-display';
 import type { MenuEntry } from '@/config/categories';
 
-export default function Header() {
+/** `categories`: the menu's groups, read on the server by the root layout (Task 16.2). */
+export default function Header({ categories: fromServer = [] }: { categories?: MenuEntry[] }) {
   const { totalItems, openMiniCart } = useCart();
-  const { entries: categories } = useCategories();
+  const { entries: categories } = useCategories(fromServer);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
   const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false);
@@ -61,13 +63,6 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // A group by its name; a raw category no group holds yet by its own, or its key.
-  const entryLabel = (entry: MenuEntry) => {
-    const key = entry.kind === 'group' ? `categoryGroups.${entry.key}` : `categoryNames.${entry.key}`;
-    const label = t(key);
-    return label === key ? entry.key : label;
-  };
-
   const handleLanguageChange = (lang: Language) => {
     setLanguage(lang);
     setLangMenuOpen(false);
@@ -105,30 +100,35 @@ export default function Header() {
               <div className="relative" ref={categoriesDropdownRef}>
                 <button
                   onClick={() => setCategoriesDropdownOpen(!categoriesDropdownOpen)}
+                  aria-expanded={categoriesDropdownOpen}
                   className="flex items-center gap-1 text-gray-900 hover:text-black text-sm uppercase tracking-[0.15em] font-medium transition-colors duration-200 hover:underline underline-offset-4 decoration-1"
                 >
                   {t('common.categories')}
                   <ChevronDown className={`h-4 w-4 transition-transform ${categoriesDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
-                {categoriesDropdownOpen && (
-                  <div className="absolute left-0 mt-4 w-52 bg-white shadow-md border border-gray-100 py-3 z-50 max-h-80 overflow-y-auto">
-                    {categories.map((entry) => (
-                      <Link
-                        key={entry.href}
-                        href={entry.href}
-                        className="block px-5 py-2.5 text-sm text-gray-700 hover:text-black hover:bg-gray-50/80 transition-colors duration-200"
-                        onClick={() => setCategoriesDropdownOpen(false)}
-                      >
-                        {entryLabel(entry)}
-                      </Link>
-                    ))}
-                    {categories.length === 0 && (
-                      <span className="block px-5 py-2.5 text-gray-400 text-sm">
-                        {t('categories.noCategories')}
-                      </span>
-                    )}
-                  </div>
-                )}
+                {/* Always in the page, only hidden while closed: the groups are then
+                    links in the HTML, the one way a search engine reaches each (16.2). */}
+                <div
+                  className={`absolute left-0 mt-4 w-52 bg-white shadow-md border border-gray-100 py-3 z-50 max-h-80 overflow-y-auto ${
+                    categoriesDropdownOpen ? '' : 'hidden'
+                  }`}
+                >
+                  {categories.map((entry) => (
+                    <Link
+                      key={entry.href}
+                      href={entry.href}
+                      className="block px-5 py-2.5 text-sm text-gray-700 hover:text-black hover:bg-gray-50/80 transition-colors duration-200"
+                      onClick={() => setCategoriesDropdownOpen(false)}
+                    >
+                      {menuEntryName(entry, language)}
+                    </Link>
+                  ))}
+                  {categories.length === 0 && (
+                    <span className="block px-5 py-2.5 text-gray-400 text-sm">
+                      {t('categories.noCategories')}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <Link href="/sale" className="text-red-600 hover:text-red-700 hover:scale-105 text-sm uppercase tracking-[0.15em] font-semibold transition-all duration-200 hover:underline underline-offset-4 decoration-1">
@@ -301,7 +301,7 @@ export default function Header() {
                           setMobileCategoriesOpen(false);
                         }}
                       >
-                        {entryLabel(entry)}
+                        {menuEntryName(entry, language)}
                       </Link>
                     ))}
                     {categories.length === 0 && (

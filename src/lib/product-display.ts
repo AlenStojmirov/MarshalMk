@@ -2,7 +2,7 @@ import brandCodesData from '@/config/brand-codes.json';
 import { TRANSLATIONS, type Language } from '@/lib/i18n/messages';
 import type { Product } from '@/types';
 import { generateTitle } from './product-title';
-import { canonicalCategory, type GroupKey } from '@/config/categories';
+import { canonicalCategory, type GroupKey, type MenuEntry } from '@/config/categories';
 
 const CATEGORY_LABELS: Record<string, string> = {
   vaucer: "Voucher",
@@ -69,6 +69,11 @@ export function categoryName(category: string, lang: Language = 'mk'): string {
 /** A group's name (Task 2.4, `categoryGroups`): "Јакни и капути" / "Jackets & Coats". */
 export function groupName(group: GroupKey, lang: Language = 'mk'): string {
   return (TRANSLATIONS[lang].categoryGroups as Record<string, string> | undefined)?.[group] ?? group;
+}
+
+/** A menu entry's name (header, footer): a group by its own, a raw category no group holds yet by its own. */
+export function menuEntryName(entry: MenuEntry, lang: Language = 'mk'): string {
+  return entry.kind === 'group' ? groupName(entry.key, lang) : categoryName(entry.key, lang);
 }
 
 /**

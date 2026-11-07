@@ -1,9 +1,10 @@
+import { unstable_cache } from 'next/cache';
 import { getSupabaseAdmin } from './supabase-admin';
 import { rowToProduct, ProductRow } from './db-mappers';
 import { Product, PaginatedResult, ProductQueryParams } from '@/types';
 import { getProductImageMap, ProductImageMap } from './product-images';
 import { canonicalSize } from './sizes';
-import { canonicalCategory, slugOf } from '@/config/categories';
+import { canonicalCategory, groupOfCategory, menuEntries, slugOf, type MenuEntry } from '@/config/categories';
 import { FACETS, facetValues, sortFacet } from './facets';
 
 const PRODUCTS_PER_PAGE = 12;
@@ -221,6 +222,47 @@ export async function fetchAllVisibleProducts(): Promise<Product[]> {
     .map((p) => enrichWithLocalImages(p, imageMap))
     .filter((p) => p.isVisible !== false && p?.sizes?.some((s) => s.quantity >= 1));
 }
+
+/**
+ * Up to four others from the product's group, the same kind first (Task 2.4):
+ * the one cardigan on the shelf is shown other knitwear rather than nothing.
+ * Read here, not in the browser (Task 16.2), so they are links in the page's
+ * HTML — a search engine finds every product from its neighbours.
+ */
+export async function fetchRelatedProducts(product: Product, limit = 4): Promise<Product[]> {
+  const kind = slugOf(canonicalCategory(product.category ?? ''));
+  const group = groupOfCategory(product.category);
+  const near = (p: Product) =>
+    group ? groupOfCategory(p.category)?.key === group.key : slugOf(canonicalCategory(p.category ?? '')) === kind;
+  const same = (p: Product) => slugOf(canonicalCategory(p.category ?? '')) === kind;
+  const others = (await fetchAllVisibleProducts()).filter((p) => p.id !== product.id && near(p));
+  return [...others.filter(same), ...others.filter((p) => !same(p))].slice(0, limit);
+}
+
+/**
+ * The menu's groups with something on the shelf (Task 16.2), for the header
+ * and footer, read on the server so they are links in every page's HTML.
+ * Drawn in the browser they were links no search engine saw: Jeans and
+ * Trousers had no link from anywhere. Five minutes old at most, so a new
+ * group shows without a deploy; one that has just sold out still opens, on
+ * its empty note. The five minutes also redraw the pages with nothing of
+ * their own to read (/cart, the rules pages), built once before. Only the
+ * three columns the menu needs.
+ */
+export const fetchMenuEntries = unstable_cache(
+  async (): Promise<MenuEntry[]> => {
+    const { data, error } = await getSupabaseAdmin().from('products').select('category, is_visible, sizes');
+    if (error) throw error;
+    const rows = (data ?? []) as { category: string | null; is_visible: boolean | null; sizes: ProductRow['sizes'] }[];
+    // The storefront's rule, as on every page: visible, and some size on the shelf.
+    const shelf = rows
+      .filter((r) => r.category && r.is_visible !== false && r.sizes?.some((s) => s.quantity >= 1))
+      .map((r) => r.category as string);
+    return menuEntries(shelf);
+  },
+  ['menu-entries'],
+  { revalidate: 300 },
+);
 
 export function parseSearchParams(
   searchParams: Record<string, string | string[] | undefined>

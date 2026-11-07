@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getProductById } from '@/lib/products-server';
+import { fetchRelatedProducts, getProductById } from '@/lib/products-server';
 import { productTitle, categoryName, groupName } from '@/lib/product-display';
 import { categoryHref, groupHref, groupOfCategory } from '@/config/categories';
 import { generateDescription } from '@/lib/product-title';
@@ -60,6 +60,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
   if (!product) {
     notFound();
   }
+
+  // Others from its group, read here so they are links in the HTML (16.2).
+  const related = await fetchRelatedProducts(product).catch((err) => {
+    console.error('Related products could not be read:', err);
+    return [];
+  });
 
   // Serialize Firestore Timestamps to plain Date objects for client component
   const toDate = (val: unknown): Date => {
@@ -156,7 +162,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbJsonLd) }}
       />
-      <ProductPageClient product={serializedProduct} />
+      <ProductPageClient product={serializedProduct} related={related} />
     </>
   );
 }

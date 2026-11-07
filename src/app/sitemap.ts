@@ -3,9 +3,31 @@ import { fetchAllVisibleProducts } from "@/lib/products-server";
 import { POLICIES } from "@/config/policies";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { fetchLoyaltySettings } from "@/lib/loyalty-settings";
-import { canonicalCategory, groupForSlug, groupHref, menuEntries, slugOf } from "@/config/categories";
+import { canonicalCategory, groupForSlug, groupHref, groupOfCategory, menuEntries, slugOf } from "@/config/categories";
+import type { Product } from "@/types";
 
 const BASE_URL = "https://marshal.mk";
+
+// Redrawn at most an hour after a request (Task 16.2). Built once, it kept the
+// products of the last deploy, and after the switchover products are added
+// in the back office without one.
+export const revalidate = 3600;
+
+/** When the product last changed, for its <lastmod>. */
+function changedAt(product: Product): Date {
+  const at = product.updatedAt as unknown;
+  if (at instanceof Date) return at;
+  return (at as { toDate?: () => Date })?.toDate?.() ?? new Date();
+}
+
+/** A listing changes when a product in it does: the newest of them, so the
+ * date tells Google something rather than the hour the file was drawn. */
+function newest(products: Product[]): Date {
+  return products.reduce<Date | undefined>((a, p) => {
+    const at = changedAt(p);
+    return a && a >= at ? a : at;
+  }, undefined) ?? new Date();
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const products = await fetchAllVisibleProducts();
@@ -17,33 +39,41 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // the old /mens/turtlenecks now lands.
   const shelf = products.map((p) => p.category);
   const kinds = new Set(shelf.map((c) => slugOf(canonicalCategory(c))));
+  const kindOf = (p: Product) => slugOf(canonicalCategory(p.category ?? ""));
   const categoryPaths = menuEntries(shelf).flatMap((entry) => {
-    if (entry.kind !== "group") return [{ path: entry.href, priority: 0.8 }];
+    if (entry.kind !== "group") {
+      const items = products.filter((p) => kindOf(p) === slugOf(entry.key));
+      return [{ path: entry.href, priority: 0.8, items }];
+    }
     const group = groupForSlug(entry.key)!;
+    const items = products.filter((p) => groupOfCategory(p.category)?.key === group.key);
     const chips = group.categories.filter((c) => kinds.has(slugOf(c)));
     return [
-      { path: entry.href, priority: 0.8 },
-      ...(chips.length > 1 ? chips.map((c) => ({ path: groupHref(group.key, c), priority: 0.6 })) : []),
+      { path: entry.href, priority: 0.8, items },
+      ...(chips.length > 1
+        ? chips.map((c) => ({ path: groupHref(group.key, c), priority: 0.6, items: items.filter((p) => kindOf(p) === slugOf(c)) }))
+        : []),
     ];
   });
+  const onSale = products.filter((p) => p.sale?.isActive);
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: BASE_URL,
-      lastModified: new Date(),
+      lastModified: newest(products),
       changeFrequency: "daily",
       priority: 1.0,
     },
     {
       url: `${BASE_URL}/new`,
-      lastModified: new Date(),
+      lastModified: newest(products),
       changeFrequency: "daily",
       priority: 0.9,
     },
     {
       url: `${BASE_URL}/sale`,
-      lastModified: new Date(),
+      lastModified: newest(onSale.length ? onSale : products),
       changeFrequency: "daily",
       priority: 0.9,
     },
@@ -60,9 +90,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   // Category pages
-  const categoryPages: MetadataRoute.Sitemap = categoryPaths.map(({ path, priority }) => ({
+  const categoryPages: MetadataRoute.Sitemap = categoryPaths.map(({ path, priority, items }) => ({
     url: `${BASE_URL}${path}`,
-    lastModified: new Date(),
+    lastModified: newest(items),
     changeFrequency: "weekly",
     priority,
   }));
@@ -70,11 +100,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Product pages
   const productPages: MetadataRoute.Sitemap = products.map((product) => ({
     url: `${BASE_URL}/product/${product.id}`,
-    lastModified:
-      product.updatedAt instanceof Date
-        ? product.updatedAt
-        : (product.updatedAt as unknown as { toDate?: () => Date })
-              ?.toDate?.() || new Date(),
+    lastModified: changedAt(product),
     changeFrequency: "weekly",
     priority: 0.7,
   }));

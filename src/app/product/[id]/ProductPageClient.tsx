@@ -8,10 +8,9 @@ import { productFacts } from '@/lib/product-facts';
 import { fitHint, sizeChartFor } from '@/lib/size-chart';
 import { CareFold, ProductDetailsFold } from '@/components/ProductDetails';
 import SizeGuide, { SIZE_GUIDE_ID } from '@/components/SizeGuide';
-import { useProductsByCategory } from '@/hooks/useProducts';
 import { useCart } from '@/context/CartContext';
 import { productTitle } from '@/lib/product-display';
-import { aliasesOf, canonicalCategory, categoryHref, groupOfCategory } from '@/config/categories';
+import { canonicalCategory, categoryHref } from '@/config/categories';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useTranslation } from '@/lib/i18n';
@@ -20,20 +19,12 @@ import ProductImageGallery from '@/components/ProductImageGallery';
 import ProductDeliveryInfo from '@/components/ProductDeliveryInfo';
 import { Product } from '@/types';
 
-function RelatedProducts({ category, excludeId }: { category: string; excludeId: string }) {
-  // The same kind first, then the rest of its group (Task 2.4): the one
-  // cardigan on the shelf is shown other knitwear rather than nothing.
-  const group = groupOfCategory(category);
-  const { products, loading } = useProductsByCategory(group ? [...group.categories, ...aliasesOf(group.categories)] : [category]);
+/** Picked and read on the server (`fetchRelatedProducts`, 16.2): the same kind
+ * first, then the rest of its group. */
+function RelatedProducts({ products }: { products: Product[] }) {
   const { t } = useTranslation();
 
-  const relatedProducts = useMemo(() => {
-    const same = (p: Product) => canonicalCategory(p.category) === canonicalCategory(category);
-    const others = products.filter((p) => p.id !== excludeId && p.isVisible !== false);
-    return [...others.filter(same), ...others.filter((p) => !same(p))].slice(0, 4);
-  }, [products, excludeId, category]);
-
-  if (!loading && relatedProducts.length === 0) return null;
+  if (products.length === 0) return null;
 
   return (
     <div className="bg-white border-t border-stone-200">
@@ -41,7 +32,7 @@ function RelatedProducts({ category, excludeId }: { category: string; excludeId:
         <h2 className="text-xs uppercase tracking-[0.2em] text-stone-400 mb-10">
           {t('product.relatedProducts')}
         </h2>
-        <ProductGrid products={relatedProducts} loading={loading} />
+        <ProductGrid products={products} />
       </div>
     </div>
   );
@@ -49,9 +40,10 @@ function RelatedProducts({ category, excludeId }: { category: string; excludeId:
 
 interface ProductPageClientProps {
   product: Product;
+  related: Product[];
 }
 
-export default function ProductPageClient({ product }: ProductPageClientProps) {
+export default function ProductPageClient({ product, related }: ProductPageClientProps) {
   const router = useRouter();
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
@@ -390,7 +382,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
         </div>
       </div>
 
-      <RelatedProducts category={product.category} excludeId={product.id} />
+      <RelatedProducts products={related} />
     </div>
   );
 }

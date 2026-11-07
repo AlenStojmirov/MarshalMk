@@ -184,11 +184,6 @@ export function useProduct(id: string) {
   return { product, loading, error, refetch: () => setVersion((v) => v + 1) };
 }
 
-/** Products in some raw categories, for the storefront (related products). */
-export function useProductsByCategory(categories: readonly string[]) {
-  return usePublicProducts(categories);
-}
-
 // ---------------------------------------------------------------------------
 // Admin functions for product management
 // ---------------------------------------------------------------------------
@@ -255,13 +250,18 @@ export async function deleteProduct(id: string): Promise<void> {
 
 /**
  * The header's categories (Task 2.4): the groups with something on the shelf,
- * in this season's order, then any raw category no group holds yet.
+ * in this season's order, then any raw category no group holds yet. The root
+ * layout reads them on the server (Task 16.2) and passes them in; only when
+ * that read came back empty (Supabase down at render time) does the browser
+ * ask itself, as it did before.
  */
-export function useCategories() {
+export function useCategories(fromServer: MenuEntry[] = []) {
+  const served = fromServer.length > 0;
   const [entries, setEntries] = useState<MenuEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!served);
 
   useEffect(() => {
+    if (served) return;
     const fetchCategories = async () => {
       try {
         setLoading(true);
@@ -285,7 +285,7 @@ export function useCategories() {
     };
 
     fetchCategories();
-  }, []);
+  }, [served]);
 
-  return { entries, loading };
+  return served ? { entries: fromServer, loading: false } : { entries, loading };
 }

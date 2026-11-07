@@ -34,6 +34,12 @@ interface CategoryPageProps {
 
 const BASE = 'https://marshal.mk';
 
+/** ?page=N as a whole number from 1; anything else is page 1. */
+function pageOf(value: string | string[] | undefined): number {
+  const n = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : 1;
+  return n >= 1 ? n : 1;
+}
+
 /** The chip asked for, if it is one of this group's; a group of one has none. */
 function typeIn(group: CategoryGroup, type: string | string[] | undefined): string | undefined {
   if (typeof type !== 'string' || group.categories.length < 2) return undefined;
@@ -164,13 +170,19 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
 
   // A chip has its own address and title ("Машки ролки"), so the old
   // /mens/turtlenecks lands, through its 308, on a page about turtlenecks.
-  // Page and filters stay out of the canonical.
-  const { title, description } = group
+  // Filters and order stay out of the canonical. The page number stays in
+  // (16.2): page 2 holds other products, and pointed at page 1 it would ask
+  // Google to drop them; its title says which page it is.
+  const shared = group
     ? type
       ? categoryShare(`Машки ${categoryName(type).toLowerCase()}`, [])
       : categoryShare(group.seoTitle, group.categories.map((c) => categoryName(c)))
     : categoryShare(`Машки ${categoryName(slug).toLowerCase()}`, []);
-  const canonical = group ? groupHref(group.key, type) : `/mens/${encodeURIComponent(slugOf(slug))}`;
+  const page = pageOf(resolvedSearchParams.page);
+  const title = page > 1 ? `${shared.title} · страна ${page}` : shared.title;
+  const description = shared.description;
+  const first = group ? groupHref(group.key, type) : `/mens/${encodeURIComponent(slugOf(slug))}`;
+  const canonical = page > 1 ? `${first}${first.includes('?') ? '&' : '?'}page=${page}` : first;
 
   return {
     title,

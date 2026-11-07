@@ -147,11 +147,14 @@ export function groupHref(group: GroupKey, type?: string): string {
   return type ? `/mens/${group}?type=${encodeURIComponent(slugOf(type))}` : `/mens/${group}`;
 }
 
-/** Where a product's category is on the site: its group's chip, or, for a
- * category no group holds yet, its own page as before. */
+/** Where a product's category is on the site: its group's chip, the group
+ * itself when it holds one kind (it has no chips: /mens/shorts, not a second
+ * address for the same page, 16.2), or, for a category no group holds yet,
+ * its own page as before. */
 export function categoryHref(raw: string): string {
   const group = groupOfCategory(raw);
-  return group ? groupHref(group.key, canonicalCategory(raw)) : `/mens/${encodeURIComponent(slugOf(raw))}`;
+  if (!group) return `/mens/${encodeURIComponent(slugOf(raw))}`;
+  return groupHref(group.key, group.categories.length > 1 ? canonicalCategory(raw) : undefined);
 }
 
 export function isWinter(date: Date = new Date()): boolean {

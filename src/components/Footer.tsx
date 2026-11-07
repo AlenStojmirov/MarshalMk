@@ -8,8 +8,11 @@ import { POLICIES, type PolicyKey } from '@/config/policies';
 import { useTranslation } from '@/lib/i18n';
 import { HomeScreenGuideLink } from '@/components/HomeScreenGuide';
 import { STORE_EMAIL, STORE_FACEBOOK_URL, STORE_INSTAGRAM_URL, STORE_MAPS_URL, storeAddress } from '@/config/store';
+import { menuEntryName } from '@/lib/product-display';
+import type { MenuEntry } from '@/config/categories';
 
-export default function Footer() {
+/** `categories`: the menu's groups, read on the server by the root layout (Task 16.2). */
+export default function Footer({ categories = [] }: { categories?: MenuEntry[] }) {
   const { t, language } = useTranslation();
   return (
     <footer className="bg-stone-900">
@@ -88,6 +91,21 @@ export default function Footer() {
             </a>
           </div>
         </div>
+
+        {/* The groups on the shelf (16.2): on every page, in the HTML, so each
+            group is one link away from anywhere. */}
+        {categories.length > 0 && (
+          <nav
+            aria-label={t('common.categories')}
+            className="flex flex-wrap justify-center gap-x-5 gap-y-1 pb-3 text-[11px] sm:text-xs text-gray-300"
+          >
+            {categories.map((entry) => (
+              <Link key={entry.href} href={entry.href} className="hover:text-white transition-colors duration-200">
+                {menuEntryName(entry, language)}
+              </Link>
+            ))}
+          </nav>
+        )}
 
         {/* Delivery, exchange, privacy (13.5): the pages a buyer paying on delivery looks for first */}
         <nav className="flex flex-wrap justify-center gap-x-5 gap-y-1 pb-4 text-[11px] sm:text-xs text-gray-400">

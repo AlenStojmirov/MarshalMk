@@ -11,6 +11,7 @@ import HomeScreenGuide from "@/components/HomeScreenGuide";
 import { HOME_SEARCH, HOME_SHARE, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from "@/lib/share-preview";
 import { jsonLd } from "@/lib/json-ld";
 import { organizationJsonLd } from "@/lib/store-json-ld";
+import { fetchMenuEntries } from "@/lib/products-server";
 import Footer from "@/components/Footer";
 import MiniCart from "@/components/MiniCart";
 import { Analytics } from "@vercel/analytics/next";
@@ -73,11 +74,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // In the header and footer as links in the HTML (16.2). If the read fails
+  // the page still renders, and the header asks from the browser instead.
+  const menu = await fetchMenuEntries().catch((err) => {
+    console.error("Menu entries could not be read:", err);
+    return [];
+  });
+
   return (
     <html lang="mk">
       <head>
@@ -98,11 +106,11 @@ export default function RootLayout({
         <LanguageProvider>
           <AuthProvider>
             <CartProvider>
-              <Header />
+              <Header categories={menu} />
               <main className="min-h-screen">
                 {children}
               </main>
-              <Footer />
+              <Footer categories={menu} />
               <FloatingContactButton />
               <AttributionCapture />
               <HomeScreenGuide />
