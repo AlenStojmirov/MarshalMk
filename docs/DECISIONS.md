@@ -2028,5 +2028,10 @@ mk“). Без дијакритици и со една буква (ш→s, ж→
   на страната (16.4).
 - **Облик:** онака како што се пишува, не по правописот за транслитерација: „maski jakni“, не
   „mashki jakni“ ни „maški jakni“.
+- **Групите (16.4):** облиците се во `searchTerms` во `src/config/categories.ts`, по зборот за
+  групата, не по она што е на полица денес: maski jakni, zimski jakni · maski dzemperi, rolki ·
+  maski dukseri · maski kosuli · maski maici, polo maici · maski farmerki · maski pantaloni, kargo
+  pantaloni · maski sorcevi · maski odela, sakoa · maski kaisi. Картичката за споделување
+  останува на кирилица.
 - **Насловите на производите** се посебна одлука (Trello 16.6, D-041 важи дотогаш).
 - По 2–4 недели податоци од Search Console се проверува кои облици носат прикази.

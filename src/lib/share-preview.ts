@@ -19,6 +19,7 @@
 import type { Product } from '@/types';
 import { SHIPPING_CONFIG } from '@/config/shipping';
 import { STORE_ADDRESS } from '@/config/store';
+import { orList, type CategoryGroup } from '@/config/categories';
 import { formatComposition } from './attributes';
 import { den } from './marketing';
 import { productTitle } from './product-display';
@@ -28,8 +29,8 @@ export const SHARE_LOCALE = 'mk_MK';
 export const SHARE_SITE_NAME = 'Marshal';
 export const SHARE_IMAGE = { url: '/og-image.jpg', width: 1200, height: 630, alt: 'Маршал · машка облека · Виница' };
 
-/** Ends a sentence, unless it already ends on the full stop of "ден.". */
-const sentence = (t: string) => (t.endsWith('.') ? t : t + '.');
+/** Ends a sentence, unless it already ends on the full stop of "ден." or is a question. */
+const sentence = (t: string) => (/[.?!]$/.test(t) ? t : t + '.');
 
 const DELIVERY = `Плаќање при достава · достава низ цела Македонија, бесплатна над ${den(SHIPPING_CONFIG.freeShippingThreshold)}`;
 
@@ -56,13 +57,31 @@ export const HOME_SEARCH = {
  * in the customer's words, and how it reaches them. No count: it would need
  * a read of its own, and it is stale by the time anyone reads it.
  */
-export function categoryShare(title: string, holds: string[]): { title: string; description: string } {
-  // "Машко плетиво во Маршал, Виница: блузи, џемпери, ролки и кардигани."
+/** "Машко плетиво во Маршал, Виница: блузи, џемпери, ролки и кардигани" */
+function categoryLead(title: string, holds: string[]): string {
   const kinds = holds.map((h) => h.toLowerCase());
   const list = kinds.length > 1 ? `: ${kinds.slice(0, -1).join(', ')} и ${kinds[kinds.length - 1]}` : '';
+  return `${title} во Маршал, Виница${list}`;
+}
+
+export function categoryShare(title: string, holds: string[]): { title: string; description: string } {
   return {
     title,
-    description: [`${title} во Маршал, Виница${list}`, DELIVERY].map(sentence).join(' '),
+    description: [categoryLead(title, holds), DELIVERY].map(sentence).join(' '),
+  };
+}
+
+/**
+ * A group's title and snippet for search (D-045, Task 16.4): the Latin
+ * spelling people type next to the Cyrillic, "Машки јакни и капути · maski
+ * jakni". The share card keeps `categoryShare`, written for people.
+ */
+export function categorySearch(group: CategoryGroup, holds: string[]): { title: string; description: string } {
+  return {
+    title: `${group.seoTitle} · ${group.searchTerms[0]}`,
+    description: [categoryLead(group.seoTitle, holds), `Барате ${orList(group.searchTerms)}?`, DELIVERY]
+      .map(sentence)
+      .join(' '),
   };
 }
 

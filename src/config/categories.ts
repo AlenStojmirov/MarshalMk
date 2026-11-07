@@ -48,25 +48,61 @@ export interface CategoryGroup {
   /** Its page's title for search, Macedonian (page metadata is Macedonian
    * only, D-039): "Машки кошули | Marshal". */
   seoTitle: string;
+  /** How people search for it, in Latin letters the way they type it, without
+   * diacritics: ш→s, ж→z, ч→c, џ→dz (D-045, Task 16.4; Google autocomplete for
+   * Macedonia, 2026-11-02 and 11-07). The first goes into the page's title
+   * ("Машки кошули · maski kosuli"), all into its description and its text.
+   * Words for the group, not for what happens to be on the shelf today. */
+  searchTerms: readonly string[];
 }
 
 export const CATEGORY_GROUPS: readonly CategoryGroup[] = [
-  { key: 'jackets', categories: ['jackets', 'coats', 'vests'], season: 'AW', seoTitle: 'Машки јакни и капути' },
+  {
+    key: 'jackets',
+    categories: ['jackets', 'coats', 'vests'],
+    season: 'AW',
+    seoTitle: 'Машки јакни и капути',
+    searchTerms: ['maski jakni', 'zimski jakni'],
+  },
   {
     key: 'knitwear',
     categories: ['blouses', 'dzemper', 'halfZips', 'fullZips', 'turtleNecks', 'cardigans'],
     season: 'AW',
     seoTitle: 'Машко плетиво',
+    searchTerms: ['maski dzemperi', 'rolki'],
   },
-  { key: 'hoodies', categories: ['hoodies'], season: 'AW', seoTitle: 'Машки дуксери' },
-  { key: 'shirts', categories: ['shirts', 'shortSleevedShirt'], season: 'ALL', seoTitle: 'Машки кошули' },
-  { key: 'tshirts', categories: ['tShirts', 'polos', 'oversizeTshirts'], season: 'SS', seoTitle: 'Машки маици и поло маици' },
-  { key: 'jeans', categories: ['jeans'], season: 'ALL', seoTitle: 'Машки фармерки' },
-  { key: 'pants', categories: ['pants', 'cargoTrousers'], season: 'ALL', seoTitle: 'Машки панталони' },
-  { key: 'shorts', categories: ['shortsJeans'], season: 'SS', seoTitle: 'Машки шорцеви' },
-  { key: 'suits', categories: ['suits', 'suitJackets', 'blazers'], season: 'ALL', seoTitle: 'Машки одела и сакоа' },
-  { key: 'accessories', categories: ['belts', 'accessories'], season: 'ALL', seoTitle: 'Машки додатоци' },
+  { key: 'hoodies', categories: ['hoodies'], season: 'AW', seoTitle: 'Машки дуксери', searchTerms: ['maski dukseri'] },
+  { key: 'shirts', categories: ['shirts', 'shortSleevedShirt'], season: 'ALL', seoTitle: 'Машки кошули', searchTerms: ['maski kosuli'] },
+  {
+    key: 'tshirts',
+    categories: ['tShirts', 'polos', 'oversizeTshirts'],
+    season: 'SS',
+    seoTitle: 'Машки маици и поло маици',
+    searchTerms: ['maski maici', 'polo maici'],
+  },
+  { key: 'jeans', categories: ['jeans'], season: 'ALL', seoTitle: 'Машки фармерки', searchTerms: ['maski farmerki'] },
+  {
+    key: 'pants',
+    categories: ['pants', 'cargoTrousers'],
+    season: 'ALL',
+    seoTitle: 'Машки панталони',
+    searchTerms: ['maski pantaloni', 'kargo pantaloni'],
+  },
+  { key: 'shorts', categories: ['shortsJeans'], season: 'SS', seoTitle: 'Машки шорцеви', searchTerms: ['maski sorcevi'] },
+  {
+    key: 'suits',
+    categories: ['suits', 'suitJackets', 'blazers'],
+    season: 'ALL',
+    seoTitle: 'Машки одела и сакоа',
+    searchTerms: ['maski odela', 'sakoa'],
+  },
+  { key: 'accessories', categories: ['belts', 'accessories'], season: 'ALL', seoTitle: 'Машки додатоци', searchTerms: ['maski kaisi'] },
 ];
+
+/** "a", "a или b", "a, b или c": a list of search terms in a Macedonian sentence. */
+export function orList(terms: readonly string[], or = 'или'): string {
+  return terms.length > 1 ? `${terms.slice(0, -1).join(', ')} ${or} ${terms[terms.length - 1]}` : (terms[0] ?? '');
+}
 
 /**
  * The order the menu, the home page and /categories list the groups in. From

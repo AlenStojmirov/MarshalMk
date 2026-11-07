@@ -5,7 +5,7 @@ import { fetchPaginatedProducts, parseSearchParams } from '@/lib/products-server
 import { categoryName, groupName, productTitle } from '@/lib/product-display';
 import ProductGrid from '@/components/ProductGrid';
 import { jsonLd } from '@/lib/json-ld';
-import { categoryShare, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from '@/lib/share-preview';
+import { categorySearch, categoryShare, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from '@/lib/share-preview';
 import {
   categoryForSlug,
   groupForSlug,
@@ -173,14 +173,18 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
   // Filters and order stay out of the canonical. The page number stays in
   // (16.2): page 2 holds other products, and pointed at page 1 it would ask
   // Google to drop them; its title says which page it is.
+  // A group's own page carries the Latin spelling people search with in its
+  // title and snippet (D-045, 16.4); its share card stays as written for people.
   const shared = group
     ? type
       ? categoryShare(`Машки ${categoryName(type).toLowerCase()}`, [])
       : categoryShare(group.seoTitle, group.categories.map((c) => categoryName(c)))
     : categoryShare(`Машки ${categoryName(slug).toLowerCase()}`, []);
+  const search = group && !type ? categorySearch(group, group.categories.map((c) => categoryName(c))) : shared;
   const page = pageOf(resolvedSearchParams.page);
-  const title = page > 1 ? `${shared.title} · страна ${page}` : shared.title;
-  const description = shared.description;
+  const onPage = (t: string) => (page > 1 ? `${t} · страна ${page}` : t);
+  const title = onPage(search.title);
+  const description = search.description;
   const first = group ? groupHref(group.key, type) : `/mens/${encodeURIComponent(slugOf(slug))}`;
   const canonical = page > 1 ? `${first}${first.includes('?') ? '&' : '?'}page=${page}` : first;
 
@@ -191,8 +195,8 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
       canonical,
     },
     openGraph: {
-      title,
-      description,
+      title: onPage(shared.title),
+      description: shared.description,
       url: canonical,
       siteName: SHARE_SITE_NAME,
       images: [SHARE_IMAGE],
@@ -201,8 +205,8 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
     },
     twitter: {
       card: 'summary_large_image' as const,
-      title,
-      description,
+      title: onPage(shared.title),
+      description: shared.description,
       images: [SHARE_IMAGE.url],
     },
   };

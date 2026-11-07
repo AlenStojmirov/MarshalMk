@@ -5,7 +5,7 @@ import ProductListingLayout from './ProductListingLayout';
 import { useTranslation } from '@/lib/i18n';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
-import { groupHref, type GroupKey } from '@/config/categories';
+import { groupForSlug, groupHref, orList, type GroupKey } from '@/config/categories';
 
 interface CategoryPageContentProps {
   paginatedData: PaginatedResult;
@@ -42,6 +42,18 @@ export default function CategoryPageContent({
     chips.push({ category: type, count: 0 });
   }
   const groupCount = types.reduce((a, c) => a + c.count, 0);
+
+  // A few lines on the group (D-045, Task 16.4): what it holds, the Latin
+  // spelling people search with, delivery (its price is in the banner above). On the group's own first page only
+  // (its chips and page 2 are about other products), and not while it is empty.
+  const searchTerms = group ? groupForSlug(group)?.searchTerms ?? [] : [];
+  const intro = group && !type && paginatedData.currentPage === 1 && groupCount > 0 && searchTerms.length > 0
+    ? [
+        t(`categoryIntro.${group}`),
+        t('categoryIntro.search', { terms: orList(searchTerms, t('categoryIntro.or')) }),
+        t('categoryIntro.delivery'),
+      ].join(' ')
+    : null;
 
   const chip = (href: string, label: string, count: number, active: boolean) => (
     <Link
@@ -88,6 +100,7 @@ export default function CategoryPageContent({
                 <h1 id="category-heading" className="text-2xl md:text-3xl font-bold text-gray-900">
                   {heading}
                 </h1>
+                {intro && <p className="mt-3 max-w-3xl text-sm leading-relaxed text-stone-500">{intro}</p>}
               </div>
 
               {group && chips.length > 0 && (

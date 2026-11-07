@@ -260,6 +260,21 @@
     "material": "Material",
     "fit": "Fit"
   },
+  "categoryIntro": {
+    "search": "Everything you see is in stock.",
+    "or": "or",
+    "delivery": "Delivery across North Macedonia with cash on delivery, or pickup at the shop in Vinica.",
+    "jackets": "Men's jackets, coats and gilets for winter and the seasons in between.",
+    "knitwear": "Men's knitwear: jumpers, roll necks, cardigans, half-zips and full-zips.",
+    "hoodies": "Men's hoodies for every day.",
+    "shirts": "Men's shirts for every day and for special occasions.",
+    "tshirts": "Men's T-shirts and polo shirts.",
+    "jeans": "Men's jeans in several fits.",
+    "pants": "Men's trousers and cargo trousers.",
+    "shorts": "Men's shorts for summer.",
+    "suits": "Men's suits, suit jackets and blazers.",
+    "accessories": "Men's belts and accessories."
+  },
   "pagination": {
     "label": "Pagination",
     "previous": "Previous",
