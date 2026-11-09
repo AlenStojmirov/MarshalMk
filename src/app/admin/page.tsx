@@ -16,6 +16,8 @@ import ProductForm, { marginToneClass, saveProductEdit } from '@/components/admi
 import { getEffectivePrice, getPercentOff, isOnSale } from '@/lib/pricing';
 import { grossMargin, markup, MARGIN_LOW, MARGIN_WATCH } from '@/lib/cost';
 import { brandOf, brandsOf } from '@/lib/brands';
+import { matchesSearch, onShelf } from '@/lib/admin-search';
+import EmptyHiddenNote from '@/components/admin/EmptyHiddenNote';
 
 function LoginForm() {
   const { t } = useTranslation();
@@ -144,7 +146,8 @@ function AdminDashboard() {
   const [filterName, setFilterName] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterBrand, setFilterBrand] = useState('');
-  const [filterStock, setFilterStock] = useState<'all' | 'in-stock' | 'out-of-stock'>('all');
+  // Starts on stock (17.1): a sold-out product is noise in a search, one click away.
+  const [filterStock, setFilterStock] = useState<'all' | 'in-stock' | 'out-of-stock'>('in-stock');
   const [filterFeatured, setFilterFeatured] = useState<'all' | 'yes' | 'no'>('all');
   const [filterVisible, setFilterVisible] = useState<'all' | 'yes' | 'no'>('all');
   const [filterMargin, setFilterMargin] = useState<'all' | 'onSale' | 'onSaleMoving' | 'onSaleStale' | 'below40' | 'below25' | 'noCost'>('all');
@@ -156,12 +159,11 @@ function AdminDashboard() {
   const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean))).sort();
   const brands = brandsOf(products);
 
-  const filteredProducts = products.filter(product => {
-    if (filterName && !product.name.toLowerCase().includes(filterName.toLowerCase())) return false;
+  // Every filter but stock, so the list can say how many empty products it leaves out.
+  const passesFilters = (product: Product) => {
+    if (!matchesSearch(product, filterName)) return false;
     if (filterCategory && product.category !== filterCategory) return false;
     if (filterBrand && brandOf(product) !== filterBrand) return false;
-    if (filterStock === 'in-stock' && product.stock <= 0) return false;
-    if (filterStock === 'out-of-stock' && product.stock > 0) return false;
     if (filterFeatured === 'yes' && !product.featured) return false;
     if (filterFeatured === 'no' && product.featured) return false;
     if (filterVisible === 'yes' && product.isVisible === false) return false;
@@ -176,7 +178,14 @@ function AdminDashboard() {
       if (filterMargin === 'below25' && (margin === null || margin >= MARGIN_LOW)) return false;
     }
     return true;
-  });
+  };
+  const filteredProducts = products.filter(product =>
+    passesFilters(product) &&
+    (filterStock === 'in-stock' ? onShelf(product) : filterStock === 'out-of-stock' ? !onShelf(product) : true)
+  );
+  const hiddenEmpty = filterStock === 'in-stock'
+    ? products.filter(product => !onShelf(product) && passesFilters(product)).length
+    : 0;
 
   // Products with no known cost sort last on the margin orders — an unknown
   // margin is not the same as a bad one and should not top the list.
@@ -221,14 +230,14 @@ function AdminDashboard() {
   }, [products]);
 
   const hasActiveFilters =
-    filterName || filterCategory || filterBrand || filterStock !== 'all' || filterFeatured !== 'all' ||
+    filterName || filterCategory || filterBrand || filterStock !== 'in-stock' || filterFeatured !== 'all' ||
     filterVisible !== 'all' || filterMargin !== 'all' || sortBy !== 'newest';
 
   const clearFilters = () => {
     setFilterName('');
     setFilterCategory('');
     setFilterBrand('');
-    setFilterStock('all');
+    setFilterStock('in-stock');
     setFilterFeatured('all');
     setFilterVisible('all');
     setFilterMargin('all');
@@ -578,6 +587,9 @@ function AdminDashboard() {
             <p className="text-xs text-slate-500 mt-2">
               Showing {sortedProducts.length} of {products.length} products
             </p>
+          )}
+          {!loading && (
+            <EmptyHiddenNote count={hiddenEmpty} onShow={() => setFilterStock('all')} className="mt-2" />
           )}
         </div>
         <div className="overflow-x-auto">

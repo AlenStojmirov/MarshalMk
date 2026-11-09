@@ -13,6 +13,7 @@ import {
 import { NonSaleReason, Product } from '@/types';
 import { getEffectivePrice } from '@/lib/pricing';
 import { NON_SALE_REASONS } from '@/lib/sales-ledger';
+import { matchesSearch, onShelf } from '@/lib/admin-search';
 import {
   ArrowLeft,
   Plus,
@@ -61,13 +62,16 @@ function RecordSaleModal({
   const [searchTerm, setSearchTerm] = useState('');
   const [showProductPicker, setShowProductPicker] = useState(false);
 
-  const filteredProducts = useMemo(() => {
-    if (!searchTerm) return products;
-    const term = searchTerm.toLowerCase();
-    return products.filter(
-      p => p.name.toLowerCase().includes(term) || p.id.toLowerCase().includes(term)
-    );
-  }, [products, searchTerm]);
+  // Only what is on the shelf can be sold (17.1): an empty product in the top
+  // ten would push a sellable one out. How many empty ones matched is said
+  // below the list, so a piece in hand that the system calls sold out is
+  // explained rather than missing.
+  const matching = useMemo(
+    () => products.filter(p => matchesSearch(p, searchTerm)),
+    [products, searchTerm]
+  );
+  const filteredProducts = useMemo(() => matching.filter(onShelf), [matching]);
+  const emptyMatches = searchTerm.trim() ? matching.length - filteredProducts.length : 0;
 
   const addProduct = (product: Product, size?: string) => {
     const existingIndex = items.findIndex(
@@ -244,6 +248,9 @@ function RecordSaleModal({
                     <p className="text-center text-gray-500 py-4">{t('inStoreSales.noProductsFound')}</p>
                   )}
                 </div>
+                {emptyMatches > 0 && (
+                  <p className="mt-2 text-xs text-gray-500">{t('inStoreSales.emptyMatches', { count: emptyMatches })}</p>
+                )}
                 <button
                   type="button"
                   onClick={() => {

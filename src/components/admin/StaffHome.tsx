@@ -14,6 +14,8 @@ import DiscountBadge from '@/components/admin/DiscountBadge';
 import { ROLE_LABEL } from '@/lib/roles';
 import { Product, ProductFormData } from '@/types';
 import ProductForm, { saveProductEdit } from '@/components/admin/ProductForm';
+import EmptyHiddenNote from '@/components/admin/EmptyHiddenNote';
+import { matchesSearch, onShelf } from '@/lib/admin-search';
 
 /**
  * The warehouse screen (Task 8.5): what staff see at /admin.
@@ -59,23 +61,21 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
   );
   const brands = useMemo(() => brandsOf(products), [products]);
 
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return products
-      .filter((p) => {
-        if (category && p.category !== category) return false;
-        if (brand && brandOf(p) !== brand) return false;
-        if (stock === 'in' && p.stock <= 0) return false;
-        if (stock === 'empty' && p.stock > 0) return false;
-        if (!q) return true;
-        return (
-          p.name.toLowerCase().includes(q) ||
-          p.id.toLowerCase().includes(q) ||
-          getProductDisplayName(p.name, p.category, p.brand).toLowerCase().includes(q)
-        );
-      })
-      .slice(0, 200);
-  }, [products, query, category, brand, stock]);
+  // Everything the search and the dropdowns allow, before the stock filter, so
+  // the list can say how many empty products it is leaving out (17.1).
+  const found = useMemo(
+    () => products.filter(
+      (p) => (!category || p.category === category) && (!brand || brandOf(p) === brand) && matchesSearch(p, query)
+    ),
+    [products, query, category, brand]
+  );
+  const shown = useMemo(
+    () => found
+      .filter((p) => (stock === 'in' ? onShelf(p) : stock === 'empty' ? !onShelf(p) : true))
+      .slice(0, 200),
+    [found, stock]
+  );
+  const hiddenEmpty = stock === 'in' ? found.filter((p) => !onShelf(p)).length : 0;
 
   const handleCreate = async (data: ProductFormData, customId?: string) => {
     const id = await createProduct(data, customId);
@@ -232,6 +232,9 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
         )}
         {shown.length === 200 && (
           <p className="text-center text-xs text-slate-400 py-2">Прикажани се првите 200 — стесни го пребарувањето.</p>
+        )}
+        {!loading && (
+          <EmptyHiddenNote count={hiddenEmpty} onShow={() => setStock('all')} className="text-center py-3 border-t border-slate-100" />
         )}
       </div>
 

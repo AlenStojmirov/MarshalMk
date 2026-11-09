@@ -554,6 +554,7 @@
     "searchProducts": "Search products by name or ID...",
     "inStock": "in stock",
     "noProductsFound": "No products found",
+    "emptyMatches": "{count} more without stock, cannot be sold. If the piece is in hand, the system count is wrong.",
     "noItemsAdded": "No items added yet. Click 'Add Product' to start.",
     "addAtLeastOneProduct": "Please add at least one product",
     "total": "Total",
