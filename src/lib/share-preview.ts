@@ -35,6 +35,10 @@ const sentence = (t: string) => (/[.?!]$/.test(t) ? t : t + '.');
 
 const DELIVERY = `Плаќање при достава · достава низ цела Македонија, бесплатна над ${den(SHIPPING_CONFIG.freeShippingThreshold)}`;
 
+/**
+ * The home page's share card. It names the town, unlike the search title
+ * below: the owner keeps Vinica here (2026-11-09, D-044).
+ */
 export const HOME_SHARE = {
   title: 'Маршал · машка облека, Виница',
   description: ['Кошули, фармерки, јакни и плетиво', DELIVERY, `Дуќан: ${STORE_ADDRESS}`].map(sentence).join(' '),
