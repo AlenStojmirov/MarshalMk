@@ -43,6 +43,7 @@ const CHECKS: Array<{ migration: string; label: string; table: string; column: s
   { migration: '020', label: 'store_settings (е-пошта за нарачки)', table: 'store_settings',     column: 'settings' },
   { migration: '021', label: 'customers.address (адреса во профилот)', table: 'customers',        column: 'address' },
   { migration: '023', label: 'атрибути во products_public (наслови)', table: 'products_public', column: 'attributes' },
+  { migration: '024', label: 'попис (stock_counts, stock_count_lines)', table: 'stock_count_lines', column: 'matches' },
 ];
 
 async function probe(sb: SupabaseClient, table: string, column: string) {

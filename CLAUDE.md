@@ -47,17 +47,20 @@ Data scripts (`tsx`, service-role key, see `scripts/SCRIPTS.md`): `baseline`, `l
 | `points_ledger`, `points_allocations` | EPIC 13, points as movements: lots (own dates, `remaining`) and debits that take from the lots expiring first; expiry is read, not written. Customer reads own rows, admin all; **every write goes through a `points_*` function** (admin or service role), never the table (015, `src/lib/points.ts`) |
 | `wheel_prizes`, `wheel_spins` | EPIC 13 wheel, **off by default**. One function, `wheel_spin`, under locks per account, phone and wheel, checks the account may spin, picks a prize among those under their daily/monthly limits and gives it (coupon or points) in the same transaction — never the browser. Admin edits prizes; a customer reads own spins. The chances (weights) are the owner's only: customers see the prizes, never how likely each is — `wheel_available_prizes()` returns id, label, kind, value, to the service role only (018, 022, D-035, D-040) |
 | `customer_notifications` | EPIC 13 e-mails: each message claimed under a unique key (lot, coupon, year) before Brevo sends it, given back if sending fails, so the daily job (Vercel Cron → `/api/cron/notifications`, `CRON_SECRET`) never sends twice. Offers (birthday) only with consent and a signed one-click way out (019, D-036) |
+| `stock_counts`, `stock_count_lines` | EPIC 17 попис (024, D-046): one count open at a time; its list is every product with stock at the start, a product found later is added when counted. A line keeps `expected` (the shelf plus what open orders still hold in the shop) and `counted`. Back office reads; staff write only through `stock_count_record` (refused when the product's `updated_at` moved since it was opened); start, apply, dismiss, recount, close are the admin's functions |
 | `coupons`, `coupon_redemptions` | EPIC 13. Whether a coupon may be used is the database's answer (`coupon_lookup`, again under a lock in `coupon_redeem`); one per order; a cancelled order releases its use. Admin creates/edits; a customer reads own personal coupons and own uses — public codes are not listed (016, `src/lib/coupons.ts`) |
 
 **A column added to `products` must also be added to `products_costed`, and to `products_public` if customers may see it** — views fix their columns when created.
 
 ### Migrations
 
-`supabase/migrations/00N_*.sql`, idempotent, **pasted by the owner into the Supabase SQL editor** (DDL cannot go through PostgREST). Write the next number, add a probe to `scripts/check-migrations.ts`, add any new table to `TABLES` in `scripts/backup.ts` (after the tables it references — until then every backup fails and names it), ask for `npm run backup` before the owner pastes it, and keep code working before the migration runs (fall back when a view/function is missing — see `useProducts.ts`, `ledger-ops.ts`). SQL can be tested locally in PGlite (`@electric-sql/pglite`, installed in the scratchpad, not the repo) with a stand-in `auth.jwt()`.
+`supabase/migrations/00N_*.sql`, idempotent, **pasted by the owner into the Supabase SQL editor** (DDL cannot go through PostgREST). Write the next number, add a probe to `scripts/check-migrations.ts`, add any new table to `TABLES` in `scripts/backup.ts` (after the tables it references, with `since: '0NN'` so the backup taken before pasting skips it — a served table missing from `TABLES` fails every backup and names it), ask for `npm run backup` before the owner pastes it, and keep code working before the migration runs (fall back when a view/function is missing — see `useProducts.ts`, `ledger-ops.ts`). SQL can be tested locally in PGlite (`@electric-sql/pglite`, installed in the scratchpad, not the repo) with a stand-in `auth.jwt()`.
 
 ### Writing stock
 
-Every write to `sizes`/`stock`/`sold` goes through `src/lib/stock.ts`: read fresh, compare-and-set on `updated_at` (D-013). A form must never write back the quantities it opened with — only a real count, and only onto the shelf it started from (`saveProductEdit` in `ProductForm.tsx`).
+Every write to `sizes`/`stock`/`sold` goes through `src/lib/stock.ts`: read fresh, compare-and-set on `updated_at` (D-013). A form must never write back the quantities it opened with — only a real count, and only onto the shelf it started from (`saveProductEdit` in `ProductForm.tsx`). A stock count's correction is the difference (counted − expected) added to the shelf as it is when the admin applies it, in the database under a row lock (`applyCountLine` → `stock_count_apply`, D-046).
+
+Back-office product lists start on stock (`onShelf`, `matchesSearch` in `src/lib/admin-search.ts`, 17.1); empty products stay one click away (`EmptyHiddenNote`).
 
 ## Roles and access (D-017 … D-021)
 
@@ -66,7 +69,7 @@ The role is `app_metadata.role` on the Supabase user, writable only with the ser
 | Role | Screen | Database |
 |---|---|---|
 | `admin` | `/admin` — the owner's dashboard, all screens | everything |
-| `staff` | `/admin` — `StaffHome` (stock, new/edit product without cost, sales without totals, orders, `/admin/catalog`) | products and `product_attributes` read/insert/update; orders read/update; ledger insert + three functions (`ledger_refund_one`, `ledger_remove_order`, `ledger_reprice_order_line`) — **never reads the ledger** (rows carry cost) |
+| `staff` | `/admin` — `StaffHome` (stock, new/edit product without cost, sales without totals, orders, `/admin/catalog`, `/admin/stock-count`) | products and `product_attributes` read/insert/update; orders read/update; ledger insert + three functions (`ledger_refund_one`, `ledger_remove_order`, `ledger_reprice_order_line`) — **never reads the ledger** (rows carry cost); stock count read + `stock_count_record` |
 | `marketing` | `/admin/marketing` only (EPIC 10: post preparation, no publishing) | products and `product_attributes` **read only** (`is_marketing()`, 011) — cost empty, no ledger/orders/expenses; sales per product come from `sold[]` |
 | `customer` | no `/admin` at all; their page is `/account` (EPIC 13, D-033) | own `customers` row, own consents, own points and personal coupons, read only — every write through `/api/account` (service role) |
 | none / unknown | blank page | nothing |

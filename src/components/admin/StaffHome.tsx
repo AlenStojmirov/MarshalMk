@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { EyeOff, LogOut, Package, Pencil, Plus, QrCode, Search, Shirt, ShoppingBag } from 'lucide-react';
+import { ClipboardCheck, EyeOff, LogOut, Package, Pencil, Plus, QrCode, Search, Shirt, ShoppingBag } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts, createProduct } from '@/hooks/useProducts';
 import { getOrders } from '@/lib/orders';
+import { supabase } from '@/lib/supabase';
+import { fetchOpenCountId } from '@/lib/stock-count-db';
 import { getEffectivePrice, isOnSale } from '@/lib/pricing';
 import { getProductDisplayName } from '@/lib/product-display';
 import { brandOf, brandsOf } from '@/lib/brands';
@@ -42,6 +44,7 @@ export default function StaffHome() {
 function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => void }) {
   const { products, loading, refetch } = useProducts();
   const [openOrders, setOpenOrders] = useState<number | null>(null);
+  const [countOpen, setCountOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
   const [brand, setBrand] = useState('');
@@ -53,6 +56,7 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
     getOrders()
       .then((all) => setOpenOrders(all.filter((o) => OPEN_STATUSES.has(o.status)).length))
       .catch(() => setOpenOrders(null));
+    fetchOpenCountId(supabase).then((id) => setCountOpen(id !== null));
   }, []);
 
   const categories = useMemo(
@@ -115,7 +119,7 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
       </div>
 
       {/* The things a shift does */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
         <Link
           href="/admin/in-store-sales"
           className="flex items-center gap-3 p-4 bg-blue-600 text-white rounded-xl shadow-sm hover:bg-blue-700"
@@ -139,6 +143,23 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
             <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold tabular-nums">
               {openOrders} чекаат
             </span>
+          )}
+        </Link>
+        <Link
+          href="/admin/stock-count"
+          className={`flex items-center gap-3 p-4 rounded-xl shadow-sm border ${
+            countOpen
+              ? 'bg-amber-50 border-amber-300 hover:bg-amber-100'
+              : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-blue-50'
+          }`}
+        >
+          <ClipboardCheck className={`h-6 w-6 shrink-0 ${countOpen ? 'text-amber-700' : 'text-blue-600'}`} />
+          <div className="flex-1">
+            <p className="font-semibold text-slate-900">Попис</p>
+            <p className="text-xs text-slate-500">Производ по производ: точно или не</p>
+          </div>
+          {countOpen && (
+            <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 text-xs font-bold">во тек</span>
           )}
         </Link>
         <Link

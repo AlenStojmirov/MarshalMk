@@ -36,7 +36,8 @@ export const BACK_OFFICE_ROLES: readonly Role[] = ['staff', 'marketing', 'admin'
 const ROLE_PATHS: Record<Role, '*' | readonly string[]> = {
   admin: '*',
   // Catalogue (9.4): staff have the garment in hand, so they fill in what it is.
-  staff: ['/admin', '/admin/orders', '/admin/in-store-sales', '/admin/product', '/admin/catalog'],
+  // Stock count (17.2): staff count, the admin decides.
+  staff: ['/admin', '/admin/orders', '/admin/in-store-sales', '/admin/product', '/admin/catalog', '/admin/stock-count'],
   // EPIC 10: /admin is only the sign-in and a hop to the marketing screen.
   marketing: ['/admin', '/admin/marketing'],
   // Customer accounts will live outside /admin entirely.

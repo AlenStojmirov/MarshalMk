@@ -46,7 +46,12 @@ import { gunzipSync, gzipSync } from 'node:zlib';
  * A table added by a migration must be added here — until it is, every backup
  * fails and says which one is missing.
  */
-const TABLES: Array<{ name: string; order: string[] }> = [
+/**
+ * `since`: the migration that creates the table. Until it has run the table is
+ * skipped and said so, rather than failing the backup the owner takes before
+ * pasting it.
+ */
+const TABLES: Array<{ name: string; order: string[]; since?: string }> = [
   { name: 'suppliers', order: ['id'] },
   { name: 'products', order: ['id'] },
   { name: 'product_costs', order: ['product_id'] },
@@ -70,6 +75,8 @@ const TABLES: Array<{ name: string; order: string[] }> = [
   { name: 'wheel_prizes', order: ['id'] },
   { name: 'wheel_spins', order: ['id'] },
   { name: 'customer_notifications', order: ['id'] },
+  { name: 'stock_counts', order: ['id'], since: '024' },
+  { name: 'stock_count_lines', order: ['count_id', 'product_id'], since: '024' },
 ];
 
 /** Views over the tables above: their rows are already in the backup. */
@@ -275,8 +282,13 @@ async function backup() {
       if (!same) problems.push(`${t.name}: запишани ${rows.length}, а базата брои ${count}`);
       console.log(`  ${same ? '✓' : '✗'} ${t.name.padEnd(24)} ${String(rows.length).padStart(6)}  ${kb(w.bytes)}`);
     } catch (err) {
-      problems.push(`${t.name}: ${(err as Error).message}`);
-      console.log(`  ✗ ${t.name.padEnd(24)} ${(err as Error).message}`);
+      const message = (err as Error).message;
+      if (t.since && /schema cache|does not exist/i.test(message)) {
+        console.log(`  · ${t.name.padEnd(24)} уште ја нема (миграција ${t.since})`);
+        continue;
+      }
+      problems.push(`${t.name}: ${message}`);
+      console.log(`  ✗ ${t.name.padEnd(24)} ${message}`);
     }
   }
 
@@ -310,7 +322,7 @@ async function backup() {
     commit: gitCommit(),
     migrations: readdirSync('supabase/migrations').filter((f) => /^\d{3}_.*\.sql$/.test(f)).sort(),
     encrypted: !!passphrase,
-    restoreOrder: TABLES.map((t) => t.name),
+    restoreOrder: TABLES.map((t) => t.name).filter((n) => n in tables),
     tables,
     authUsers,
     totalRows,

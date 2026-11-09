@@ -26,7 +26,9 @@ import { getEffectivePrice } from '@/lib/pricing';
 import { getProductDisplayName } from '@/lib/product-display';
 import { salesEntryOpen, SALES_ENTRY_FROM } from '@/lib/product-qr';
 import DiscountBadge, { discountWarning } from '@/components/admin/DiscountBadge';
-import { AlertTriangle, ArrowLeft, Check } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, ClipboardCheck } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { fetchLine, fetchOpenCountId } from '@/lib/stock-count-db';
 
 const localDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Skopje' }).format(d);
 
@@ -41,6 +43,18 @@ export default function QuickSellPage() {
   const [selling, setSelling] = useState(false);
   const [done, setDone] = useState<{ size: string; price: number } | null>(null);
   const [today] = useState(() => localDay(new Date()));
+  // During a stock count a scanned label is as likely a count as a sale (17.2).
+  const [toCount, setToCount] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    fetchOpenCountId(supabase).then(async (countId) => {
+      if (countId === null) return;
+      const line = await fetchLine(supabase, countId, productId);
+      if (live) setToCount(!line?.countedAt);
+    });
+    return () => { live = false; };
+  }, [productId]);
 
   useEffect(() => {
     if (!product) return;
@@ -97,6 +111,17 @@ export default function QuickSellPage() {
               тука, а не и таму, ја запира синхронизацијата за овој производ. Истата продажба не смее да се внесе на двете места.
             </span>
           </div>
+        )}
+
+        {toCount && (
+          <Link
+            href={`/admin/stock-count?product=${encodeURIComponent(current.id)}`}
+            className="mb-4 flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-900"
+          >
+            <ClipboardCheck className="h-4 w-4 shrink-0" />
+            <span className="flex-1">Попис во тек: овој производ не е попишан.</span>
+            <span className="font-semibold">Попиши →</span>
+          </Link>
         )}
 
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">

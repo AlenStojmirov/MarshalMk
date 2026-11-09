@@ -19,6 +19,8 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { ProductSize, SoldItem } from '@/types';
+import { CountError, rowToLine, type LineRow } from './stock-count-db';
+import type { CountLine } from './stock-count';
 
 const MAX_ATTEMPTS = 4;
 
@@ -574,4 +576,21 @@ export async function renameSizeLabels(
     }
   }
   return { ok: false, changed: false, error: 'Производот постојано се менуваше — пушти повторно.' };
+}
+
+/**
+ * Apply a stock count's difference to the shelf (Task 17.3, D-046).
+ *
+ * The one write to stock that is not a compare-and-set in this file: the
+ * database does it (`stock_count_apply`, migration 024), because the count
+ * line has to be marked applied in the same transaction, or a retry could
+ * apply it twice. It locks the product row and adds counted − expected to each
+ * size as it is now, never below zero, so a sale between the count and the fix
+ * stays sold. The row's updated_at moves with it, so every compare-and-set
+ * above that read the old numbers retries. `sold[]` is not touched.
+ */
+export async function applyCountLine(sb: SupabaseClient, countId: number, productId: string): Promise<CountLine> {
+  const { data, error } = await sb.rpc('stock_count_apply', { p_count: countId, p_product: productId });
+  if (error) throw new CountError(error);
+  return rowToLine(data as LineRow);
 }
