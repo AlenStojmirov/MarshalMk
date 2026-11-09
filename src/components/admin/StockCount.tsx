@@ -33,6 +33,7 @@ import {
 } from '@/lib/stock-count';
 import { cancelCount, fetchCountState, startCount, type CountState } from '@/lib/stock-count-db';
 import StockCountPanel, { countWhen, sizesText } from '@/components/admin/StockCountPanel';
+import StockCountReview, { CloseCount, LossSummary } from '@/components/admin/StockCountReview';
 
 type Tab = 'todo' | 'diff' | 'done' | 'all';
 
@@ -78,7 +79,13 @@ export default function StockCount() {
     if (!role) return;
     let live = true;
     fetchCountState(supabase, isAdmin).then(
-      (s) => { if (live) { setState(s); setError(null); } },
+      (s) => {
+        if (!live) return;
+        setState(s);
+        setError(null);
+        // The admin comes back to a finished count to decide: open on the differences.
+        if (isAdmin && version === 0 && s.open && s.lines.length > 0 && countProgress(s.lines).complete) setTab('diff');
+      },
       (err) => { if (live) setError(err instanceof Error ? err.message : String(err)); },
     );
     return () => { live = false; };
@@ -114,13 +121,16 @@ export default function StockCount() {
   const shown = scoped.filter((r) => inTab(tab, r.status));
   const tabCount = (t: Tab) => scoped.filter((r) => inTab(t, r.status)).length;
 
-  const onSaved = (saved: CountLine) => {
+  const putLine = (line: CountLine) =>
     setState((s) => s && {
       ...s,
-      lines: s.lines.some((l) => l.productId === saved.productId)
-        ? s.lines.map((l) => (l.productId === saved.productId ? saved : l))
-        : [...s.lines, saved],
+      lines: s.lines.some((l) => l.productId === line.productId)
+        ? s.lines.map((l) => (l.productId === line.productId ? line : l))
+        : [...s.lines, line],
     });
+
+  const onSaved = (saved: CountLine) => {
+    putLine(saved);
     setPanelFor(null);
     setToast(saved.matches ? 'Зачувано: точно' : 'Зачувано: има разлика');
     if (wanted) router.replace('/admin/stock-count');
@@ -258,6 +268,7 @@ export default function StockCount() {
           {progress.applied + progress.dismissed > 0 && ` · ${progress.applied + progress.dismissed} решени`}
           {progress.found > 0 && ` · ${progress.found} најдени надвор од листата`}
         </p>
+        {isAdmin && <LossSummary rows={rows} />}
         {progress.complete && (
           <p className="mt-3 rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-800 flex items-center gap-2">
             <Check className="h-4 w-4 shrink-0" />
@@ -266,6 +277,7 @@ export default function StockCount() {
               : 'Сите производи се попишани. Админот ги прегледува разликите.'}
           </p>
         )}
+        {isAdmin && <CloseCount sb={supabase} countId={open.id} progress={progress} onClosed={reload} />}
       </div>
 
       {/* Filters */}
@@ -303,20 +315,24 @@ export default function StockCount() {
         ))}
       </div>
 
-      {/* List */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-        {shown.length === 0 ? (
-          <p className="text-center text-sm text-slate-500 py-10">
-            {tab === 'todo' && !query && !category ? 'Нема ништо за броење.' : 'Нема производи за овој избор.'}
-          </p>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {shown.map((r) => (
-              <CountRow key={r.line.productId} row={r} onOpen={() => setPanelFor(r.line.productId)} />
-            ))}
-          </ul>
-        )}
-      </div>
+      {/* List; the admin decides on the differences right in it (17.3) */}
+      {isAdmin && tab === 'diff' ? (
+        <StockCountReview sb={supabase} countId={open.id} rows={shown} onLine={putLine} onOpen={setPanelFor} />
+      ) : (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+          {shown.length === 0 ? (
+            <p className="text-center text-sm text-slate-500 py-10">
+              {tab === 'todo' && !query && !category ? 'Нема ништо за броење.' : 'Нема производи за овој избор.'}
+            </p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {shown.map((r) => (
+                <CountRow key={r.line.productId} row={r} onOpen={() => setPanelFor(r.line.productId)} />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <button
         onClick={() => setFinding(true)}
