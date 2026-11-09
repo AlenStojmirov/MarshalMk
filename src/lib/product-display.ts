@@ -1,5 +1,5 @@
 import brandCodesData from '@/config/brand-codes.json';
-import { TRANSLATIONS, type Language } from '@/lib/i18n/messages';
+import { translationsOf, type Language } from '@/lib/i18n/messages';
 import type { Product } from '@/types';
 import { generateTitle } from './product-title';
 import { canonicalCategory, type GroupKey, type MenuEntry } from '@/config/categories';
@@ -62,13 +62,13 @@ export function getCategoryLabel(category: string): string {
  * translations lack falls back to the English label.
  */
 export function categoryName(category: string, lang: Language = 'mk'): string {
-  const names = TRANSLATIONS[lang].categoryNames as Record<string, string> | undefined;
+  const names = translationsOf(lang).categoryNames as Record<string, string> | undefined;
   return names?.[canonicalCategory(category)] ?? getCategoryLabel(category);
 }
 
 /** A group's name (Task 2.4, `categoryGroups`): "Јакни и капути" / "Jackets & Coats". */
 export function groupName(group: GroupKey, lang: Language = 'mk'): string {
-  return (TRANSLATIONS[lang].categoryGroups as Record<string, string> | undefined)?.[group] ?? group;
+  return (translationsOf(lang).categoryGroups as Record<string, string> | undefined)?.[group] ?? group;
 }
 
 /** A menu entry's name (header, footer): a group by its own, a raw category no group holds yet by its own. */
@@ -103,7 +103,7 @@ export function getProductDisplayName(
   brand?: string,
   lang?: Language,
 ): string {
-  const names = lang ? (TRANSLATIONS[lang].categoryNames as Record<string, string> | undefined) : undefined;
+  const names = lang ? (translationsOf(lang).categoryNames as Record<string, string> | undefined) : undefined;
   const categoryLabel = category ? names?.[category] ?? getCategoryLabel(category) : '';
   const brandCode = brand ? getBrandCode(brand) || '' : '';
 

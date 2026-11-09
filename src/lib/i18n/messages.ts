@@ -5,9 +5,13 @@
  * same files, so a text lives in one place: `translations/{mk,en}.json`.
  *
  * No 'use client' and no server-only imports: both sides use this file.
+ *
+ * Macedonian is in every page's bundle. English is too on the server, which
+ * answers in either at once, but a browser fetches it only when the visitor
+ * picks it (`loadLanguage`, LanguageProvider, Task 16.11): most visitors never
+ * do, and it was 50 KB of every page.
  */
 
-import en from './translations/en.json';
 import mk from './translations/mk.json';
 
 export type Language = 'en' | 'mk';
@@ -18,7 +22,22 @@ export const DEFAULT_LANGUAGE: Language = 'mk';
 type TranslationValue = string | { [key: string]: TranslationValue };
 export type Translations = { [key: string]: TranslationValue };
 
-export const TRANSLATIONS: Record<Language, Translations> = { en, mk };
+const TRANSLATIONS: Partial<Record<Language, Translations>> = { mk };
+if (typeof window === 'undefined') {
+  // Next replaces `typeof window` as it builds, so this is gone from the
+  // browser's bundle and en.json with it.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  TRANSLATIONS.en = require('./translations/en.json') as Translations;
+}
+
+/** A language's texts; Macedonian until English has arrived. */
+export const translationsOf = (lang: Language): Translations => TRANSLATIONS[lang] ?? mk;
+
+/** Fetches a language the browser does not have yet. Resolves once `translate` speaks it. */
+export async function loadLanguage(lang: Language): Promise<void> {
+  if (TRANSLATIONS[lang]) return;
+  if (lang === 'en') TRANSLATIONS.en = (await import('./translations/en.json')).default as Translations;
+}
 
 export const isLanguage = (v: unknown): v is Language => v === 'en' || v === 'mk';
 
@@ -27,7 +46,7 @@ export const isLanguage = (v: unknown): v is Language => v === 'en' || v === 'mk
  * A missing key comes back as the key itself, so it shows on the page and gets fixed.
  */
 export function translate(lang: Language, key: string, params?: Record<string, string | number>): string {
-  let value: TranslationValue = TRANSLATIONS[lang];
+  let value: TranslationValue = translationsOf(lang);
   for (const k of key.split('.')) {
     if (typeof value === 'object' && value !== null && k in value) {
       value = value[k];

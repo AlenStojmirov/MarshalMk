@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase';
 import { rowToProduct, productToRow, ProductRow } from '@/lib/db-mappers';
 import { Product, ProductFormData } from '@/types';
-import { menuEntries, type MenuEntry } from '@/config/categories';
+import { COSTED_PRODUCTS, isMissingRelation } from '@/lib/product-views';
 
 async function fetchImageMap(): Promise<Record<string, string[]>> {
   try {
@@ -26,32 +26,6 @@ function enrichWithLocalImages(product: Product, imageMap: Record<string, string
     };
   }
   return product;
-}
-
-/**
- * The storefront's only way to read products (Task 8.1, migration 007).
- *
- * `products_public` carries the customer-facing columns of the products a
- * customer may see; the table itself, with purchase prices and every sale, is
- * closed to the anon key. Admin screens keep reading the table.
- *
- * Until migration 007 has run the view does not exist, and the storefront falls
- * back to the table rather than going blank — it is read the old way, leak and
- * all, for exactly as long as the migration waits.
- */
-export const PUBLIC_PRODUCTS = 'products_public';
-
-/**
- * The back office reads products through `products_costed` (migration 008):
- * the row with the purchase price joined in from `product_costs`. It runs with
- * the reader's rights, so the admin gets the cost and staff get the same rows
- * with the cost empty. Before 008 has run it falls back to the table.
- */
-export const COSTED_PRODUCTS = 'products_costed';
-
-function isMissingRelation(err: { code?: string; message?: string } | null): boolean {
-  if (!err) return false;
-  return err.code === '42P01' || err.code === 'PGRST205' || /does not exist|schema cache/i.test(err.message ?? '');
 }
 
 export function useProducts() {
@@ -191,46 +165,4 @@ export async function updateProduct(id: string, data: Partial<ProductFormData>):
 export async function deleteProduct(id: string): Promise<void> {
   const { error } = await supabase.from('products').delete().eq('id', id);
   if (error) throw error;
-}
-
-/**
- * The header's categories (Task 2.4): the groups with something on the shelf,
- * in this season's order, then any raw category no group holds yet. The root
- * layout reads them on the server (Task 16.2) and passes them in; only when
- * that read came back empty (Supabase down at render time) does the browser
- * ask itself, as it did before.
- */
-export function useCategories(fromServer: MenuEntry[] = []) {
-  const served = fromServer.length > 0;
-  const [entries, setEntries] = useState<MenuEntry[]>([]);
-  const [loading, setLoading] = useState(!served);
-
-  useEffect(() => {
-    if (served) return;
-    const fetchCategories = async () => {
-      try {
-        setLoading(true);
-        const read = (table: string) => supabase.from(table).select('category, is_visible, stock');
-        let { data, error } = await read(PUBLIC_PRODUCTS);
-        if (isMissingRelation(error)) ({ data, error } = await read('products'));
-
-        if (error) throw error;
-
-        const shelf = (data ?? [])
-          .filter((row: { category: string; is_visible: boolean; stock: number }) =>
-            row.category && row.is_visible !== false && row.stock > 0)
-          .map((row: { category: string }) => row.category);
-
-        setEntries(menuEntries(shelf));
-      } catch (err) {
-        console.error('Failed to fetch categories:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCategories();
-  }, [served]);
-
-  return served ? { entries: fromServer, loading: false } : { entries, loading };
 }

@@ -1,10 +1,8 @@
-import { Suspense } from 'react';
 import { notFound, permanentRedirect } from 'next/navigation';
 import CategoryPageContent from '@/components/CategoryPageContent';
 import { fetchPaginatedProducts, fetchShelfCategories, parseSearchParams } from '@/lib/products-server';
 import { onPage, pageOf, withPage } from '@/lib/page-number';
 import { categoryName, groupName, productTitle } from '@/lib/product-display';
-import ProductGrid from '@/components/ProductGrid';
 import { jsonLd } from '@/lib/json-ld';
 import { categorySearch, categoryShare, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } from '@/lib/share-preview';
 import {
@@ -138,19 +136,12 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     }
   }
 
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <ProductGrid products={[]} loading />
-          </div>
-        </div>
-      }
-    >
-      <CategoryPageLoader params={params} searchParams={searchParams} />
-    </Suspense>
-  );
+  // In the first HTML, not behind a Suspense boundary (16.11). Streamed
+  // later, the products and the text above them waited for React to reveal
+  // them, which waits for the page's JavaScript; on a phone that put the
+  // page's main content a second after everything around it. The product
+  // page has always waited for its data the same way.
+  return <CategoryPageLoader params={params} searchParams={searchParams} />;
 }
 
 export async function generateMetadata({ params, searchParams }: CategoryPageProps) {

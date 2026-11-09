@@ -1,14 +1,13 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { DEFAULT_LANGUAGE, TRANSLATIONS, isLanguage, type Language, type Translations } from './messages';
+import { DEFAULT_LANGUAGE, isLanguage, loadLanguage, type Language } from './messages';
 
 export type { Language } from './messages';
 
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  translations: Translations;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -19,6 +18,9 @@ const LANGUAGE_STORAGE_KEY = 'ecommerce-language';
  * The visitor's language, kept in localStorage and in `<html lang>`.
  * `fixed` pins a part of the site to one language whatever the visitor picked:
  * the back office is Macedonian only (D-039).
+ *
+ * English is fetched when it is picked, or found picked on a return visit
+ * (16.11); the page switches once it has arrived, so no text shows as its key.
  */
 export function LanguageProvider({ children, fixed }: { children: ReactNode; fixed?: Language }) {
   const [language, setLanguageState] = useState<Language>(fixed ?? DEFAULT_LANGUAGE);
@@ -27,11 +29,15 @@ export function LanguageProvider({ children, fixed }: { children: ReactNode; fix
   // Load language from localStorage on mount
   useEffect(() => {
     if (fixed) return;
+    let saved: Language = DEFAULT_LANGUAGE;
     try {
       const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-      if (isLanguage(savedLanguage)) setLanguageState(savedLanguage);
+      if (isLanguage(savedLanguage)) saved = savedLanguage;
     } catch { /* storage blocked: the default stays */ }
-    setIsLoaded(true);
+    loadLanguage(saved)
+      .then(() => setLanguageState(saved))
+      .catch((err) => console.error('Language could not be loaded:', err))
+      .finally(() => setIsLoaded(true));
   }, [fixed]);
 
   // Save language to localStorage when it changes
@@ -43,7 +49,10 @@ export function LanguageProvider({ children, fixed }: { children: ReactNode; fix
   }, [language, isLoaded, fixed]);
 
   const setLanguage = (lang: Language) => {
-    if (!fixed) setLanguageState(lang);
+    if (fixed) return;
+    loadLanguage(lang)
+      .then(() => setLanguageState(lang))
+      .catch((err) => console.error('Language could not be loaded:', err));
   };
 
   return (
@@ -51,7 +60,6 @@ export function LanguageProvider({ children, fixed }: { children: ReactNode; fix
       value={{
         language,
         setLanguage,
-        translations: TRANSLATIONS[language],
       }}
     >
       {children}

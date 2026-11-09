@@ -1,8 +1,8 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useSyncExternalStore, ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { getAuthSnapshot, getServerAuthSnapshot, subscribeAuth, supabaseClient } from '@/lib/auth-store';
 import { Role, roleOf } from '@/lib/roles';
 
 interface AuthContextType {
@@ -17,50 +17,25 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Who is signed in. The session lives in `src/lib/auth-store.ts`, which
+ * fetches the Supabase client only when there can be one (Task 16.11): a
+ * visitor who has never signed in is not sent supabase-js with every page.
+ */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useSyncExternalStore(subscribeAuth, getAuthSnapshot, getServerAuthSnapshot);
 
-  useEffect(() => {
-    // Initial session lookup
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-      // The stored session carries the role it was issued with. Refresh once
-      // on load, so a role set with `npm run user:role` applies on the next
-      // visit instead of after the token expires — or after a sign-out that
-      // nobody thinks to do. A refresh that fails leaves the stored session.
-      const { data: fresh } = await supabase.auth.refreshSession();
-      setUser(fresh.session?.user ?? data.session.user);
-      setLoading(false);
-    });
-
-    // Subscribe to auth state changes (login, logout, token refresh)
-    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
-      // The first session is handled above, after the refresh — taking it here
-      // would show the stale role for a moment.
-      if (event === 'INITIAL_SESSION') return;
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => {
-      subscription.subscription.unsubscribe();
-    };
-  }, []);
-
-  // Read from the session's JWT — refreshed on load, see above.
+  // Read from the session's JWT — refreshed on load (auth-store.ts).
   const role = roleOf(user);
 
   const signIn = async (email: string, password: string) => {
+    const supabase = await supabaseClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
   };
 
   const signOut = async () => {
+    const supabase = await supabaseClient();
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };

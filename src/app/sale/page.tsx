@@ -1,10 +1,8 @@
-import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { SALE_SEARCH, pageShare } from '@/lib/share-preview';
 import { onPage, pageOf, withPage } from '@/lib/page-number';
 import SalePageContent from '@/components/SalePageContent';
 import { fetchPaginatedProducts, parseSearchParams } from '@/lib/products-server';
-import ProductGrid from '@/components/ProductGrid';
 
 interface SalePageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -33,18 +31,7 @@ async function SalePageLoader({ searchParams }: SalePageProps) {
   return <SalePageContent paginatedData={paginatedData} />;
 }
 
+// In the first HTML, not behind a Suspense boundary: see /mens/[category] (16.11).
 export default async function SalePage({ searchParams }: SalePageProps) {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <ProductGrid products={[]} loading />
-          </div>
-        </div>
-      }
-    >
-      <SalePageLoader searchParams={searchParams} />
-    </Suspense>
-  );
+  return <SalePageLoader searchParams={searchParams} />;
 }

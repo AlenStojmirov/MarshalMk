@@ -7,7 +7,7 @@ import { ShoppingCart, Menu, X, Package, ChevronDown, Globe, UserRound } from 'l
 import { useCart } from '@/context/CartContext';
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation, useLanguage, Language } from '@/lib/i18n';
-import { useCategories } from '@/hooks/useProducts';
+import { useCategories } from '@/hooks/useCategories';
 import { SHIPPING_CONFIG } from '@/config/shipping';
 import { menuEntryName } from '@/lib/product-display';
 import type { MenuEntry } from '@/config/categories';
@@ -179,8 +179,12 @@ export default function Header({ categories: fromServer = [] }: { categories?: M
                 )}
               </div>
 
+              {/* Not fetched ahead while in view (16.11): the account page
+                  brings the Supabase client, which most visitors never need.
+                  A hover still fetches it. */}
               <Link
                 href="/account"
+                prefetch={false}
                 className="flex items-center text-gray-500 hover:text-black hover:scale-110 active:scale-95 transition-all duration-200"
                 title={t('header.account')}
                 aria-label={t('header.account')}
@@ -215,6 +219,7 @@ export default function Header({ categories: fromServer = [] }: { categories?: M
               </button>
               <Link
                 href="/account"
+                prefetch={false}
                 onClick={closeMobileMenu}
                 className="text-gray-500 hover:text-black hover:scale-110 active:scale-95 transition-all duration-200"
                 title={t('header.account')}
