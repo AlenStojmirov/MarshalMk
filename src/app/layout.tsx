@@ -16,15 +16,38 @@ import Footer from "@/components/Footer";
 import MiniCart from "@/components/MiniCart";
 import { Analytics } from "@vercel/analytics/next";
 
+// Not preloaded (Task 16.5). The shop's text is Arial (globals.css) and Geist
+// has no Cyrillic in this subset, so the storefront never draws either face;
+// preloaded, they were 52 KB on every page, asked for ahead of the photo a
+// phone shows first. Mono is the back office's codes and IDs, fetched there
+// the moment one is drawn.
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  preload: false,
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: false,
 });
+
+/**
+ * Where a signed-in visitor's session is refreshed as a page opens
+ * (AuthContext). Only its name is looked up early, without opening a
+ * connection (16.5): since the menu is read on the server (16.2) a visitor who
+ * is not signed in never asks Supabase anything, and the photos come through
+ * this site's own /_next/image, never from Firebase Storage, which the old
+ * hint here connected to on every page.
+ */
+const SUPABASE_ORIGIN = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").origin;
+  } catch {
+    return null;
+  }
+})();
 
 // No canonical and no share address here: they are the home page's own
 // (src/app/page.tsx). Set here, they were inherited by every page without its
@@ -89,11 +112,7 @@ export default async function RootLayout({
   return (
     <html lang="mk">
       <head>
-        <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
-        <link
-          rel="dns-prefetch"
-          href="https://firebasestorage.googleapis.com"
-        />
+        {SUPABASE_ORIGIN && <link rel="dns-prefetch" href={SUPABASE_ORIGIN} />}
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}

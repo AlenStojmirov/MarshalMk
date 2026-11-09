@@ -8,9 +8,12 @@ import { productTitle } from '@/lib/product-display';
 
 interface ProductCardProps {
   product: Product;
+  /** `eager`: on screen when the page opens, so loaded at once rather than
+   * when scrolled to; `high`: and ahead of everything else (Task 16.5). */
+  load?: 'eager' | 'high';
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, load }: ProductCardProps) {
   const { t, language, price } = useTranslation();
 
   const isValidImageUrl = product.imageUrl && (
@@ -51,6 +54,8 @@ export default function ProductCard({ product }: ProductCardProps) {
                   : 'object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]'
               }
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              loading={load ? 'eager' : undefined}
+              fetchPriority={load === 'high' ? 'high' : undefined}
               placeholder="blur"
               blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZTdlNWUwIi8+PC9zdmc+"
             />

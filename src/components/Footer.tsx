@@ -26,7 +26,6 @@ export default function Footer({ categories = [] }: { categories?: MenuEntry[] }
             width={70}
             height={24}
             className="w-[70px] sm:w-[120px]"
-            priority
           />
 
           {/* Contact — inline on mobile */}

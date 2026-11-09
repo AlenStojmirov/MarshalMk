@@ -210,7 +210,8 @@ export default function ProductListingLayout({
           </div>
 
           <div className="flex-1">
-            <ProductGrid products={products} />
+            {/* Two rows on a phone, one on a wide screen (16.5). */}
+            <ProductGrid products={products} eager={4} />
             <Pagination currentPage={currentPage} totalPages={totalPages} />
           </div>
         </div>

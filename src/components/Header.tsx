@@ -82,7 +82,7 @@ export default function Header({ categories: fromServer = [] }: { categories?: M
                 width={120}
                 height={40}
                 className="h-12 w-auto"
-                priority
+                loading="eager"
               />
             </Link>
 

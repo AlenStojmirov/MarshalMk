@@ -7,9 +7,18 @@ import { useTranslation } from '@/lib/i18n';
 interface ProductGridProps {
   products: Product[];
   loading?: boolean;
+  /** How many cards from the top are on screen when the page opens (Task
+   * 16.5): their photos load at once instead of waiting to be scrolled to,
+   * the first row (two on a phone) ahead of everything else. A lazy photo
+   * waits for the page's layout before it is even asked for, and on a phone
+   * one of the first two is what Google times as the page's main content.
+   * 0 for a grid further down a page. */
+  eager?: number;
 }
 
-export default function ProductGrid({ products, loading }: ProductGridProps) {
+const FIRST_ROW_ON_PHONE = 2;
+
+export default function ProductGrid({ products, loading, eager = 0 }: ProductGridProps) {
   const { t } = useTranslation();
   if (loading) {
     return (
@@ -37,8 +46,12 @@ export default function ProductGrid({ products, loading }: ProductGridProps) {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
-      {products.map(product => (
-        <ProductCard key={product.id} product={product} />
+      {products.map((product, i) => (
+        <ProductCard
+          key={product.id}
+          product={product}
+          load={i < Math.min(eager, FIRST_ROW_ON_PHONE) ? 'high' : i < eager ? 'eager' : undefined}
+        />
       ))}
     </div>
   );

@@ -6,9 +6,13 @@ interface CategoryCardProps {
   title: string;
   href: string;
   imageSrc: string;
+  /** The first card: what a phone shows first, so its photo is asked for from
+   * the page's <head>, ahead of everything else. The others load when they
+   * come near the screen (Task 16.5). */
+  first?: boolean;
 }
 
-export default function CategoryCard({ title, href, imageSrc }: CategoryCardProps) {
+export default function CategoryCard({ title, href, imageSrc, first = false }: CategoryCardProps) {
   const { t } = useTranslation();
   return (
     <Link
@@ -21,7 +25,8 @@ export default function CategoryCard({ title, href, imageSrc }: CategoryCardProp
         fill
         sizes="(max-width: 768px) 100vw, 33vw"
         className="object-cover transition-transform duration-500 group-hover:scale-105"
-        priority
+        preload={first}
+        fetchPriority={first ? 'high' : undefined}
       />
       <div className="absolute inset-0 bg-black/30 transition-colors duration-300 group-hover:bg-black/40" />
       <div className="absolute inset-0 flex flex-col items-center justify-center">

@@ -35,12 +35,13 @@ export default function HomeCategoriesSection({ cards }: { cards: HomeCard[] }) 
     <section>
       {/* Desktop: one column per card */}
       <div className={`hidden md:grid ${DESKTOP_COLUMNS[Math.min(categories.length, 3)]} h-[600px]`}>
-        {categories.map((category) => (
+        {categories.map((category, i) => (
           <CategoryCard
             key={category.href}
             title={category.title}
             href={category.href}
             imageSrc={category.imageSrc}
+            first={i === 0}
           />
         ))}
       </div>

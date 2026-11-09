@@ -140,7 +140,8 @@ export default function ProductImageGallery({
                     fill
                     className="object-cover pointer-events-none"
                     sizes="(max-width: 1024px) 100vw, 50vw"
-                    priority={index === 0}
+                    preload={index === 0}
+                    fetchPriority={index === 0 ? 'high' : undefined}
                     placeholder="blur"
                     blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZTdlNWUwIi8+PC9zdmc+"
                   />

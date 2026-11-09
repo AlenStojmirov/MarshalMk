@@ -46,7 +46,7 @@ export default function MobileCarousel({ categories }: MobileCarouselProps) {
         className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
-        {categories.map((category) => (
+        {categories.map((category, i) => (
           <div
             key={category.href}
             className="w-full flex-shrink-0 snap-center"
@@ -55,6 +55,7 @@ export default function MobileCarousel({ categories }: MobileCarouselProps) {
               title={category.title}
               href={category.href}
               imageSrc={category.imageSrc}
+              first={i === 0}
             />
           </div>
         ))}
