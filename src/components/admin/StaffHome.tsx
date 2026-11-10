@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ClipboardCheck, EyeOff, LogOut, Package, Pencil, Plus, QrCode, Search, Shirt, ShoppingBag } from 'lucide-react';
+import { ArrowLeftRight, ClipboardCheck, EyeOff, LogOut, Package, Pencil, Plus, QrCode, Search, Shirt, ShoppingBag } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts, createProduct } from '@/hooks/useProducts';
 import { getOrders } from '@/lib/orders';
@@ -128,6 +128,16 @@ function StaffHomeView({ email, onSignOut }: { email: string; onSignOut: () => v
           <div>
             <p className="font-semibold">Продажба во дуќан</p>
             <p className="text-xs text-blue-100">Внеси што се продало</p>
+          </div>
+        </Link>
+        <Link
+          href="/admin/exchange"
+          className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-blue-300 hover:bg-blue-50"
+        >
+          <ArrowLeftRight className="h-6 w-6 text-blue-600 shrink-0" />
+          <div>
+            <p className="font-semibold text-slate-900">Замена</p>
+            <p className="text-xs text-slate-500">Врати купено, дај друго, наплати доплата</p>
           </div>
         </Link>
         <Link

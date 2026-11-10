@@ -26,7 +26,7 @@ import { getEffectivePrice } from '@/lib/pricing';
 import { getProductDisplayName } from '@/lib/product-display';
 import { salesEntryOpen, SALES_ENTRY_FROM } from '@/lib/product-qr';
 import DiscountBadge, { discountWarning } from '@/components/admin/DiscountBadge';
-import { AlertTriangle, ArrowLeft, Check, ClipboardCheck } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowLeftRight, Check, ClipboardCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { fetchLine, fetchOpenCountId } from '@/lib/stock-count-db';
 
@@ -210,6 +210,16 @@ export default function QuickSellPage() {
             </>
           )}
         </div>
+
+        {/* A label scanned on a piece the customer brought back (18.1). */}
+        <Link
+          href={`/admin/exchange?return=${encodeURIComponent(current.id)}`}
+          className="mt-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 hover:border-blue-300"
+        >
+          <ArrowLeftRight className="h-4 w-4 shrink-0 text-blue-600" />
+          <span className="flex-1">Купувачот го враќа ова парче?</span>
+          <span className="font-semibold text-blue-700">Замена →</span>
+        </Link>
       </div>
     </div>
   );

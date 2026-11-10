@@ -37,7 +37,8 @@ const ROLE_PATHS: Record<Role, '*' | readonly string[]> = {
   admin: '*',
   // Catalogue (9.4): staff have the garment in hand, so they fill in what it is.
   // Stock count (17.2): staff count, the admin decides.
-  staff: ['/admin', '/admin/orders', '/admin/in-store-sales', '/admin/product', '/admin/catalog', '/admin/stock-count'],
+  // Exchange (18.1): staff make it at the counter, only the admin undoes one.
+  staff: ['/admin', '/admin/orders', '/admin/in-store-sales', '/admin/exchange', '/admin/product', '/admin/catalog', '/admin/stock-count'],
   // EPIC 10: /admin is only the sign-in and a hop to the marketing screen.
   marketing: ['/admin', '/admin/marketing'],
   // Customer accounts will live outside /admin entirely.

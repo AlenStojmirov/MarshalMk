@@ -21,6 +21,8 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { ProductSize, SoldItem } from '@/types';
 import { CountError, rowToLine, type LineRow } from './stock-count-db';
 import type { CountLine } from './stock-count';
+import { ExchangeError, rowToExchange, type ExchangeRow } from './exchange-db';
+import type { Exchange, GivenPiece, ReturnedPiece } from './exchange';
 
 const MAX_ATTEMPTS = 4;
 
@@ -593,4 +595,40 @@ export async function applyCountLine(sb: SupabaseClient, countId: number, produc
   const { data, error } = await sb.rpc('stock_count_apply', { p_count: countId, p_product: productId });
   if (error) throw new CountError(error);
   return rowToLine(data as LineRow);
+}
+
+/**
+ * Make an exchange (Task 18.1, D-047): the returned pieces back on the shelf
+ * and out of `sold[]` and the ledger, the new pieces off the shelf and sold on
+ * the day the returned ones were bought.
+ *
+ * In the database (`exchange_make`, migration 025), like a count's correction:
+ * it touches several products and the ledger, and a half-made exchange — the
+ * old piece back, the new one not out — is worse than none. Every product row
+ * is locked for the one transaction, so each updated_at moves and every
+ * compare-and-set above that read the old rows retries. Refused whole when a
+ * returned sale is gone or a new piece is not on the shelf.
+ */
+export async function makeExchange(
+  sb: SupabaseClient,
+  purchaseDay: string,
+  returned: ReturnedPiece[],
+  given: GivenPiece[],
+  note: string,
+): Promise<Exchange> {
+  const { data, error } = await sb.rpc('exchange_make', {
+    p_day: purchaseDay,
+    p_returned: returned.map((r) => ({ product: r.productId, size: r.size, price: r.price })),
+    p_given: given.map((g) => ({ product: g.productId, size: g.size, price: g.agreed })),
+    p_note: note || null,
+  });
+  if (error) throw new ExchangeError(error);
+  return rowToExchange(data as ExchangeRow);
+}
+
+/** Undo an exchange (admin): refused once its pieces have moved on since. */
+export async function undoExchange(sb: SupabaseClient, id: number): Promise<Exchange> {
+  const { data, error } = await sb.rpc('exchange_undo', { p_id: id });
+  if (error) throw new ExchangeError(error);
+  return rowToExchange(data as ExchangeRow);
 }

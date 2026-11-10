@@ -16,6 +16,7 @@ import { NON_SALE_REASONS } from '@/lib/sales-ledger';
 import { matchesSearch, onShelf } from '@/lib/admin-search';
 import {
   ArrowLeft,
+  ArrowLeftRight,
   Plus,
   Trash2,
   Calendar,
@@ -449,13 +450,22 @@ function SalesByDateView() {
             <p className="text-sm sm:text-base text-gray-500">{t('inStoreSales.subtitle')}</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowRecordModal(true)}
-          className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base"
-        >
-          <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
-          {t('inStoreSales.recordSale')}
-        </button>
+        <div className="flex gap-2">
+          <Link
+            href="/admin/exchange"
+            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors text-sm sm:text-base"
+          >
+            <ArrowLeftRight className="h-4 w-4 sm:h-5 sm:w-5" />
+            {t('inStoreSales.exchange')}
+          </Link>
+          <button
+            onClick={() => setShowRecordModal(true)}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base"
+          >
+            <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+            {t('inStoreSales.recordSale')}
+          </button>
+        </div>
       </div>
 
       {/* Date Filter */}

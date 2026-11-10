@@ -77,6 +77,7 @@ const TABLES: Array<{ name: string; order: string[]; since?: string }> = [
   { name: 'customer_notifications', order: ['id'] },
   { name: 'stock_counts', order: ['id'], since: '024' },
   { name: 'stock_count_lines', order: ['count_id', 'product_id'], since: '024' },
+  { name: 'exchanges', order: ['id'], since: '025' },
 ];
 
 /** Views over the tables above: their rows are already in the backup. */
