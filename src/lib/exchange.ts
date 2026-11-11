@@ -6,11 +6,13 @@
  * bought; one piece may be exchanged for two. No money is paid back, the
  * customer may only pay the difference.
  *
- * So the new pieces are booked together at what was paid then plus the top-up
- * paid now. When they cost less, nothing comes back, and what was paid is
- * spread over them by their prices. The database does the booking
- * (`exchange_make`); `bookExchange` is the same arithmetic for the screen, so
- * the customer hears the top-up before anything is written.
+ * The owner (2026-11-11): the top-up belongs to the day of the exchange. So
+ * the purchase day keeps what was paid on it: the new pieces are booked there
+ * at that, spread over them by their prices, and the top-up is its own money
+ * on the day it is paid (`exchanges.top_up_day`, which the sales screens add
+ * in: `top-ups.ts`). When they cost less, nothing comes back. The database
+ * does the booking (`exchange_apply`); `bookExchange` is the same arithmetic
+ * for the screen, so the customer hears the top-up before anything is written.
  *
  * Pure: no database, no browser.
  */
@@ -54,6 +56,8 @@ export interface Exchange {
   id: number;
   madeAt: string;
   madeBy: string | null;
+  /** 'voucher' when a voucher's cards came back (026). */
+  kind: 'exchange' | 'voucher';
   /** YYYY-MM-DD: the day the returned pieces were bought, and the new ones are sold on. */
   purchaseDay: string;
   returned: ExchangePiece[];
@@ -62,6 +66,8 @@ export interface Exchange {
   givenTotal: number;
   /** Paid at the exchange. Never negative. */
   topUp: number;
+  /** YYYY-MM-DD the top-up counts on as its own money; null when inside the prices (a voucher) or none. */
+  topUpDay: string | null;
   channel: 'store' | 'online';
   orderNumber: string | null;
   note: string | null;
@@ -83,37 +89,52 @@ export interface Booking {
 const cents = (n: number) => Math.round((Number(n) || 0) * 100);
 
 /**
- * The booking `exchange_make` writes (025): the new pieces at their own prices
- * when they cost at least what was paid, the difference paid now; otherwise
- * what was paid, spread over them by price, largest remainder first, in whole
- * denars when what was paid is whole.
+ * The booking `exchange_apply` writes (025).
+ *
+ * An exchange (`topUpApart`, the default) keeps the purchase day as it was:
+ * what was paid then is spread over the new pieces by their prices, and the
+ * top-up is its own money on the day of the exchange. A voucher (026) keeps
+ * the top-up inside the prices: the new pieces at their own prices when they
+ * cost more. Either way, when they cost less, what was paid is spread over
+ * them and the rest is left behind.
  */
-export function bookExchange(returned: number[], agreed: number[]): Booking {
+export function bookExchange(returned: number[], agreed: number[], topUpApart = true): Booking {
   const rc = returned.reduce((s, n) => s + cents(n), 0);
   const ac = agreed.map(cents);
   const gc = ac.reduce((s, n) => s + n, 0);
   const out = { returnedTotal: rc / 100, givenTotal: gc / 100 };
-
-  if (gc >= rc || gc === 0) {
-    return { ...out, prices: ac.map((c) => c / 100), topUp: Math.max(0, gc - rc) / 100, leftOver: 0 };
-  }
-
-  const unit = rc % 100 === 0 ? 100 : 1;
-  const units = rc / unit;
-  const shares = ac.map((c, i) => ({ i, base: Math.floor((c * units) / gc), rest: (c * units) % gc }));
-  let left = units - shares.reduce((s, x) => s + x.base, 0);
-  const bonus = new Array<number>(ac.length).fill(0);
-  for (const x of [...shares].sort((a, b) => b.rest - a.rest || a.i - b.i)) {
-    if (left <= 0) break;
-    bonus[x.i] = 1;
-    left -= 1;
-  }
+  if (gc === 0) return { ...out, prices: ac.map((c) => c / 100), topUp: 0, leftOver: 0 };
   return {
     ...out,
-    prices: shares.map((x) => ((x.base + bonus[x.i]) * unit) / 100),
-    topUp: 0,
-    leftOver: (rc - gc) / 100,
+    prices: topUpApart || gc < rc ? spread(rc, ac) : ac.map((c) => c / 100),
+    topUp: Math.max(0, gc - rc) / 100,
+    leftOver: Math.max(0, rc - gc) / 100,
   };
+}
+
+/**
+ * `exchange_spread`: totalCents over pieces by their prices (cents), largest
+ * remainder first, in whole denars when the total is whole and no piece comes
+ * out at nothing, otherwise in cents. BigInt, so a product of two large
+ * amounts stays exact.
+ */
+function spread(totalCents: number, ac: number[]): number[] {
+  const gc = BigInt(ac.reduce((s, n) => s + n, 0));
+  let prices: number[] = [];
+  for (const unit of totalCents % 100 === 0 ? [100, 1] : [1]) {
+    const units = BigInt(totalCents / unit);
+    const shares = ac.map((c, i) => ({ i, base: (BigInt(c) * units) / gc, rest: (BigInt(c) * units) % gc }));
+    let left = units - shares.reduce((s, x) => s + x.base, BigInt(0));
+    const bonus = new Array<number>(ac.length).fill(0);
+    for (const x of [...shares].sort((a, b) => (b.rest > a.rest ? 1 : b.rest < a.rest ? -1 : a.i - b.i))) {
+      if (left <= BigInt(0)) break;
+      bonus[x.i] = 1;
+      left -= BigInt(1);
+    }
+    prices = shares.map((x) => ((Number(x.base) + bonus[x.i]) * unit) / 100);
+    if (prices.every((p) => p > 0)) break;
+  }
+  return prices;
 }
 
 /** Whole days from a purchase to today, both YYYY-MM-DD. */
@@ -133,27 +154,40 @@ const pieceName = (p: ExchangePiece) => `${p.name}${p.size ? ' ' + p.size : ''}`
  * while Firebase is still where stock comes from (FIREBASE_SYNC_LIVE).
  * The same day and the same prices, or the sync puts the old sale back.
  */
-export function firebaseSteps(x: Pick<Exchange, 'returned' | 'given' | 'purchaseDay'>, fmtDay: (d: string) => string, fmtPrice: (n: number) => string): string[] {
+export function firebaseSteps(
+  x: Pick<Exchange, 'returned' | 'given' | 'purchaseDay' | 'topUp' | 'topUpDay'>,
+  fmtDay: (d: string) => string,
+  fmtPrice: (n: number) => string,
+): string[] {
   const day = fmtDay(x.purchaseDay);
   return [
     ...x.returned.map((p) => `${pieceName(p)}: избриши ја продажбата од ${day} по ${fmtPrice(p.price)} и врати го парчето на залиха`),
     ...x.given.map((p) => `${pieceName(p)}: продажба на ${day} по ${fmtPrice(p.price)}`),
+    // Firebase has no place for money without a piece; this app keeps it.
+    ...(x.topUp > 0 && x.topUpDay
+      ? [`Доплатата ${fmtPrice(x.topUp)} не се внесува во Firebase: запишана е тука, во продажбите на ${fmtDay(x.topUpDay)}`]
+      : []),
   ];
 }
 
 /** An error from Supabase as the shop floor reads it. */
-export function exchangeErrorMessage(err: { message?: string; hint?: string | null; code?: string; details?: string | null } | null | undefined): string {
+export function exchangeErrorMessage(
+  err: { message?: string; hint?: string | null; code?: string; details?: string | null } | null | undefined,
+  migration = '025',
+): string {
   const hint = err?.hint ?? '';
   const what = err?.details ? ` (${err.details})` : '';
   switch (hint) {
     case 'day':
       return 'Денот на купување не може да е во иднина.';
     case 'invalid':
-      return 'Замената не е исправна: секое ново парче мора да има цена.';
+      return 'Не е исправно: секое парче мора да има цена (подарок не се заменува).';
     case 'missing':
       return 'Некој од производите не постои (можеби е избришан).';
     case 'voucher':
-      return 'Ваучер не се заменува.';
+      return 'Ваучер не се заменува: се искористува во „Ваучери“.';
+    case 'redeemed':
+      return 'Ова е искористен ваучер: се поништува во „Ваучери“.';
     case 'nosale':
       return `Таа продажба веќе ја нема во системот${what}: можеби е вратена или сменета. Освежи ја страната.`;
     case 'short':
@@ -169,7 +203,7 @@ export function exchangeErrorMessage(err: { message?: string; hint?: string | nu
   }
   if (err?.code === '42501') return 'Немаш право за ова.';
   if (err?.code === 'PGRST202' || /could not find the function/i.test(err?.message ?? '')) {
-    return 'Замената чека миграција 025.';
+    return `Ова чека миграција ${migration}.`;
   }
   return err?.message || 'Нешто не успеа. Обиди се повторно.';
 }

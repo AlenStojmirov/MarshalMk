@@ -3,6 +3,8 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
+import { useTopUps } from '@/hooks/useTopUps';
+import type { TopUp } from '@/lib/exchange-db';
 import {
   recordProductSale,
   getAllSoldItems,
@@ -391,12 +393,20 @@ function SalesByDateView() {
   // Aggregate sold items from all products
   const allSoldItems = useMemo(() => getAllSoldItems(products), [products]);
   const groupedSales = useMemo(() => groupSoldItemsByDate(allSoldItems), [allSoldItems]);
+  // An exchange's top-up is money of the day it was paid, without a piece of
+  // its own: its pieces are in sold[] on the purchase day (D-047).
+  const topUps = useTopUps();
+  const topUpsByDate = useMemo(() => {
+    const byDate = new Map<string, TopUp[]>();
+    for (const tu of topUps) byDate.set(tu.day, [...(byDate.get(tu.day) ?? []), tu]);
+    return byDate;
+  }, [topUps]);
 
   const filteredDates = useMemo(() => {
-    const dates = Array.from(groupedSales.keys()).sort((a, b) => b.localeCompare(a));
+    const dates = Array.from(new Set([...groupedSales.keys(), ...topUpsByDate.keys()])).sort((a, b) => b.localeCompare(a));
     if (!filterDate) return dates;
     return dates.filter(date => date === filterDate);
-  }, [groupedSales, filterDate]);
+  }, [groupedSales, topUpsByDate, filterDate]);
 
   const handleRecordSale = async (items: SaleCartItem[], saleDate: string) => {
     // One call per unit. Each reads the row fresh (D-013), so there is no stale
@@ -508,7 +518,8 @@ function SalesByDateView() {
         <div className="space-y-4">
           {filteredDates.map(dateKey => {
             const dateItems = groupedSales.get(dateKey) || [];
-            const dailyTotal = calculateDailyTotal(dateItems);
+            const dateTopUps = topUpsByDate.get(dateKey) || [];
+            const dailyTotal = calculateDailyTotal(dateItems) + dateTopUps.reduce((sum, tu) => sum + tu.amount, 0);
             const productsSold = getProductsSoldOnDate(dateItems);
             const isExpanded = selectedDate === dateKey;
 
@@ -527,6 +538,7 @@ function SalesByDateView() {
                       <h3 className="font-bold text-gray-900 text-sm sm:text-base truncate">{formatDate(dateKey)}</h3>
                       <p className="text-xs sm:text-sm text-gray-500">
                         {dateItems.length} {t('inStoreSales.sold')} | {productsSold.size} {t('inStoreSales.uniqueProducts')}
+                        {dateTopUps.length > 0 && <> | {dateTopUps.length} {t('inStoreSales.topUps')}</>}
                       </p>
                     </div>
                   </div>
@@ -582,6 +594,19 @@ function SalesByDateView() {
                             </span>
                             <span className="text-gray-900 shrink-0 font-medium">
                               {item.price.toFixed(2)} ден.
+                            </span>
+                          </div>
+                        ))}
+                        {dateTopUps.map((tu) => (
+                          <div key={'tu' + tu.exchangeId} className="flex justify-between text-xs sm:text-sm border border-blue-200 bg-blue-50 rounded-lg p-2 sm:p-3">
+                            <span className="text-gray-700 mr-2 min-w-0">
+                              <span className="font-medium">{t('inStoreSales.topUp')}</span>
+                              <span className="block text-gray-500 truncate">
+                                {tu.returned.join(', ')} → {tu.given.join(', ')}
+                              </span>
+                            </span>
+                            <span className="text-gray-900 shrink-0 font-medium">
+                              {tu.amount.toFixed(2)} ден.
                             </span>
                           </div>
                         ))}

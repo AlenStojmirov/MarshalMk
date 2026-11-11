@@ -8,8 +8,10 @@
  *    purchase, because the new ones are sold on that day.
  * 2. What they take instead: pieces on the shelf, each at today's price,
  *    which can be changed like at the till.
- * 3. The top-up: what the new pieces cost over what was paid. Nothing is paid
- *    back; when they cost less the screen says so before it is written.
+ * 3. The top-up: what the new pieces cost over what was paid. It is today's
+ *    money (the owner, 2026-11-11): the purchase day keeps what was paid on
+ *    it, spread over the new pieces. Nothing is paid back; when they cost
+ *    less the screen says so before it is written.
  *
  * Writing it is one call (`makeExchange` → `exchange_make`): the shelf,
  * `sold[]` and the ledger move together or not at all. The admin can undo an
@@ -323,7 +325,8 @@ function Shell({ children }: { children: React.ReactNode }) {
         </h1>
       </div>
       <p className="text-sm text-slate-500 mb-5">
-        Купеното се враќа на залиха, новото се продава на денот кога е купено вратеното. Пари не се враќаат, само се доплаќа.
+        Купеното се враќа на залиха, новото се продава на денот кога е купено вратеното. Пари не се враќаат; доплатата е
+        денешна продажба.
       </p>
       {children}
     </div>
@@ -443,11 +446,12 @@ function BackPicker({
               const left = unpicked(chosen, sale);
               const otherDay = day !== null && dayOf(sale) !== day;
               const price = Number(sale.price) || 0;
+              const unpaid = price <= 0;
               return (
                 <li key={saleKey(sale.size, sale.price, sale.soldDate)}>
                   <button
                     onClick={() => onPick(chosen, sale)}
-                    disabled={left <= 0 || otherDay}
+                    disabled={left <= 0 || otherDay || unpaid}
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-left text-sm hover:border-blue-400 disabled:opacity-45 disabled:hover:border-slate-200"
                   >
                     <span className="font-medium tabular-nums">{dayText(dayOf(sale))}</span>
@@ -456,7 +460,7 @@ function BackPicker({
                     {price === 0 && sale.reason && <span className="text-[11px] text-slate-400">({REASON[sale.reason]})</span>}
                     {count > 1 && <span className="text-[11px] text-slate-400">×{count}</span>}
                     <span className="ml-auto text-[11px] text-slate-400 text-right">
-                      {otherDay ? 'друг ден: посебна замена' : left <= 0 ? 'избрано' : ago(dayOf(sale), today)}
+                      {unpaid ? 'не е платено: не се заменува' : otherDay ? 'друг ден: посебна замена' : left <= 0 ? 'избрано' : ago(dayOf(sale), today)}
                     </span>
                   </button>
                 </li>
@@ -594,10 +598,19 @@ function Summary({
           </p>
         </div>
       ) : (
-        <div className="mt-3 flex items-baseline justify-between rounded-lg bg-blue-50 px-3 py-2">
-          <span className="text-sm font-medium text-blue-900">{booking.topUp > 0 ? 'Доплата' : 'Без доплата'}</span>
-          {booking.topUp > 0 && <span className="text-2xl font-bold text-blue-900 tabular-nums">{mkDen(booking.topUp)}</span>}
-        </div>
+        <>
+          <div className="mt-3 flex items-baseline justify-between rounded-lg bg-blue-50 px-3 py-2">
+            <span className="text-sm font-medium text-blue-900">{booking.topUp > 0 ? 'Доплата' : 'Без доплата'}</span>
+            {booking.topUp > 0 && <span className="text-2xl font-bold text-blue-900 tabular-nums">{mkDen(booking.topUp)}</span>}
+          </div>
+          {booking.topUp > 0 && (
+            <p className="mt-2 text-xs text-slate-600">
+              Доплатата влегува во денешните продажби. На {dayText(day)} остануваат платените {mkDen(booking.returnedTotal)},
+              поделени на новите парчиња:{' '}
+              {out.map((o, i) => `${o.product.name}${o.size ? ' ' + o.size : ''} ${mkDen(booking.prices[i])}`).join(', ')}.
+            </p>
+          )}
+        </>
       )}
 
       {FIREBASE_SYNC_LIVE && (
@@ -642,9 +655,10 @@ function DoneCard({ x, today, onNew }: { x: Exchange; today: string; onNew: () =
         </div>
       </div>
       <ExchangeLines x={x} />
-      {x.purchaseDay !== today && (
+      {(x.purchaseDay !== today || x.topUpDay) && (
         <p className="mt-2 text-xs text-slate-500">
-          Новите парчиња се во продажбите на {dayText(x.purchaseDay)}, денот на купувањето, не денес.
+          {x.purchaseDay !== today && <>Новите парчиња се во продажбите на {dayText(x.purchaseDay)}, денот на купувањето. </>}
+          {x.topUpDay && <>Доплатата е во продажбите на {x.topUpDay === today ? 'денес' : dayText(x.topUpDay)}.</>}
         </p>
       )}
       {FIREBASE_SYNC_LIVE && (

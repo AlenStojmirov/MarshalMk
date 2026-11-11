@@ -23,6 +23,7 @@ import { canonicalSize } from '@/lib/sizes';
 import Link from 'next/link';
 import { Order, Product } from '@/types';
 import { getOrders } from '@/lib/orders';
+import { useTopUps } from '@/hooks/useTopUps';
 import { getEffectivePrice, isOnSale } from '@/lib/pricing';
 import { Expense, expensesForPeriod, getExpenses, periodLabel } from '@/lib/expenses';
 import { knownOpex, monthCosts } from '@/lib/break-even';
@@ -87,6 +88,7 @@ export default function DashboardSummary({
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [now] = useState(() => Date.now());
+  const topUps = useTopUps();
 
   useEffect(() => {
     // Expenses are optional: the table may not exist yet, and the month simply
@@ -191,6 +193,16 @@ export default function DashboardSummary({
           if (cost !== undefined) deadCost += units * cost;
         }
       }
+    }
+
+    // An exchange's top-up is money of the day it was paid, with no unit and
+    // no cost of its own: its pieces are in sold[] on the purchase day (D-047).
+    for (const tu of topUps) {
+      if (tu.day === todayKey) todayRevenue += tu.amount;
+      if (Date.parse(tu.day) >= now - 7 * DAY) daily.set(tu.day, (daily.get(tu.day) ?? 0) + tu.amount);
+      const key = tu.day.slice(0, 7);
+      const bucket = key === thisPeriod ? month : key === lastPeriod ? prev : null;
+      if (bucket) bucket.revenue += tu.amount;
     }
 
     const scale = (b: typeof month) => (b.units > 0 && b.costed > 0 ? b.units / b.costed : 1);
@@ -362,7 +374,7 @@ export default function DashboardSummary({
       alerts: alerts.slice(0, MAX_ALERTS),
       alertsHidden: Math.max(0, alerts.length - MAX_ALERTS),
     };
-  }, [products, expenses, orders, now]);
+  }, [products, expenses, orders, now, topUps]);
 
   const delta = (cur: number, before: number) =>
     before > 0 ? ((cur - before) / before) * 100 : null;

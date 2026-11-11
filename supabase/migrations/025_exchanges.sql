@@ -1,4 +1,4 @@
--- Migration 025 · exchanges (замена)  (Task 18.1, 2026-11-10)
+-- Migration 025 · exchanges (замена)  (Task 18.1, 2026-11-10 / 2026-11-11)
 --
 -- Run in: Supabase Dashboard → SQL Editor → New query → Paste → Run
 -- Idempotent: safe to run twice. Run after 009 (is_back_office, is_admin).
@@ -11,12 +11,15 @@
 -- the customer bought comes back to the shelf, and the new pieces are recorded
 -- as sold on the day the returned one was bought; one piece may be exchanged
 -- for two. No money is paid back, the customer may only pay the difference.
+-- The owner (2026-11-11): the top-up belongs to the day of the exchange.
 --
--- So an exchange moves no revenue in time. The returned piece's sale leaves
--- `sold[]` and the ledger; the new pieces enter both, on the purchase day,
--- booked together at what was paid then plus the top-up paid now. When the new
--- pieces cost less, nothing is paid back: what was paid is spread over them by
--- their prices (D-047).
+-- So the purchase day keeps exactly what was paid on it: the returned piece's
+-- sale leaves `sold[]` and the ledger, and the new pieces enter both on that
+-- day, booked together at what was paid then, spread over them by their
+-- prices. The top-up is money taken in today without a piece of its own: it is
+-- kept on the exchange (`top_up`, `top_up_day`), and the sales screens add it to
+-- the day it was paid. When the new pieces cost less, nothing is paid back
+-- (D-047).
 --
 -- One transaction, every product row locked: the shelf, `sold[]` and the
 -- ledger move together or not at all. Each product's updated_at moves with it
@@ -24,9 +27,12 @@
 -- retries (D-013).
 --
 --   exchanges  one row per exchange: what came back, what went out and at
---              what price, the top-up. An admin can undo one while the new
---              pieces are still recorded as sold and the returned ones still
---              on the shelf.
+--              what price, the top-up and the day it was paid. An admin can
+--              undo one while the new pieces are still recorded as sold and
+--              the returned ones still on the shelf.
+--
+-- A voucher redeemed (026) is made the same way, by the same function
+-- (`exchange_apply`, kind 'voucher'): its card comes back like a returned piece.
 --
 -- Rights:
 --   admin   read; make; undo
@@ -41,6 +47,8 @@ create table if not exists public.exchanges (
   id              bigint generated always as identity primary key,
   made_at         timestamptz not null default now(),
   made_by         text,
+  -- 'exchange', or 'voucher' when a voucher's card is what came back (026).
+  kind            text not null default 'exchange',
   -- The day the returned pieces were bought: the new ones are sold on it.
   purchase_day    date not null,
   -- [{product, name, category, size, price}]: price is what was paid.
@@ -50,8 +58,12 @@ create table if not exists public.exchanges (
   given           jsonb not null,
   returned_total  numeric(12,2) not null,
   given_total     numeric(12,2) not null,
-  -- Paid now. Never negative: no money is paid back.
+  -- Paid at the exchange. Never negative: no money is paid back.
   top_up          numeric(12,2) not null default 0,
+  -- The day the top-up counts as money taken in, on its own: the day of the
+  -- exchange. Null when there is none, or when it is inside the new pieces'
+  -- prices (a voucher, 026).
+  top_up_day      date,
   -- Where the returned pieces were sold: an online order's pieces stay its.
   channel         text not null default 'store',
   order_id        uuid,
@@ -62,11 +74,14 @@ create table if not exists public.exchanges (
 
   constraint exchanges_returned check (jsonb_typeof(returned) = 'array'),
   constraint exchanges_given    check (jsonb_typeof(given) = 'array'),
+  constraint exchanges_kind     check (kind in ('exchange', 'voucher')),
   constraint exchanges_top_up   check (top_up >= 0),
+  constraint exchanges_top_up_day check (top_up_day is null or top_up > 0),
   constraint exchanges_channel  check (channel in ('store', 'online'))
 );
 
 create index if not exists exchanges_made_at on public.exchanges (made_at desc);
+create index if not exists exchanges_top_up_day on public.exchanges (top_up_day) where top_up_day is not null;
 
 -- ---------------------------------------------------------------------------
 -- Helpers
@@ -148,26 +163,68 @@ as $$
   limit 1
 $$;
 
+-- The new pieces ([{..., agreed}]) with `price` set: p_total spread over them
+-- by their agreed prices, largest remainder first. In whole denars when
+-- p_total is whole and no piece comes out at nothing; otherwise in cents (a
+-- piece can still come out at nothing only when p_total is a few denars).
+create or replace function public.exchange_spread(p_given jsonb, p_total numeric)
+returns jsonb
+language plpgsql immutable
+set search_path = public
+as $$
+declare
+  v_sum  numeric;
+  v_unit numeric;
+  v_out  jsonb;
+begin
+  select sum((e ->> 'agreed')::numeric) into v_sum from jsonb_array_elements(p_given) e;
+  foreach v_unit in array case when p_total = trunc(p_total) then array[1, 0.01]::numeric[] else array[0.01]::numeric[] end loop
+    with s as (
+      select i, e,
+             floor((e ->> 'agreed')::numeric * (p_total / v_unit) / v_sum) as base,
+             mod((e ->> 'agreed')::numeric * (p_total / v_unit), v_sum) as rest
+      from jsonb_array_elements(p_given) with ordinality t(e, i)
+    ), r as (
+      select s.*, row_number() over (order by rest desc, i) as rk,
+             (p_total / v_unit) - sum(base) over () as left_over
+      from s
+    )
+    select jsonb_agg(e || jsonb_build_object('price', (base + case when rk <= left_over then 1 else 0 end) * v_unit) order by i)
+    into v_out
+    from r;
+    exit when not exists (select 1 from jsonb_array_elements(v_out) e where (e ->> 'price')::numeric = 0);
+  end loop;
+  return v_out;
+end;
+$$;
+
 -- ---------------------------------------------------------------------------
--- Make an exchange (admin, staff).
+-- The exchange itself, for exchange_make and voucher_redeem (026). Called by
+-- them only: no role may call it directly.
 --
+-- p_kind      'exchange': no voucher anywhere in it; the top-up is its own
+--             money on the day of the exchange.
+--             'voucher': what comes back is a voucher's cards, no voucher goes
+--             out; the top-up is inside the new pieces' prices, on the
+--             voucher's day (the owner, 2026-11-11).
 -- p_day       the day the returned pieces were bought; every one of them
 -- p_returned  [{product, size, price}]: one entry per piece, price as sold
 -- p_given     [{product, size, price}]: one entry per piece, price agreed today
 --
 -- Refused, with the hint the screen reads:
 --   day      the day is missing or in the future
---   invalid  a list is malformed
+--   invalid  a list is malformed, or a returned piece was not paid for
 --   missing  a product does not exist
---   voucher  a voucher is in it (vouchers are not exchanged; D-047)
+--   voucher  a voucher where none may be (vouchers are redeemed, not exchanged)
 --   nosale   a returned piece has no such sale on that day (detail: product size)
 --   short    a new piece is not on the shelf (detail: product size)
 -- ---------------------------------------------------------------------------
-create or replace function public.exchange_make(
+create or replace function public.exchange_apply(
+  p_kind     text,
   p_day      date,
   p_returned jsonb,
   p_given    jsonb,
-  p_note     text default null
+  p_note     text
 ) returns public.exchanges
 language plpgsql
 security definer
@@ -176,13 +233,12 @@ as $$
 declare
   v_actor    text := nullif(auth.jwt() ->> 'email', '');
   v_today    date := (now() at time zone 'Europe/Skopje')::date;
+  v_apart    boolean := p_kind = 'exchange';
   v_ret      jsonb;
   v_giv      jsonb;
   v_rt       numeric;
   v_gt       numeric;
-  v_top      numeric := 0;
-  v_unit     numeric;
-  v_units    numeric;
+  v_top      numeric;
   v_ids      text[];
   v_id       text;
   v_sizes    jsonb;
@@ -206,10 +262,13 @@ begin
   if not public.is_back_office() then
     raise exception 'not allowed' using errcode = '42501';
   end if;
+  if p_kind is null or p_kind not in ('exchange', 'voucher') then
+    raise exception 'bad kind' using errcode = '22023', hint = 'invalid';
+  end if;
   if p_day is null or p_day > v_today then
     raise exception 'bad purchase day' using errcode = '22023', hint = 'day';
   end if;
-  if not (public.exchange_valid(p_returned, false) and public.exchange_valid(p_given, true)) then
+  if not (public.exchange_valid(p_returned, true) and public.exchange_valid(p_given, true)) then
     raise exception 'bad exchange' using errcode = '22023', hint = 'invalid';
   end if;
 
@@ -222,8 +281,17 @@ begin
   if (select count(*) from public.products where id = any(v_ids)) <> cardinality(v_ids) then
     raise exception 'no such product' using errcode = 'P0001', hint = 'missing';
   end if;
-  if exists (select 1 from public.products where id = any(v_ids) and category = 'vaucer') then
+  if exists (select 1 from jsonb_array_elements(p_given) e join public.products p on p.id = e ->> 'product'
+             where p.category = 'vaucer')
+     or (p_kind = 'exchange' and exists (
+             select 1 from jsonb_array_elements(p_returned) e join public.products p on p.id = e ->> 'product'
+             where p.category = 'vaucer')) then
     raise exception 'a voucher is not exchanged' using errcode = 'P0001', hint = 'voucher';
+  end if;
+  if p_kind = 'voucher' and exists (
+       select 1 from jsonb_array_elements(p_returned) e join public.products p on p.id = e ->> 'product'
+       where p.category is distinct from 'vaucer') then
+    raise exception 'only vouchers come back here' using errcode = '22023', hint = 'invalid';
   end if;
 
   -- The lists as they are kept: trimmed sizes, prices to the cent, names.
@@ -246,30 +314,18 @@ begin
   from jsonb_array_elements(p_given) with ordinality t(e, i)
   join public.products p on p.id = t.e ->> 'product';
 
-  -- What each new piece is booked at. When they cost more, their own prices:
-  -- the customer pays the difference now. When they cost less, nothing comes
-  -- back, so what was paid is spread over them by price (largest remainder,
-  -- in whole denars when what was paid is whole).
-  if v_gt >= v_rt then
-    v_top := v_gt - v_rt;
+  -- What each new piece is booked at. An exchange keeps the purchase day as it
+  -- was: what was paid then, spread over the new pieces by price, and the
+  -- top-up apart, on today. A voucher's top-up is inside the prices, so the
+  -- pieces keep their own when they cost more. Either way, when they cost
+  -- less, nothing comes back and what was paid is spread over them.
+  v_top := greatest(v_gt - v_rt, 0);
+  if v_apart or v_gt < v_rt then
+    v_giv := public.exchange_spread(v_giv, v_rt);
+  else
     select jsonb_agg(e || jsonb_build_object('price', e -> 'agreed') order by i)
     into v_giv
     from jsonb_array_elements(v_giv) with ordinality t(e, i);
-  else
-    v_unit := case when v_rt = trunc(v_rt) then 1 else 0.01 end;
-    v_units := v_rt / v_unit;
-    with s as (
-      select i, e,
-             floor((e ->> 'agreed')::numeric * v_units / v_gt) as base,
-             mod((e ->> 'agreed')::numeric * v_units, v_gt) as rest
-      from jsonb_array_elements(v_giv) with ordinality t(e, i)
-    ), r as (
-      select s.*, row_number() over (order by rest desc, i) as rk, v_units - sum(base) over () as left_over
-      from s
-    )
-    select jsonb_agg(e || jsonb_build_object('price', (base + case when rk <= left_over then 1 else 0 end) * v_unit) order by i)
-    into v_giv
-    from r;
   end if;
 
   -- Each product once: what comes back first, then what goes out.
@@ -352,10 +408,11 @@ begin
   end if;
 
   insert into public.exchanges
-    (made_by, purchase_day, returned, given, returned_total, given_total, top_up,
+    (made_by, kind, purchase_day, returned, given, returned_total, given_total, top_up, top_up_day,
      channel, order_id, order_number, note)
   values
-    (v_actor, p_day, v_ret, v_giv, v_rt, v_gt, v_top,
+    (v_actor, p_kind, p_day, v_ret, v_giv, v_rt, v_gt, v_top,
+     case when v_apart and v_top > 0 then v_today end,
      v_channel, v_order, v_number, nullif(btrim(coalesce(p_note, '')), ''))
   returning * into v_ex;
 
@@ -375,8 +432,34 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- Undo an exchange (admin): the new pieces back on the shelf, the returned
--- ones sold again on their day at their price.
+-- Make an exchange (admin, staff). Refused as exchange_apply says; a voucher
+-- is never in it.
+-- ---------------------------------------------------------------------------
+create or replace function public.exchange_make(
+  p_day      date,
+  p_returned jsonb,
+  p_given    jsonb,
+  p_note     text default null
+) returns public.exchanges
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ex public.exchanges;
+begin
+  if not public.is_back_office() then
+    raise exception 'not allowed' using errcode = '42501';
+  end if;
+  select * into v_ex from public.exchange_apply('exchange', p_day, p_returned, p_given, p_note);
+  return v_ex;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Take an exchange back: the new pieces back on the shelf, the returned ones
+-- sold again on their day at their price, its top-up no longer counted. For
+-- exchange_undo and voucher_undo (026) only.
 --
 -- Refused, with the hint:
 --   nothing  no such exchange
@@ -385,7 +468,7 @@ $$;
 --   gone     a new piece's sale is no longer in sold[] (refunded or changed)
 --   resold   a returned piece is no longer on the shelf (sold again)
 -- ---------------------------------------------------------------------------
-create or replace function public.exchange_undo(p_id bigint)
+create or replace function public.exchange_revert(p_id bigint)
 returns public.exchanges
 language plpgsql
 security definer
@@ -488,8 +571,34 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- Undo an exchange (admin). A redeemed voucher is undone from its own screen
+-- (voucher_undo, 026), which puts the voucher back too: refused here with the
+-- hint 'redeemed'.
+-- ---------------------------------------------------------------------------
+create or replace function public.exchange_undo(p_id bigint)
+returns public.exchanges
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ex public.exchanges;
+begin
+  if not public.is_admin() then
+    raise exception 'not allowed' using errcode = '42501';
+  end if;
+  if exists (select 1 from public.exchanges where id = p_id and kind = 'voucher') then
+    raise exception 'a voucher is undone from vouchers' using errcode = 'P0001', hint = 'redeemed';
+  end if;
+  select * into v_ex from public.exchange_revert(p_id);
+  return v_ex;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Rights: read for the back office; every write through the functions above,
--- so the shelf, sold[] and the ledger never part.
+-- so the shelf, sold[] and the ledger never part. exchange_apply and
+-- exchange_revert are reached only through them.
 -- ---------------------------------------------------------------------------
 alter table public.exchanges enable row level security;
 
@@ -500,7 +609,9 @@ create policy "exchanges: back office read" on public.exchanges for select to au
 revoke all on public.exchanges from anon, authenticated;
 grant select on public.exchanges to authenticated;
 
-revoke all on function public.exchange_make(date, jsonb, jsonb, text) from public, anon;
-revoke all on function public.exchange_undo(bigint)                   from public, anon;
+revoke all on function public.exchange_apply(text, date, jsonb, jsonb, text) from public, anon, authenticated;
+revoke all on function public.exchange_revert(bigint)                        from public, anon, authenticated;
+revoke all on function public.exchange_make(date, jsonb, jsonb, text)        from public, anon;
+revoke all on function public.exchange_undo(bigint)                          from public, anon;
 grant execute on function public.exchange_make(date, jsonb, jsonb, text) to authenticated;
 grant execute on function public.exchange_undo(bigint)                   to authenticated;
