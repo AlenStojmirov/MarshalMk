@@ -23,6 +23,8 @@ import { CountError, rowToLine, type LineRow } from './stock-count-db';
 import type { CountLine } from './stock-count';
 import { ExchangeError, rowToExchange, type ExchangeRow } from './exchange-db';
 import type { Exchange, GivenPiece, ReturnedPiece } from './exchange';
+import { VoucherError, rowToVoucher, type VoucherRow } from './voucher-db';
+import type { Voucher } from './vouchers';
 
 const MAX_ATTEMPTS = 4;
 
@@ -631,4 +633,49 @@ export async function undoExchange(sb: SupabaseClient, id: number): Promise<Exch
   const { data, error } = await sb.rpc('exchange_undo', { p_id: id });
   if (error) throw new ExchangeError(error);
   return rowToExchange(data as ExchangeRow);
+}
+
+/**
+ * Sell a voucher today (Task 18.2, D-048): one card or several (a larger sum)
+ * under one number. The cards leave the drawer and are sold at their price,
+ * in `sold[]` and the ledger, in one transaction (`voucher_sell`, 026).
+ */
+export async function sellVoucher(sb: SupabaseClient, cardIds: string[], holder: string): Promise<Voucher> {
+  const { data, error } = await sb.rpc('voucher_sell', { p_cards: cardIds, p_holder: holder || null });
+  if (error) throw new VoucherError(error);
+  return rowToVoucher(data as VoucherRow);
+}
+
+/**
+ * Redeem a voucher (D-048): its cards back to the drawer and out of `sold[]`
+ * and the ledger, the pieces sold on the day the voucher was bought, the
+ * top-up inside their prices (`voucher_redeem` → `exchange_apply`, kind
+ * 'voucher'). Returns the exchange it made, for the receipt.
+ */
+export async function redeemVoucher(sb: SupabaseClient, id: number, given: GivenPiece[], note: string): Promise<Exchange> {
+  const { data, error } = await sb.rpc('voucher_redeem', {
+    p_id: id,
+    p_given: given.map((g) => ({ product: g.productId, size: g.size, price: g.agreed })),
+    p_note: note || null,
+  });
+  if (error) throw new VoucherError(error);
+  return rowToExchange(data as ExchangeRow);
+}
+
+/** Undo a redemption (admin): the voucher valid again, while its pieces have not moved on. */
+export async function undoVoucher(sb: SupabaseClient, id: number): Promise<Voucher> {
+  const { data, error } = await sb.rpc('voucher_undo', { p_id: id });
+  if (error) throw new VoucherError(error);
+  return rowToVoucher(data as VoucherRow);
+}
+
+/**
+ * Cancel a voucher not redeemed (admin): sold here, its cards come back and
+ * their sale goes; only numbered here, the sale stays. The number is never
+ * handed out again.
+ */
+export async function cancelVoucher(sb: SupabaseClient, id: number): Promise<Voucher> {
+  const { data, error } = await sb.rpc('voucher_cancel', { p_id: id });
+  if (error) throw new VoucherError(error);
+  return rowToVoucher(data as VoucherRow);
 }

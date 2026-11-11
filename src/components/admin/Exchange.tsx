@@ -22,49 +22,34 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, ArrowLeft, ArrowLeftRight, Check, Loader2, Plus, Search, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowLeftRight, Check, Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import type { NonSaleReason, Product, SoldItem } from '@/types';
-import { getEffectivePrice } from '@/lib/pricing';
-import { getProductDisplayName } from '@/lib/product-display';
-import { matchesSearch, onShelf } from '@/lib/admin-search';
+import { matchesSearch } from '@/lib/admin-search';
 import { mkDen } from '@/lib/mk-format';
 import { FIREBASE_SYNC_LIVE } from '@/lib/stock-count';
 import {
-  NOT_EXCHANGED, bookExchange, daysSince, firebaseSteps, saleKey,
+  NOT_EXCHANGED, bookExchange, firebaseSteps, saleKey,
   type Booking, type Exchange,
 } from '@/lib/exchange';
 import { fetchExchanges, type ExchangeList } from '@/lib/exchange-db';
 import { makeExchange, undoExchange } from '@/lib/stock';
-import DiscountBadge, { discountWarning } from '@/components/admin/DiscountBadge';
 import { countWhen } from '@/components/admin/StockCountPanel';
+import {
+  AddButton, ExchangeLines, OutList, OutPicker, PickerFrame, SearchBox, Thumb,
+  ago, dayText, localDay, newOut, pieces, shelfOf, sizeOf, title, type Out,
+} from '@/components/admin/ExchangeParts';
 
-const localDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Skopje' }).format(d);
-/** 2026-11-05 → 5.11.2026, without a time zone in between. */
-const dayText = (day: string) => {
-  const [y, m, d] = day.slice(0, 10).split('-');
-  return `${Number(d)}.${Number(m)}.${y}`;
-};
 const dayOf = (s: SoldItem) => String(s.soldDate).slice(0, 10);
 const lastSale = (p: Product) => (p.sold ?? []).reduce((m, s) => (dayOf(s) > m ? dayOf(s) : m), '');
-const sizeOf = (s: { size?: string | null }) => String(s.size ?? '').trim();
-const title = (p: Product) => getProductDisplayName(p.name, p.category, p.brand);
-const pieces = (n: number) => `${n} ${n === 1 ? 'парче' : 'парчиња'}`;
-const ago = (day: string, today: string) => {
-  const n = daysSince(day, today);
-  return n <= 0 ? 'денес' : n === 1 ? 'вчера' : `пред ${n} дена`;
-};
 
 const REASON: Record<NonSaleReason, string> = { giveaway: 'подарок', personal: 'лично', writeoff: 'отпис' };
 
 /** A returned piece: the product and the sale it was. */
 interface Back { key: number; product: Product; sale: SoldItem }
-/** A new piece: the product, its size and the price agreed for it (as typed). */
-interface Out { key: number; product: Product; size: string; agreed: string }
 
 export default function ExchangeScreen() {
   const { role, isAdmin } = useAuth();
@@ -117,10 +102,7 @@ export default function ExchangeScreen() {
 
   /** What can still go out of this size: the shelf, plus what comes back of it, less what is already picked. */
   const available = (p: Product, size: string) => {
-    const sizes = p.sizes ?? [];
-    const shelf = sizes.length === 0
-      ? (size === '' ? Number(p.stock) || 0 : 0)
-      : Math.max(0, Number(sizes.find((s) => sizeOf(s) === size)?.quantity) || 0);
+    const shelf = shelfOf(p, size);
     const coming = back.filter((b) => b.product.id === p.id && sizeOf(b.sale) === size).length;
     const taken = out.filter((o) => o.product.id === p.id && o.size === size).length;
     return shelf + coming - taken;
@@ -134,7 +116,7 @@ export default function ExchangeScreen() {
   };
   const addOut = (product: Product, size: string) => {
     const key = nextKey.current++;
-    setOut((list) => [...list, { key, product, size, agreed: String(getEffectivePrice(product)) }]);
+    setOut((list) => [...list, newOut(key, product, size)]);
     setPicking(null);
     setError(null);
   };
@@ -237,49 +219,7 @@ export default function ExchangeScreen() {
           </Section>
 
           <Section n={2} title="Што зема наместо тоа">
-            {out.length > 0 && (
-              <ul className="divide-y divide-slate-100 mb-3">
-                {out.map((o) => {
-                  const price = Number(o.agreed) || 0;
-                  const warning = discountWarning(o.product, price);
-                  return (
-                    <li key={o.key} className="flex items-start gap-3 py-2">
-                      <Thumb p={o.product} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 truncate">{title(o.product)}</p>
-                        <p className="text-xs text-slate-500 flex flex-wrap items-center gap-1.5">
-                          {o.size || '—'} <DiscountBadge product={o.product} />
-                        </p>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min={1}
-                            step="1"
-                            value={o.agreed}
-                            onChange={(e) => setOut((list) => list.map((x) => (x.key === o.key ? { ...x, agreed: e.target.value } : x)))}
-                            className={`w-28 px-2 py-1 border rounded text-right tabular-nums ${price > 0 ? 'border-slate-300' : 'border-red-400 bg-red-50'}`}
-                            aria-label="Цена"
-                          />
-                          <span className="text-slate-400">ден.</span>
-                          {price !== o.product.price && (
-                            <span className="text-[11px] text-slate-400 tabular-nums">на етикета {mkDen(o.product.price)}</span>
-                          )}
-                        </div>
-                        {warning && <p className="mt-1 text-xs text-amber-700">{warning}</p>}
-                      </div>
-                      <button
-                        onClick={() => setOut((list) => list.filter((x) => x.key !== o.key))}
-                        className="p-2 text-slate-400 hover:text-red-600"
-                        aria-label="Тргни"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+            <OutList out={out} onChange={setOut} />
             {picking === 'out' ? (
               <OutPicker products={candidates} available={available} onPick={addOut} onClose={() => setPicking(null)} />
             ) : (
@@ -342,53 +282,6 @@ function Section({ n, title: heading, children }: { n: number; title: string; ch
       </h2>
       {children}
     </section>
-  );
-}
-
-function AddButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-slate-300 rounded-lg text-sm text-slate-600 hover:border-blue-500 hover:text-blue-700"
-    >
-      <Plus className="h-4 w-4" /> {children}
-    </button>
-  );
-}
-
-function Thumb({ p }: { p: Product }) {
-  return (
-    <div className="relative w-10 h-12 rounded-md overflow-hidden bg-slate-100 shrink-0">
-      {p.imageUrl && <Image src={p.imageUrl} alt="" fill className="object-cover" sizes="40px" />}
-    </div>
-  );
-}
-
-function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
-  return (
-    <div className="relative mb-2">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-      <input
-        autoFocus
-        type="search"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm"
-      />
-    </div>
-  );
-}
-
-function PickerFrame({ heading, onClose, children }: { heading: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-3">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-medium text-slate-800">{heading}</p>
-        <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700" aria-label="Затвори"><X className="h-4 w-4" /></button>
-      </div>
-      {children}
-    </div>
   );
 }
 
@@ -495,68 +388,6 @@ function BackPicker({
   );
 }
 
-/** A new piece: a product on the shelf and its size. */
-function OutPicker({
-  products, available, onPick, onClose,
-}: {
-  products: Product[];
-  available: (p: Product, size: string) => number;
-  onPick: (p: Product, size: string) => void;
-  onClose: () => void;
-}) {
-  const [q, setQ] = useState('');
-  const hits = q.trim() ? products.filter((p) => onShelf(p) && matchesSearch(p, q)).slice(0, 10) : [];
-  return (
-    <PickerFrame heading="Ново парче од залиха" onClose={onClose}>
-      <SearchBox value={q} onChange={setQ} placeholder="Шифра или име" />
-      <ul className="space-y-2">
-        {hits.map((p) => {
-          const sizes = (p.sizes ?? []).map((s) => sizeOf(s)).filter((s, i, all) => all.indexOf(s) === i);
-          return (
-            <li key={p.id} className="bg-white rounded-lg border border-slate-200 p-2">
-              <div className="flex items-center gap-2 mb-1.5">
-                <Thumb p={p} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-slate-900 truncate">{title(p)}</p>
-                  <p className="text-[11px] text-slate-500 flex flex-wrap items-center gap-1.5">
-                    {mkDen(getEffectivePrice(p))} <DiscountBadge product={p} />
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {sizes.length === 0 ? (
-                  <button
-                    onClick={() => onPick(p, '')}
-                    disabled={available(p, '') < 1}
-                    className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm hover:bg-blue-50 disabled:opacity-40"
-                  >
-                    Додај ({available(p, '')})
-                  </button>
-                ) : sizes.map((s) => {
-                  const n = available(p, s);
-                  return (
-                    <button
-                      key={s}
-                      onClick={() => onPick(p, s)}
-                      disabled={n < 1}
-                      className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm tabular-nums hover:bg-blue-50 disabled:opacity-40"
-                    >
-                      {s || '—'} <span className="text-[11px] text-slate-500">({Math.max(0, n)})</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-      {q.trim() && hits.length === 0 && (
-        <p className="text-sm text-slate-500 py-3 text-center">Нема такво парче на залиха.</p>
-      )}
-    </PickerFrame>
-  );
-}
-
 function Summary({
   back, out, booking, day, today, note, onNote, badPrice, saving, error, onSave,
 }: {
@@ -654,7 +485,7 @@ function DoneCard({ x, today, onNew }: { x: Exchange; today: string; onNew: () =
           </p>
         </div>
       </div>
-      <ExchangeLines x={x} />
+      <ExchangeLines returned={x.returned} given={x.given} />
       {(x.purchaseDay !== today || x.topUpDay) && (
         <p className="mt-2 text-xs text-slate-500">
           {x.purchaseDay !== today && <>Новите парчиња се во продажбите на {dayText(x.purchaseDay)}, денот на купувањето. </>}
@@ -674,24 +505,6 @@ function DoneCard({ x, today, onNew }: { x: Exchange; today: string; onNew: () =
         Нова замена
       </button>
     </section>
-  );
-}
-
-function ExchangeLines({ x }: { x: Exchange }) {
-  return (
-    <div className="mt-2 text-sm space-y-0.5">
-      {x.returned.map((p, i) => (
-        <p key={'r' + i} className="text-slate-600">
-          <span className="text-slate-400">← врати </span>{p.name}{p.size ? ` ${p.size}` : ''} · {mkDen(p.price)}
-        </p>
-      ))}
-      {x.given.map((p, i) => (
-        <p key={'g' + i} className="text-slate-900">
-          <span className="text-slate-400">→ зеде </span>{p.name}{p.size ? ` ${p.size}` : ''} · {mkDen(p.price)}
-          {p.price !== p.agreed && <span className="text-[11px] text-slate-400"> (цена {mkDen(p.agreed)})</span>}
-        </p>
-      ))}
-    </div>
   );
 }
 
@@ -738,7 +551,7 @@ function HistoryItem({ x, isAdmin, onUndone }: { x: Exchange; isAdmin: boolean; 
             {countWhen(x.madeAt)}{x.madeBy ? ` · ${x.madeBy}` : ''} · купено {dayText(x.purchaseDay)}
             {x.orderNumber ? ` · ${x.orderNumber}` : ''}
           </p>
-          <ExchangeLines x={x} />
+          <ExchangeLines returned={x.returned} given={x.given} />
           {x.note && <p className="mt-1 text-xs text-slate-500 italic">{x.note}</p>}
         </div>
         <div className="text-right shrink-0">

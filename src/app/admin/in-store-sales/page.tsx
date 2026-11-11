@@ -19,6 +19,7 @@ import { matchesSearch, onShelf } from '@/lib/admin-search';
 import {
   ArrowLeft,
   ArrowLeftRight,
+  Ticket,
   Plus,
   Trash2,
   Calendar,
@@ -467,6 +468,13 @@ function SalesByDateView() {
           >
             <ArrowLeftRight className="h-4 w-4 sm:h-5 sm:w-5" />
             {t('inStoreSales.exchange')}
+          </Link>
+          <Link
+            href="/admin/vouchers"
+            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors text-sm sm:text-base"
+          >
+            <Ticket className="h-4 w-4 sm:h-5 sm:w-5" />
+            {t('inStoreSales.vouchers')}
           </Link>
           <button
             onClick={() => setShowRecordModal(true)}
