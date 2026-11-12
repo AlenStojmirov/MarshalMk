@@ -556,8 +556,6 @@
     "noProductsFound": "No products found",
     "exchange": "Exchange",
     "vouchers": "Vouchers",
-    "topUp": "Exchange top-up",
-    "topUps": "exchange top-ups",
     "emptyMatches": "{count} more without stock, cannot be sold. If the piece is in hand, the system count is wrong.",
     "noItemsAdded": "No items added yet. Click 'Add Product' to start.",
     "addAtLeastOneProduct": "Please add at least one product",

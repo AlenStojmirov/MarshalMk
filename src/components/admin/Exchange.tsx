@@ -8,10 +8,10 @@
  *    purchase, because the new ones are sold on that day.
  * 2. What they take instead: pieces on the shelf, each at today's price,
  *    which can be changed like at the till.
- * 3. The top-up: what the new pieces cost over what was paid. It is today's
- *    money (the owner, 2026-11-11): the purchase day keeps what was paid on
- *    it, spread over the new pieces. Nothing is paid back; when they cost
- *    less the screen says so before it is written.
+ * 3. The top-up: what the new pieces cost over what was paid. It goes to the
+ *    purchase day with them (the owner, 2026-11-12), each new piece at its
+ *    own price, so none looks sold at a discount. Nothing is paid back; when
+ *    they cost less the screen says so before it is written.
  *
  * Writing it is one call (`makeExchange` → `exchange_make`): the shelf,
  * `sold[]` and the ledger move together or not at all. The admin can undo an
@@ -265,8 +265,8 @@ function Shell({ children }: { children: React.ReactNode }) {
         </h1>
       </div>
       <p className="text-sm text-slate-500 mb-5">
-        Купеното се враќа на залиха, новото се продава на денот кога е купено вратеното. Пари не се враќаат; доплатата е
-        денешна продажба.
+        Купеното се враќа на залиха, новото се продава на денот кога е купено вратеното, по својата цена. Пари не се
+        враќаат, само се доплаќа.
       </p>
       {children}
     </div>
@@ -436,9 +436,7 @@ function Summary({
           </div>
           {booking.topUp > 0 && (
             <p className="mt-2 text-xs text-slate-600">
-              Доплатата влегува во денешните продажби. На {dayText(day)} остануваат платените {mkDen(booking.returnedTotal)},
-              поделени на новите парчиња:{' '}
-              {out.map((o, i) => `${o.product.name}${o.size ? ' ' + o.size : ''} ${mkDen(booking.prices[i])}`).join(', ')}.
+              Доплатата оди на {dayText(day)}, денот на купувањето: новите парчиња се книжат таму по својата цена.
             </p>
           )}
         </>
@@ -486,10 +484,10 @@ function DoneCard({ x, today, onNew }: { x: Exchange; today: string; onNew: () =
         </div>
       </div>
       <ExchangeLines returned={x.returned} given={x.given} />
-      {(x.purchaseDay !== today || x.topUpDay) && (
+      {x.purchaseDay !== today && (
         <p className="mt-2 text-xs text-slate-500">
-          {x.purchaseDay !== today && <>Новите парчиња се во продажбите на {dayText(x.purchaseDay)}, денот на купувањето. </>}
-          {x.topUpDay && <>Доплатата е во продажбите на {x.topUpDay === today ? 'денес' : dayText(x.topUpDay)}.</>}
+          Новите парчиња{x.topUp > 0 ? ', со доплатата,' : ''} се во продажбите на {dayText(x.purchaseDay)}, денот на
+          купувањето, не денес.
         </p>
       )}
       {FIREBASE_SYNC_LIVE && (

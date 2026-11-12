@@ -1,4 +1,4 @@
--- Migration 025 · exchanges (замена)  (Task 18.1, 2026-11-10 / 2026-11-11)
+-- Migration 025 · exchanges (замена)  (Task 18.1, 2026-11-10 / 2026-11-12)
 --
 -- Run in: Supabase Dashboard → SQL Editor → New query → Paste → Run
 -- Idempotent: safe to run twice. Run after 009 (is_back_office, is_admin).
@@ -11,15 +11,14 @@
 -- the customer bought comes back to the shelf, and the new pieces are recorded
 -- as sold on the day the returned one was bought; one piece may be exchanged
 -- for two. No money is paid back, the customer may only pay the difference.
--- The owner (2026-11-11): the top-up belongs to the day of the exchange.
+-- The owner (2026-11-12): the top-up goes to the day of the purchase too, so
+-- that no new piece looks sold at a discount.
 --
--- So the purchase day keeps exactly what was paid on it: the returned piece's
--- sale leaves `sold[]` and the ledger, and the new pieces enter both on that
--- day, booked together at what was paid then, spread over them by their
--- prices. The top-up is money taken in today without a piece of its own: it is
--- kept on the exchange (`top_up`, `top_up_day`), and the sales screens add it to
--- the day it was paid. When the new pieces cost less, nothing is paid back
--- (D-047).
+-- So the returned piece's sale leaves `sold[]` and the ledger, and the new
+-- pieces enter both on the purchase day, each at the price agreed for it: the
+-- top-up is inside those prices. When the new pieces cost less, nothing is
+-- paid back: what was paid is spread over them by their prices, so the
+-- purchase day keeps it (D-047).
 --
 -- One transaction, every product row locked: the shelf, `sold[]` and the
 -- ledger move together or not at all. Each product's updated_at moves with it
@@ -27,9 +26,9 @@
 -- retries (D-013).
 --
 --   exchanges  one row per exchange: what came back, what went out and at
---              what price, the top-up and the day it was paid. An admin can
---              undo one while the new pieces are still recorded as sold and
---              the returned ones still on the shelf.
+--              what price, the top-up. An admin can undo one while the new
+--              pieces are still recorded as sold and the returned ones still
+--              on the shelf.
 --
 -- A voucher redeemed (026) is made the same way, by the same function
 -- (`exchange_apply`, kind 'voucher'): its card comes back like a returned piece.
@@ -58,12 +57,9 @@ create table if not exists public.exchanges (
   given           jsonb not null,
   returned_total  numeric(12,2) not null,
   given_total     numeric(12,2) not null,
-  -- Paid at the exchange. Never negative: no money is paid back.
+  -- Paid at the exchange, booked inside the new pieces' prices on the
+  -- purchase day. Never negative: no money is paid back.
   top_up          numeric(12,2) not null default 0,
-  -- The day the top-up counts as money taken in, on its own: the day of the
-  -- exchange. Null when there is none, or when it is inside the new pieces'
-  -- prices (a voucher, 026).
-  top_up_day      date,
   -- Where the returned pieces were sold: an online order's pieces stay its.
   channel         text not null default 'store',
   order_id        uuid,
@@ -76,12 +72,10 @@ create table if not exists public.exchanges (
   constraint exchanges_given    check (jsonb_typeof(given) = 'array'),
   constraint exchanges_kind     check (kind in ('exchange', 'voucher')),
   constraint exchanges_top_up   check (top_up >= 0),
-  constraint exchanges_top_up_day check (top_up_day is null or top_up > 0),
   constraint exchanges_channel  check (channel in ('store', 'online'))
 );
 
 create index if not exists exchanges_made_at on public.exchanges (made_at desc);
-create index if not exists exchanges_top_up_day on public.exchanges (top_up_day) where top_up_day is not null;
 
 -- ---------------------------------------------------------------------------
 -- Helpers
@@ -202,11 +196,12 @@ $$;
 -- The exchange itself, for exchange_make and voucher_redeem (026). Called by
 -- them only: no role may call it directly.
 --
--- p_kind      'exchange': no voucher anywhere in it; the top-up is its own
---             money on the day of the exchange.
+-- p_kind      'exchange': no voucher anywhere in it.
 --             'voucher': what comes back is a voucher's cards, no voucher goes
---             out; the top-up is inside the new pieces' prices, on the
---             voucher's day (the owner, 2026-11-11).
+--             out (026).
+--             Booked the same either way: the new pieces on p_day at their
+--             agreed prices, the top-up inside them (the owner, 2026-11-11
+--             for vouchers, 2026-11-12 for exchanges).
 -- p_day       the day the returned pieces were bought; every one of them
 -- p_returned  [{product, size, price}]: one entry per piece, price as sold
 -- p_given     [{product, size, price}]: one entry per piece, price agreed today
@@ -233,7 +228,6 @@ as $$
 declare
   v_actor    text := nullif(auth.jwt() ->> 'email', '');
   v_today    date := (now() at time zone 'Europe/Skopje')::date;
-  v_apart    boolean := p_kind = 'exchange';
   v_ret      jsonb;
   v_giv      jsonb;
   v_rt       numeric;
@@ -314,13 +308,12 @@ begin
   from jsonb_array_elements(p_given) with ordinality t(e, i)
   join public.products p on p.id = t.e ->> 'product';
 
-  -- What each new piece is booked at. An exchange keeps the purchase day as it
-  -- was: what was paid then, spread over the new pieces by price, and the
-  -- top-up apart, on today. A voucher's top-up is inside the prices, so the
-  -- pieces keep their own when they cost more. Either way, when they cost
-  -- less, nothing comes back and what was paid is spread over them.
+  -- What each new piece is booked at: its agreed price, the top-up inside
+  -- them, so none looks sold at a discount. When they cost less, nothing comes
+  -- back: what was paid is spread over them by price, and the purchase day
+  -- keeps it.
   v_top := greatest(v_gt - v_rt, 0);
-  if v_apart or v_gt < v_rt then
+  if v_gt < v_rt then
     v_giv := public.exchange_spread(v_giv, v_rt);
   else
     select jsonb_agg(e || jsonb_build_object('price', e -> 'agreed') order by i)
@@ -408,11 +401,10 @@ begin
   end if;
 
   insert into public.exchanges
-    (made_by, kind, purchase_day, returned, given, returned_total, given_total, top_up, top_up_day,
+    (made_by, kind, purchase_day, returned, given, returned_total, given_total, top_up,
      channel, order_id, order_number, note)
   values
     (v_actor, p_kind, p_day, v_ret, v_giv, v_rt, v_gt, v_top,
-     case when v_apart and v_top > 0 then v_today end,
      v_channel, v_order, v_number, nullif(btrim(coalesce(p_note, '')), ''))
   returning * into v_ex;
 
@@ -458,7 +450,7 @@ $$;
 
 -- ---------------------------------------------------------------------------
 -- Take an exchange back: the new pieces back on the shelf, the returned ones
--- sold again on their day at their price, its top-up no longer counted. For
+-- sold again on their day at their price, so that day is as it was. For
 -- exchange_undo and voucher_undo (026) only.
 --
 -- Refused, with the hint:

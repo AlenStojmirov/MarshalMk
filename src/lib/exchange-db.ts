@@ -36,7 +36,6 @@ export interface ExchangeRow {
   returned_total: number | string;
   given_total: number | string;
   top_up: number | string;
-  top_up_day?: string | null;
   channel: 'store' | 'online';
   order_number: string | null;
   note: string | null;
@@ -67,7 +66,6 @@ export const rowToExchange = (r: ExchangeRow): Exchange => ({
   returnedTotal: num(r.returned_total),
   givenTotal: num(r.given_total),
   topUp: num(r.top_up),
-  topUpDay: r.top_up_day ? String(r.top_up_day).slice(0, 10) : null,
   channel: r.channel,
   orderNumber: r.order_number,
   note: r.note,
@@ -101,47 +99,4 @@ export async function fetchExchanges(sb: SupabaseClient, limit = 30): Promise<Ex
   if (isMissingRelation(error)) return { missing: true, list: [] };
   if (error) throw new ExchangeError(error);
   return { missing: false, list: ((data as ExchangeRow[]) ?? []).map(rowToExchange) };
-}
-
-/** A top-up as money taken in on its day, without a piece of its own (D-047). */
-export interface TopUp {
-  exchangeId: number;
-  /** YYYY-MM-DD it was paid. */
-  day: string;
-  amount: number;
-  /** What came back and what went out, for a line among the day's sales. */
-  returned: string[];
-  given: string[];
-}
-
-/**
- * Every top-up still standing, oldest first. The sales screens add them to the
- * day they were paid; the pieces themselves are already in `sold[]` on the
- * purchase day. Empty until 025 runs.
- */
-export async function fetchTopUps(sb: SupabaseClient): Promise<TopUp[]> {
-  const { data, error } = await sb
-    .from('exchanges')
-    .select('id, top_up, top_up_day, returned, given')
-    .not('top_up_day', 'is', null)
-    .is('undone_at', null)
-    .order('top_up_day', { ascending: true });
-  if (isMissingRelation(error)) return [];
-  if (error) throw new ExchangeError(error);
-  const label = (r: PieceRow) => `${r.name ?? r.product}${r.size ? ' ' + r.size : ''}`;
-  type Row = Pick<ExchangeRow, 'id' | 'top_up' | 'top_up_day' | 'returned' | 'given'>;
-  return ((data as Row[]) ?? []).map((r) => ({
-    exchangeId: Number(r.id),
-    day: String(r.top_up_day).slice(0, 10),
-    amount: num(r.top_up),
-    returned: (r.returned ?? []).map(label),
-    given: (r.given ?? []).map(label),
-  }));
-}
-
-/** Top-ups added up by the first `len` characters of their day: 10 by day, 7 by month. */
-export function topUpTotals(list: TopUp[], len: 7 | 10): Map<string, number> {
-  const out = new Map<string, number>();
-  for (const t of list) out.set(t.day.slice(0, len), (out.get(t.day.slice(0, len)) ?? 0) + t.amount);
-  return out;
 }

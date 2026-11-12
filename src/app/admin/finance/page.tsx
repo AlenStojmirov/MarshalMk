@@ -21,8 +21,6 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
-import { useTopUps } from '@/hooks/useTopUps';
-import { topUpTotals } from '@/lib/exchange-db';
 import {
   Expense,
   ExpenseCategory,
@@ -60,7 +58,6 @@ interface MonthRow {
 
 function FinanceView() {
   const { products, loading: productsLoading } = useProducts();
-  const topUps = useTopUps();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -117,13 +114,6 @@ function FinanceView() {
         byPeriod.set(key, st);
       }
     }
-    // An exchange's top-up is revenue of the month it was paid, with no unit
-    // and no cost of its own: its pieces are in sold[] already (D-047).
-    for (const [key, amount] of topUpTotals(topUps, 7)) {
-      const st = byPeriod.get(key) ?? { units: 0, revenue: 0, cogs: 0, costed: 0 };
-      st.revenue += amount;
-      byPeriod.set(key, st);
-    }
 
     return periodsSince(START_PERIOD).map((period) => {
       const s = byPeriod.get(period) ?? { units: 0, revenue: 0, cogs: 0, costed: 0 };
@@ -157,7 +147,7 @@ function FinanceView() {
         })(),
       };
     });
-  }, [products, expenses, topUps]);
+  }, [products, expenses]);
 
   // For the accountant, or a spreadsheet: every month as the table shows it.
   const downloadCsv = () => {

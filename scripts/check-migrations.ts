@@ -44,7 +44,7 @@ const CHECKS: Array<{ migration: string; label: string; table: string; column: s
   { migration: '021', label: 'customers.address (адреса во профилот)', table: 'customers',        column: 'address' },
   { migration: '023', label: 'атрибути во products_public (наслови)', table: 'products_public', column: 'attributes' },
   { migration: '024', label: 'попис (stock_counts, stock_count_lines)', table: 'stock_count_lines', column: 'matches' },
-  { migration: '025', label: 'замена (exchanges)',                  table: 'exchanges',         column: 'top_up_day' },
+  { migration: '025', label: 'замена (exchanges)',                  table: 'exchanges',         column: 'kind' },
   { migration: '026', label: 'ваучери (vouchers)',                  table: 'vouchers',          column: 'expires_on' },
 ];
 

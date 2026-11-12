@@ -554,7 +554,7 @@ function RedeemPanel({
 
   const candidates = useMemo(() => products.filter((p) => !NOT_EXCHANGED.has(p.category)), [products]);
   const booking = useMemo(
-    () => bookExchange(v.cards.map((c) => c.price), out.map((o) => Number(o.agreed) || 0), false),
+    () => bookExchange(v.cards.map((c) => c.price), out.map((o) => Number(o.agreed) || 0)),
     [v, out],
   );
   const badPrice = out.some((o) => !(Number(o.agreed) > 0));
