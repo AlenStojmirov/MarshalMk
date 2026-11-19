@@ -47,7 +47,7 @@ export function organizationJsonLd() {
     url: BASE,
     logo: LOGO,
     email: STORE_EMAIL,
-    description: 'Машка облека: кошули, фармерки, јакни и плетиво, онлајн со плаќање при достава и во продавницата.',
+    description: 'Машка облека: кошули, фармерки, јакни и џемпери, онлајн со плаќање при достава и во продавницата.',
     sameAs: SAME_AS,
   };
 }
@@ -79,7 +79,7 @@ export function storeJsonLd(shelf: Product[] = [], date: Date = new Date()) {
     name: STORE_BRAND,
     // The Maps profile's name until the owner renames it (2026-11-07).
     alternateName: [STORE_NAME, 'Butik Marshal'],
-    description: `Продавница за машка облека во ${STORE_CITY}: кошули, фармерки, јакни и плетиво.`,
+    description: `Продавница за машка облека во ${STORE_CITY}: кошули, фармерки, јакни и џемпери.`,
     url: BASE,
     image: `${BASE}/og-image.jpg`,
     logo: LOGO,

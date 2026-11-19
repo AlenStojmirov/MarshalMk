@@ -68,7 +68,7 @@ export const CATEGORY_GROUPS: readonly CategoryGroup[] = [
     key: 'knitwear',
     categories: ['blouses', 'dzemper', 'halfZips', 'fullZips', 'turtleNecks', 'cardigans'],
     season: 'AW',
-    seoTitle: 'Машко плетиво',
+    seoTitle: 'Машки џемпери и блузи',
     searchTerms: ['maski dzemperi', 'rolki'],
   },
   { key: 'hoodies', categories: ['hoodies'], season: 'AW', seoTitle: 'Машки дуксери', searchTerms: ['maski dukseri'] },

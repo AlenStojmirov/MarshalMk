@@ -41,7 +41,7 @@ const DELIVERY = `Плаќање при достава · достава низ 
  */
 export const HOME_SHARE = {
   title: 'Маршал · машка облека, Виница',
-  description: ['Кошули, фармерки, јакни и плетиво', DELIVERY, `Дуќан: ${STORE_ADDRESS}`].map(sentence).join(' '),
+  description: ['Кошули, фармерки, јакни и џемпери', DELIVERY, `Дуќан: ${STORE_ADDRESS}`].map(sentence).join(' '),
 };
 
 /**
@@ -52,7 +52,7 @@ export const HOME_SHARE = {
  */
 export const HOME_SEARCH = {
   title: 'Marshal · машка облека онлајн · maska obleka',
-  description: ['Машка облека: кошули, фармерки, јакни и плетиво', DELIVERY, `Продавница: ${STORE_ADDRESS}`]
+  description: ['Машка облека: кошули, фармерки, јакни и џемпери', DELIVERY, `Продавница: ${STORE_ADDRESS}`]
     .map(sentence)
     .join(' '),
 };
@@ -89,7 +89,7 @@ export function pageShare(title: string, description: string, path: string): Pic
 export const NEW_SEARCH = {
   title: 'Нови производи · машка облека · nova kolekcija',
   shareTitle: 'Нови производи · машка облека',
-  description: ['Најновото во Маршал: машки јакни, плетиво, кошули и фармерки, од последното што стигнало', DELIVERY]
+  description: ['Најновото во Маршал: машки јакни, џемпери, кошули и фармерки, од последното што стигнало', DELIVERY]
     .map(sentence)
     .join(' '),
 };
@@ -100,7 +100,7 @@ export const SALE_SEARCH = {
     .join(' '),
 };
 
-/** /categories: the groups on the shelf by name, "јакни и капути · плетиво · …"
+/** /categories: the groups on the shelf by name, "јакни и капути · џемпери и блузи · …"
  * (dots, not "и": the names have their own, "маици и поло"). */
 export function categoriesSearch(groupNames: string[]): { title: string; description: string } {
   const list = groupNames.map((n) => n.toLowerCase()).join(' · ');
@@ -110,7 +110,7 @@ export function categoriesSearch(groupNames: string[]): { title: string; descrip
   };
 }
 
-/** "Машко плетиво во Маршал, Виница: блузи, џемпери, ролки и кардигани" */
+/** "Машки џемпери и блузи во Маршал, Виница: блузи, џемпери, ролки и кардигани" */
 function categoryLead(title: string, holds: string[]): string {
   const kinds = holds.map((h) => h.toLowerCase());
   const list = kinds.length > 1 ? `: ${kinds.slice(0, -1).join(', ')} и ${kinds[kinds.length - 1]}` : '';

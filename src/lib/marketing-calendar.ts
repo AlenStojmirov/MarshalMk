@@ -194,7 +194,7 @@ export function weekTheme(start: string): WeekTheme {
       title: 'Black Friday · расчистување',
       focus: ['clearance', 'combos'],
       categories: [],
-      note: `Петок ${Number(bf.slice(8))}.11. Попуст само за стоката за расчистување (мртва и летна). Јакните и плетивото се во сезона: полна цена, тие се продаваат и без попуст.`,
+      note: `Петок ${Number(bf.slice(8))}.11. Попуст само за стоката за расчистување (мртва и летна). Јакните и џемперите се во сезона: полна цена, тие се продаваат и без попуст.`,
     };
   }
   const overlaps = (a: string, b: string) => start <= b && end >= a;
@@ -273,7 +273,7 @@ export function weekTheme(start: string): WeekTheme {
   if (aw === 'preseason' || aw === 'inseason') {
     const t = rotate([
       { title: 'Јакни', categories: AW_TOPS, note: 'Сезоната на јакни: полна цена. Покажи ја на човек, во движење.' },
-      { title: 'Плетиво и слоеви', categories: AW_KNIT, note: 'Џемпери, блузи, ролки. Покажи ги слоевите: маица, џемпер, јакна.' },
+      { title: 'Џемпери и слоеви', categories: AW_KNIT, note: 'Џемпери, блузи, ролки. Покажи ги слоевите: маица, џемпер, јакна.' },
       { title: 'Кошули за секој ден', categories: ALL_YEAR, note: 'Кошулите се продаваат цела година. Една кошула, три комбинации.' },
       { title: 'Комплети', categories: [...AW_KNIT, ...ALL_YEAR], note: 'Горен и долен дел над 3.000 ден., доставата е бесплатна.' },
     ]);
