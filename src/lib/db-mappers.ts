@@ -1,4 +1,5 @@
 import { Order, OrderItem, OrderOutcome, OrderStatus, Product, ProductFormData, ProductSize, SaleInfo, SoldItem, CustomerInfo, FiberShare, SizeAdvice, Measurements, ProductAttributes } from '@/types';
+import { sortShelf } from './sizes';
 
 // ---------------------------------------------------------------------------
 // Product row (DB) <-> Product (app)
@@ -49,7 +50,8 @@ export function rowToProduct(row: ProductRow): Product {
     imageUrl: row.image_url ?? '',
     images: row.images ?? [],
     stock: row.stock ?? 0,
-    sizes: row.sizes ?? [],
+    // In the one order (S before M, 30 before 32), whatever order it was stored in.
+    sizes: sortShelf(row.sizes ?? []),
     sold: row.sold ?? [],
     brand: row.brand ?? undefined,
     color: row.color ?? undefined,

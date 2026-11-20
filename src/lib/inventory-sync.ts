@@ -6,7 +6,7 @@ import { supabase } from './supabase';
 import { productToRow, ProductRow, rowToProduct } from './db-mappers';
 import { Product, ProductSize } from '@/types';
 import { realPurchasePrice } from './cost';
-import { canonicalSize } from './sizes';
+import { canonicalSize, sortShelf } from './sizes';
 
 // Re-export the check function
 export const isRealtimeDatabaseConfigured = checkRtdbConfigured;
@@ -52,6 +52,8 @@ function inventoryToProduct(
       sizes = Object.values(inv.sizes as Record<string, ProductSize>);
     }
   }
+  // Firebase keeps them in the order they were typed; written in the one order.
+  sizes = sortShelf(sizes);
 
   const totalStock = sizes.reduce((sum, s) => sum + (s.quantity || 0), 0);
 

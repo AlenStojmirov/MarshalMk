@@ -62,7 +62,7 @@ export const LETTER_CHART: readonly ChartRow[] = [
   { size: 'XL', chest: [108, 113], waist: [94, 99] },
   { size: 'XXL', chest: [114, 120], waist: [100, 106] },
   { size: 'XXXL', chest: [121, 127], waist: [107, 113] },
-  { size: '4XL', chest: [128, 134], waist: [114, 120] },
+  { size: 'XXXXL', chest: [128, 134], waist: [114, 120] },
 ];
 
 /** Waist numbers the shop sells (SIZE_PRESETS 'Половина'), and two beyond. */

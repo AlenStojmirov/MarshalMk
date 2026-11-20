@@ -25,6 +25,7 @@ import { ExchangeError, rowToExchange, type ExchangeRow } from './exchange-db';
 import type { Exchange, GivenPiece, ReturnedPiece } from './exchange';
 import { VoucherError, rowToVoucher, type VoucherRow } from './voucher-db';
 import type { Voucher } from './vouchers';
+import { shelfInOrder, sortShelf } from './sizes';
 
 const MAX_ATTEMPTS = 4;
 
@@ -576,6 +577,30 @@ export async function renameSizeLabels(
 
     const sizes = order.map((size) => ({ size, quantity: merged.get(size)! }));
     if (await casWrite(sb, productId, product.updated_at, { sizes, stock: totalOf(sizes), sold })) {
+      return { ok: true, changed: true };
+    }
+  }
+  return { ok: false, changed: false, error: 'Производот постојано се менуваше — пушти повторно.' };
+}
+
+/**
+ * Put one product's stored sizes in the one order (S, M, L … then 30, 31 …;
+ * `sortShelf` in sizes.ts), for `npm run sizes:order`. Only the order moves:
+ * every label and quantity, the stock and `sold[]` are written back as read.
+ * Read fresh, compare-and-set, retried like the other writers. `changed: false`
+ * when the shelf was already in order.
+ */
+export async function orderShelf(
+  sb: SupabaseClient,
+  productId: string
+): Promise<{ ok: boolean; changed: boolean; error?: string }> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const product = await readProduct(sb, productId);
+    if (!product) return { ok: false, changed: false, error: 'Производот не е пронајден.' };
+    const shelf = product.sizes ?? [];
+    if (shelfInOrder(shelf)) return { ok: true, changed: false };
+    const sizes = sortShelf(shelf);
+    if (await casWrite(sb, productId, product.updated_at, { sizes, stock: product.stock ?? totalOf(sizes), sold: product.sold ?? [] })) {
       return { ok: true, changed: true };
     }
   }

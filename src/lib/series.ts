@@ -36,7 +36,7 @@
  */
 
 import { Product } from '@/types';
-import { canonicalSize } from './sizes';
+import { canonicalSize, compareSizes } from './sizes';
 import type { VelocityMetrics } from './velocity';
 
 const DAY = 86_400_000;
@@ -60,23 +60,12 @@ export const SHARE_PRIOR = 5;
 /**
  * Size labels that are sizes. `sold[]` also holds units of measure that leaked
  * into the field (`1000ML`, `KOLICINA` → `ONE`): a model with nothing else is
- * sold by the piece. 2XL and 3XL are folded to XXL and XXXL before this test.
+ * sold by the piece. 2XL … 6XL are folded to XXL … XXXXXXL before this test.
  */
-const REAL_SIZE = /^(XS|S|M|L|XL|XXL|XXXL|4XL|[2-6]\d)$/;
-const LETTERS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '4XL'];
+const REAL_SIZE = /^(XS|S|M|L|X{1,6}L|[2-6]\d)$/;
 
-/** Sizes in the order a run is written: letters small to large, then numbers. */
-export function compareSizes(a: string, b: string): number {
-  const ia = LETTERS.indexOf(a);
-  const ib = LETTERS.indexOf(b);
-  if (ia >= 0 && ib >= 0) return ia - ib;
-  if (ia >= 0) return -1;
-  if (ib >= 0) return 1;
-  const na = Number(a);
-  const nb = Number(b);
-  if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
-  return a.localeCompare(b);
-}
+/** Sizes in the order a run is written: the shop's one order (sizes.ts). */
+export { compareSizes };
 
 /** "S, M, L, XL, XXL" → "S–XXL" when the run has no gaps worth naming. */
 export function seriesLabel(series: string[]): string {

@@ -16,6 +16,10 @@
 const SIZE_ALIASES: Record<string, string> = {
   '2XL': 'XXL',
   '3XL': 'XXXL',
+  // The shop writes the big ones out (XXXXL, owner 2026-11-20); the short form is the same size.
+  '4XL': 'XXXXL',
+  '5XL': 'XXXXXL',
+  '6XL': 'XXXXXXL',
   KOLICINA: 'ONE',
   КОЛИЧИНА: 'ONE',
   'ЕДНА ГОЛЕМИНА': 'ONE',
@@ -44,12 +48,29 @@ export function canonicalSize(size: unknown): string {
 }
 
 /**
+ * The one order sizes are read in (owner, 2026-11-20): letters small to large
+ * — XS, S, M, L, XL, XXL, XXXL, XXXXL, XXXXXL, XXXXXXL — then numbers from the
+ * smallest up, then anything else (one size, "1200ml") as it was stored.
+ *
+ * Every product read goes through it (`rowToProduct`), so the shop, the back
+ * office and the cart all show S first, whatever order the shelf was written
+ * in; the form keeps its list in it, the Firebase sync writes it, and
+ * `npm run sizes:order` puts the stored lists in it. Measured 2026-11-20: 62 of
+ * 440 products had their sizes stored out of order (`M L XL XXL S`), 15 on
+ * the site.
+ */
+export const LETTER_ORDER: readonly string[] = [
+  'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL', 'XXXXXL', 'XXXXXXL',
+];
+const LETTER_RANK = new Map(LETTER_ORDER.map((l, i) => [l, i] as const));
+
+/**
  * The sizes the product form offers (9.8). Letters for tops, waist for
  * trousers, jacket sizes for suits — each list in the order a person reads it.
  */
 export const SIZE_PRESETS: Array<{ label: string; sizes: string[] }> = [
-  { label: 'Букви', sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '4XL'] },
-  { label: 'Половина', sizes: ['28', '29', '30', '31', '32', '33', '34', '36', '38', '40'] },
+  { label: 'Букви', sizes: [...LETTER_ORDER] },
+  { label: 'Половина', sizes: ['28', '29', '30', '31', '32', '33', '34', '36', '38', '40', '42'] },
   { label: 'Сако / одело', sizes: ['44', '46', '48', '50', '52', '54', '56', '58'] },
   { label: 'Друго', sizes: [ONE_SIZE_LABEL.mk] },
 ];
@@ -62,68 +83,41 @@ export function sizeLabel(size: unknown, lang: 'mk' | 'en' = 'mk'): string {
   return c !== raw.toUpperCase() ? c : raw;
 }
 
-// Custom sort order for letter-based sizes; aliases sort with their size.
-const LETTER_SIZE_ORDER: Record<string, number> = {
-  XS: -1,
-  S: 0,
-  M: 1,
-  L: 2,
-  XL: 3,
-  XXL: 4,
-  '2XL': 4,
-  XXXL: 5,
-  '3XL': 5,
-  '4XL': 6,
-  '5XL': 7,
-  '6XL': 8,
-};
-
-// A size is considered numeric if it parses to a finite number
-function isNumericSize(value: string | number): boolean {
-  return Number.isFinite(Number(value));
+/** 0 letters, 1 numbers, 2 the rest; and the place inside. */
+function sizeRank(size: unknown): [number, number] {
+  const c = canonicalSize(size);
+  const letter = LETTER_RANK.get(c);
+  if (letter !== undefined) return [0, letter];
+  const n = Number(String(size ?? '').trim().replace(',', '.'));
+  if (String(size ?? '').trim() !== '' && Number.isFinite(n)) return [1, n];
+  return [2, 0];
 }
 
-// Detect whether the entire set is letter-based or numeric-based
-// by checking if ANY value matches a known letter size
-function isLetterSizeSet(sizes: (string | number)[]): boolean {
-  return sizes.some((s) => String(s).toUpperCase() in LETTER_SIZE_ORDER);
+/** For `sort`: S before M before XXL, 30 before 32, the rest last in the order they came (a stable sort). */
+export function compareSizes(a: unknown, b: unknown): number {
+  const [ka, va] = sizeRank(a);
+  const [kb, vb] = sizeRank(b);
+  return ka - kb || va - vb;
 }
 
 function isLetterSize(value: string | number): boolean {
-  return String(value).toUpperCase() in LETTER_SIZE_ORDER;
+  return LETTER_RANK.has(canonicalSize(value));
 }
 
-// Sort letter sizes by custom order, unknowns at the end
-function sortLetterSizes<T extends string | number>(sizes: T[]): T[] {
-  return [...sizes].sort((a, b) => {
-    const orderA = LETTER_SIZE_ORDER[String(a).toUpperCase()] ?? Infinity;
-    const orderB = LETTER_SIZE_ORDER[String(b).toUpperCase()] ?? Infinity;
-    return orderA - orderB;
-  });
-}
-
-// Sort numeric sizes ascending, non-numeric unknowns at the end
-function sortNumericSizes<T extends string | number>(sizes: T[]): T[] {
-  return [...sizes].sort((a, b) => {
-    const numA = Number(a);
-    const numB = Number(b);
-    if (isNumericSize(a) && isNumericSize(b)) return numA - numB;
-    if (isNumericSize(a)) return -1;
-    if (isNumericSize(b)) return 1;
-    return 0;
-  });
-}
-
-/**
- * Sorts a flat array of sizes using the appropriate strategy:
- * - Letter sizes → custom predefined order (S, M, L, XL, ...)
- * - Numeric sizes → ascending numeric order (29, 30, 31, ...)
- * Unknown values are placed at the end.
- */
+/** Sizes in the one order (see LETTER_ORDER). A new array; the input is left alone. */
 export function sortSizes<T extends string | number>(sizes: T[]): T[] {
-  if (sizes.length <= 1) return sizes;
-  if (isLetterSizeSet(sizes)) return sortLetterSizes(sizes);
-  return sortNumericSizes(sizes);
+  return [...sizes].sort(compareSizes);
+}
+
+/** A shelf (`{ size, quantity }`) in the one order. A new array; the entries themselves are not copied. */
+export function sortShelf<T extends { size: string | number }>(sizes: readonly T[]): T[] {
+  return [...sizes].sort((a, b) => compareSizes(a.size, b.size));
+}
+
+/** Whether a shelf is already in the one order. */
+export function shelfInOrder(sizes: readonly { size: string | number }[]): boolean {
+  for (let i = 1; i < sizes.length; i++) if (compareSizes(sizes[i - 1].size, sizes[i].size) > 0) return false;
+  return true;
 }
 
 export interface SizeGroup<T extends string | number> {
@@ -149,8 +143,8 @@ export function groupSizes<T extends string | number>(sizes: T[]): SizeGroup<T>[
   }
 
   const groups: SizeGroup<T>[] = [];
-  if (letter.length > 0) groups.push({ type: 'letter', sizes: sortLetterSizes(letter) });
-  if (numeric.length > 0) groups.push({ type: 'numeric', sizes: sortNumericSizes(numeric) });
+  if (letter.length > 0) groups.push({ type: 'letter', sizes: sortSizes(letter) });
+  if (numeric.length > 0) groups.push({ type: 'numeric', sizes: sortSizes(numeric) });
   return groups;
 }
 

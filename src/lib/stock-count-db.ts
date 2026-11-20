@@ -13,6 +13,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Order, ProductSize } from '@/types';
 import { isMissingRelation } from './product-views';
+import { sortShelf } from './sizes';
 import {
   HOLDING_STATUSES, countErrorMessage,
   type CountLine, type CountSize, type HoldingOrder, type StockCount,
@@ -177,7 +178,7 @@ export async function readShelf(sb: SupabaseClient, productId: string): Promise<
     .maybeSingle();
   if (error) throw new CountError(error);
   if (!data) return null;
-  return { sizes: data.sizes ?? [], stock: Number(data.stock) || 0, updatedAt: data.updated_at };
+  return { sizes: sortShelf(data.sizes ?? []), stock: Number(data.stock) || 0, updatedAt: data.updated_at };
 }
 
 async function call<T>(p: PromiseLike<{ data: unknown; error: { message?: string; hint?: string | null; code?: string } | null }>): Promise<T> {

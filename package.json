@@ -23,6 +23,7 @@
     "catalog:audit": "tsx scripts/catalog-audit.ts",
     "attributes:parse": "tsx scripts/parse-descriptions.ts",
     "sizes:canonical": "tsx scripts/canonical-sizes.ts",
+    "sizes:order": "tsx scripts/order-sizes.ts",
     "backup": "tsx scripts/backup.ts"
   },
   "dependencies": {
