@@ -23,8 +23,9 @@ import { AlertTriangle, ArrowLeft, Check, ClipboardCheck, Loader2, Search, X } f
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
-import type { Product } from '@/types';
-import { getProductDisplayName } from '@/lib/product-display';
+import type { Product, ProductAttributes } from '@/types';
+import { fetchAllAttributes } from '@/lib/product-attributes';
+import { TagLine, floorName } from '@/components/admin/ProductIdentity';
 import { matchesSearch } from '@/lib/admin-search';
 import { mkDate, mkNumber } from '@/lib/mk-format';
 import {
@@ -101,7 +102,20 @@ export default function StockCount() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+  // Colour and cut (EPIC 9), for a name the shop floor recognises: the count
+  // reads products_costed, which does not carry them.
+  const [attrs, setAttrs] = useState<Map<string, ProductAttributes>>(() => new Map());
+  useEffect(() => {
+    if (!role) return;
+    let live = true;
+    fetchAllAttributes(supabase).then((r) => { if (live) setAttrs(r.data); });
+    return () => { live = false; };
+  }, [role]);
+  const known = useMemo(
+    () => products.map((p) => (attrs.has(p.id) ? { ...p, attributes: attrs.get(p.id) } : p)),
+    [products, attrs],
+  );
+  const byId = useMemo(() => new Map(known.map((p) => [p.id, p])), [known]);
   const lines = useMemo(() => state?.lines ?? [], [state]);
   const lineOf = useMemo(() => new Map(lines.map((l) => [l.productId, l])), [lines]);
   const progress = useMemo(() => countProgress(lines), [lines]);
@@ -288,7 +302,7 @@ export default function StockCount() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Барај по шифра или име"
+            placeholder="Барај: шифра, бренд, боја („црна јакна“)"
             className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -343,7 +357,7 @@ export default function StockCount() {
 
       {finding && (
         <FindProduct
-          products={products.filter((p) => !lineOf.has(p.id))}
+          products={known.filter((p) => !lineOf.has(p.id))}
           onPick={(id) => { setFinding(false); setPanelFor(id); }}
           onClose={() => setFinding(false)}
         />
@@ -417,8 +431,8 @@ function CountRow({ row, onOpen }: { row: Row; onOpen: () => void }) {
           {p.imageUrl && <Image src={p.imageUrl} alt="" fill className="object-cover" sizes="48px" />}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-slate-900 truncate">{getProductDisplayName(p.name, p.category, p.brand)}</p>
-          <p className="text-[11px] text-slate-400 truncate">{p.name} · {p.id}</p>
+          <p className="text-sm font-medium text-slate-900 truncate">{floorName(p)}</p>
+          <TagLine product={p} />
           <p className="text-[11px] text-slate-500 tabular-nums truncate">
             {status === 'pending'
               ? sizesText((p.sizes ?? []).map((s) => ({ size: s.size, quantity: s.quantity })))
@@ -463,15 +477,21 @@ function FindProduct({ products, onPick, onClose }: { products: Product[]; onPic
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Шифра или име"
+          placeholder="Шифра, бренд или боја („црна јакна“)"
           className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm mb-2"
         />
         <ul className="divide-y divide-slate-100">
           {hits.map((p) => (
             <li key={p.id}>
-              <button onClick={() => onPick(p.id)} className="w-full text-left py-2.5 hover:bg-slate-50">
-                <p className="text-sm text-slate-900">{getProductDisplayName(p.name, p.category, p.brand)}</p>
-                <p className="text-[11px] text-slate-400">{p.name} · залиха {p.stock}</p>
+              <button onClick={() => onPick(p.id)} className="w-full flex items-center gap-3 text-left py-2.5 hover:bg-slate-50">
+                <div className="relative w-10 h-12 rounded-md overflow-hidden bg-slate-100 shrink-0">
+                  {p.imageUrl && <Image src={p.imageUrl} alt="" fill className="object-cover" sizes="40px" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-slate-900 truncate">{floorName(p)}</p>
+                  <TagLine product={p} />
+                  <p className="text-[11px] text-slate-400">залиха {p.stock}</p>
+                </div>
               </button>
             </li>
           ))}

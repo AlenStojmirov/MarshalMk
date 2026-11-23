@@ -17,7 +17,7 @@ import Image from 'next/image';
 import { AlertTriangle, Loader2, Lock } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Product } from '@/types';
-import { getProductDisplayName } from '@/lib/product-display';
+import { TagLine, floorName } from '@/components/admin/ProductIdentity';
 import { mkDen, mkNumber } from '@/lib/mk-format';
 import { applyCountLine } from '@/lib/stock';
 import { closeCount, dismissLine, recountLine } from '@/lib/stock-count-db';
@@ -198,8 +198,8 @@ function ReviewCard({
           {p.imageUrl && <Image src={p.imageUrl} alt="" fill className="object-cover" sizes="48px" />}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-slate-900">{getProductDisplayName(p.name, p.category, p.brand)}</p>
-          <p className="text-[11px] text-slate-400 truncate">{p.name} · {p.id}</p>
+          <p className="text-sm font-medium text-slate-900">{floorName(p)}</p>
+          <TagLine product={p} />
           <p className="text-[11px] text-slate-500">
             Попишано {countWhen(line.countedAt)}{line.countedBy ? ` · ${line.countedBy}` : ''}
             {!line.listed && <span className="text-blue-700"> · најдено надвор од листата</span>}

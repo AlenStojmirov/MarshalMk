@@ -15,7 +15,7 @@ import Image from 'next/image';
 import { Check, Loader2, Minus, Plus, X } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Product } from '@/types';
-import { getProductDisplayName } from '@/lib/product-display';
+import { TagLine, floorName } from '@/components/admin/ProductIdentity';
 import {
   countDiff, expectedOnShelf, heldByOrders, lineStatus,
   type CountLine, type CountSize, type Held,
@@ -145,11 +145,9 @@ export default function StockCountPanel({
             {product.imageUrl && <Image src={product.imageUrl} alt="" fill className="object-cover" sizes="64px" />}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-semibold text-slate-900 leading-tight">
-              {getProductDisplayName(product.name, product.category, product.brand)}
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5">{product.name}</p>
-            <p className="text-[11px] text-slate-400 truncate">{product.id}</p>
+            <p className="font-semibold text-slate-900 leading-tight">{floorName(product)}</p>
+            <TagLine product={product} className="mt-1 text-xs" />
+            <p className="text-[11px] text-slate-400 truncate mt-0.5">{product.id}</p>
             {line && !line.listed && (
               <p className="text-[11px] text-blue-700 mt-0.5">Најдено надвор од листата</p>
             )}
