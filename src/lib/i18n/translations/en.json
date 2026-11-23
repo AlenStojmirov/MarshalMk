@@ -80,7 +80,16 @@
     "totalStock": "Total Stock: {count} items",
     "addedToCart": "Added to Cart!",
     "relatedProducts": "Related Products",
-    "askOnInstagram": "Ask about this on Instagram",
+    "share": {
+      "button": "Share",
+      "via": "Send via",
+      "sendVia": "Send via {app}",
+      "onFacebook": "Share on Facebook",
+      "copy": "Copy link",
+      "copied": "Link copied.",
+      "pasteHint": "Link copied. Paste it into the message.",
+      "copyFailed": "The link could not be copied. Here it is:"
+    },
     "sale": "Sale",
     "save": "Save {amount}",
     "delivery": {

@@ -109,11 +109,32 @@ export function trackedLink(path: string, network: 'instagram' | 'facebook', pla
   return `${SITE_URL}${path}?${q.toString()}`;
 }
 
+/**
+ * Where a product link was shared from its page (owner, 2026-11-23, D-050):
+ * the app picked, or `share` for the phone's own share sheet, `link` for a
+ * copied link.
+ */
+export const SHARE_CHANNELS = ['share', 'messenger', 'instagram', 'viber', 'whatsapp', 'facebook', 'link'] as const;
+export type ShareChannel = (typeof SHARE_CHANNELS)[number];
+export const SHARE_MEDIUM = 'share';
+
+/**
+ * A product link sent from the product page: the canonical address, marked
+ * like a post's link (utm_source = the channel, utm_medium = share), so an
+ * order from someone it was sent to says it came from a share. The page keeps
+ * its canonical, so search engines read one address.
+ */
+export function sharedLink(path: string, channel: ShareChannel): string {
+  const q = new URLSearchParams({ utm_source: channel, utm_medium: SHARE_MEDIUM });
+  return `${SITE_URL}${path}?${q.toString()}`;
+}
+
 /** "Instagram · p-1a2b3c4d" for the orders screen. */
 export function describeSource(s: OrderSource | undefined): string | null {
   if (!s) return null;
   const parts: string[] = [];
-  if (s.utmSource) parts.push(`линк: ${s.utmSource}${s.utmCampaign ? ` · ${s.utmCampaign}` : ''}`);
+  if (s.utmSource && s.utmMedium === SHARE_MEDIUM) parts.push(`споделен линк: ${s.utmSource === 'share' ? 'од телефон' : s.utmSource}`);
+  else if (s.utmSource) parts.push(`линк: ${s.utmSource}${s.utmCampaign ? ` · ${s.utmCampaign}` : ''}`);
   if (s.heard) parts.push(`одговор: ${HEARD_LABEL[s.heard].mk}`);
   return parts.length ? parts.join(' · ') : null;
 }

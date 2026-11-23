@@ -80,7 +80,16 @@
     "totalStock": "Вкупна залиха: {count} парчиња",
     "addedToCart": "Додадено во кошничка!",
     "relatedProducts": "Слични производи",
-    "askOnInstagram": "Прашај на Инстаграм",
+    "share": {
+      "button": "Сподели",
+      "via": "Испрати преку",
+      "sendVia": "Испрати преку {app}",
+      "onFacebook": "Сподели на Facebook",
+      "copy": "Копирај линк",
+      "copied": "Линкот е копиран.",
+      "pasteHint": "Линкот е копиран. Залепете го во пораката.",
+      "copyFailed": "Линкот не можеше да се копира. Еве го:"
+    },
     "sale": "Попуст",
     "save": "Заштеди {amount}",
     "delivery": {
