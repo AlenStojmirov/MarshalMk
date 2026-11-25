@@ -19,6 +19,8 @@ import ProductImageGallery from '@/components/ProductImageGallery';
 import ProductDeliveryInfo from '@/components/ProductDeliveryInfo';
 import ShareProduct from '@/components/ShareProduct';
 import { Product } from '@/types';
+import { campaignOf, getReferencePrice } from '@/lib/pricing';
+import { shopDate } from '@/lib/campaign';
 
 /** Picked and read on the server (`fetchRelatedProducts`, 16.2): the same kind
  * first, then the rest of its group. */
@@ -82,13 +84,16 @@ export default function ProductPageClient({ product, related }: ProductPageClien
   const piecesLeft = lastPieces(selectedSizeData?.quantity);
 
   const onSale = !!product.sale?.isActive;
+  // During a campaign the price struck through is the lowest before it (D-051).
+  const reference = getReferencePrice(product);
+  const campaign = campaignOf(product);
   const percentOff = onSale
     ? Math.round(
         product.sale!.percentageOff ||
-          ((product.price - product.sale!.salePrice) / product.price) * 100
+          ((reference - product.sale!.salePrice) / reference) * 100
       )
     : 0;
-  const savings = onSale ? Math.max(0, product.price - product.sale!.salePrice) : 0;
+  const savings = onSale ? Math.max(0, reference - product.sale!.salePrice) : 0;
 
   const handleAddToCart = () => {
     if (product) {
@@ -126,8 +131,9 @@ export default function ProductPageClient({ product, related }: ProductPageClien
             featuredLabel={t('common.featured')}
             noImageLabel={t('common.noImage')}
             onSale={onSale}
-            saleLabel={t('product.sale')}
+            saleLabel={campaign ? t('campaign.badge', { name: campaign.name }) : t('product.sale')}
             percentOff={percentOff}
+            campaign={!!campaign}
           />
 
           {/* ─── Right Column: Product Information ─── */}
@@ -164,18 +170,26 @@ export default function ProductPageClient({ product, related }: ProductPageClien
               {onSale ? (
                 <div className="flex flex-col gap-2">
                   <div className="flex items-baseline gap-3 flex-wrap">
-                    <span className="text-2xl md:text-3xl font-semibold text-red-600">
+                    <span className={campaign ? 'text-2xl md:text-3xl font-extrabold text-stone-950' : 'text-2xl md:text-3xl font-semibold text-red-600'}>
                       {price(product.sale!.salePrice)}
                     </span>
                     <span className="text-base text-stone-400 line-through">
-                      {price(product.price)}
+                      {price(reference)}
                     </span>
                     {percentOff > 0 && (
-                      <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white bg-red-600 px-2 py-1">
+                      <span className={campaign ? 'text-[12px] font-black tracking-[0.1em] text-stone-950 bg-amber-300 px-2 py-1' : 'text-[11px] font-bold uppercase tracking-[0.15em] text-white bg-red-600 px-2 py-1'}>
                         -{percentOff}%
                       </span>
                     )}
                   </div>
+                  {campaign && (
+                    <Link
+                      href="/black-friday"
+                      className="inline-flex w-fit items-center gap-2 text-[11px] font-bold uppercase tracking-[0.15em] text-amber-300 bg-stone-950 px-2.5 py-1.5 hover:bg-stone-800 transition-colors"
+                    >
+                      {t('campaign.until', { name: campaign.name, date: shopDate(language, campaign.endsAt, true) })}
+                    </Link>
+                  )}
                   {savings > 0 && (
                     <span className="inline-flex w-fit text-[11px] font-semibold uppercase tracking-wider text-red-700 bg-red-50 border border-red-100 px-2 py-1 rounded-sm">
                       {t('product.save', { amount: price(savings) })}

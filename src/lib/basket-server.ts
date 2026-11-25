@@ -17,6 +17,7 @@ import type { SupabaseClient, User } from '@supabase/supabase-js';
 import type { DeliveryMethod, Product } from '@/types';
 import { ProductRow, rowToProduct } from './db-mappers';
 import { getEffectivePrice } from './pricing';
+import { withLiveCampaign } from './campaign-server';
 import { BasketCoupon, BasketLine, BasketQuote, couponRefusalText, pointsRefusalText, quoteBasket } from './loyalty';
 import { LoyaltySettings, fetchLoyaltySettings } from './loyalty-settings';
 import { describeCoupon, lookupCoupon, lookupRefusalText, toBasketCoupon } from './coupons';
@@ -59,8 +60,9 @@ export async function readBasketProducts(sb: SupabaseClient, ids: string[]): Pro
   if (products.error) throw new Error(products.error.message);
   const cost = new Map(((costs.data ?? []) as Array<{ product_id: string; purchase_price: number | string }>)
     .map((c) => [c.product_id, Number(c.purchase_price)]));
-  return new Map(((products.data ?? []) as ProductRow[]).map((row) => {
-    const product = rowToProduct(row);
+  // At the campaign's price while one holds (D-051), as the shop's pages show it.
+  const priced = await withLiveCampaign(((products.data ?? []) as ProductRow[]).map(rowToProduct));
+  return new Map(priced.map((product) => {
     const c = cost.get(product.id);
     return [product.id, { product, cost: c !== undefined && Number.isFinite(c) && c > 0 ? c : undefined }];
   }));

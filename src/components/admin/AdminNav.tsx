@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {
   AlertTriangle, ArrowLeftRight, BadgePercent, CalendarDays, Camera, ClipboardCheck, Clock, Coins, Database, Gauge, Grid2x2, Package,
-  Gift, Megaphone, PackagePlus, QrCode, Receipt, Ruler, Settings, Shirt, ShoppingBag, Ticket, Truck, UserCog, Users, Wallet, type LucideIcon,
+  Gift, Megaphone, PackagePlus, QrCode, Receipt, Ruler, Settings, Shirt, ShoppingBag, Sparkles, Ticket, Truck, UserCog, Users, Wallet, type LucideIcon,
 } from 'lucide-react';
 
 /**
@@ -50,6 +50,7 @@ const GROUPS: NavGroup[] = [
     title: 'Стока и сезона',
     tone: 'text-rose-700',
     items: [
+      { href: '/admin/campaigns', label: 'Black Friday · кампањи', hint: 'датуми, цени, Instagram', icon: Sparkles },
       { href: '/admin/discounts', label: 'Попусти по правилото', hint: 'кој смее попуст', icon: BadgePercent },
       { href: '/admin/season', label: 'Сезонски календар', hint: 'што да се намали сега', icon: CalendarDays },
       { href: '/admin/aging', label: 'Стареење', hint: 'стока што стои', icon: Clock },

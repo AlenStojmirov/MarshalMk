@@ -6,6 +6,7 @@ import { getProductImageMap, ProductImageMap } from './product-images';
 import { canonicalSize } from './sizes';
 import { canonicalCategory, groupOfCategory, menuEntries, slugOf, type MenuEntry } from '@/config/categories';
 import { FACETS, facetValues, sortFacet } from './facets';
+import { withLiveCampaign } from './campaign-server';
 
 const PRODUCTS_PER_PAGE = 12;
 
@@ -63,9 +64,11 @@ export async function fetchPaginatedProducts(
   if (error) throw error;
 
   const imageMap = getProductImageMap();
-  let allProducts: Product[] = ((data as ProductRow[] | null) ?? [])
+  // At the campaign's price while one holds (D-051): the filter, the sort and
+  // /sale all see what the customer pays.
+  let allProducts: Product[] = await withLiveCampaign(((data as ProductRow[] | null) ?? [])
     .map(rowToProduct)
-    .map((p) => enrichWithLocalImages(p, imageMap));
+    .map((p) => enrichWithLocalImages(p, imageMap)));
 
   // Only include products that are visible and have sizes with quantity >= 1
   allProducts = allProducts.filter((p) =>
@@ -204,7 +207,8 @@ export async function getProductById(id: string): Promise<Product | null> {
   if (product.isVisible === false) return null;
 
   const imageMap = getProductImageMap();
-  return enrichWithLocalImages(product, imageMap);
+  const [priced] = await withLiveCampaign([product]);
+  return enrichWithLocalImages(priced, imageMap);
 }
 
 export async function fetchAllVisibleProducts(): Promise<Product[]> {
@@ -217,10 +221,10 @@ export async function fetchAllVisibleProducts(): Promise<Product[]> {
   if (error) throw error;
 
   const imageMap = getProductImageMap();
-  return ((data as ProductRow[] | null) ?? [])
+  return withLiveCampaign(((data as ProductRow[] | null) ?? [])
     .map(rowToProduct)
     .map((p) => enrichWithLocalImages(p, imageMap))
-    .filter((p) => p.isVisible !== false && p?.sizes?.some((s) => s.quantity >= 1));
+    .filter((p) => p.isVisible !== false && p?.sizes?.some((s) => s.quantity >= 1)));
 }
 
 /**

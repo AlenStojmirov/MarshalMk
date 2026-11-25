@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { MAX_CAMPAIGNS, parseCampaigns, type Campaign } from './campaign';
 
 /**
  * The shop's own settings (Task 14.2, migration 020), as opposed to the loyalty
@@ -12,10 +13,13 @@ export const STORE_SETTINGS = 'store_settings';
 export interface StoreSettings {
   /** Where an e-mail goes for every new order. Empty: none is sent. */
   orderNotifyEmails: string[];
+  /** Black Friday and the like (D-051, src/lib/campaign.ts), newest first. */
+  campaigns: Campaign[];
 }
 
 export const STORE_DEFAULTS: StoreSettings = {
   orderNotifyEmails: [],
+  campaigns: [],
 };
 
 /** Enough for the owner and a couple of staff; each new order is one e-mail per address against Brevo's 300 a day. */
@@ -42,6 +46,7 @@ export function parseStoreSettings(raw: unknown): StoreSettings {
   const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   return {
     orderNotifyEmails: 'orderNotifyEmails' in src ? cleanEmails(src.orderNotifyEmails) : STORE_DEFAULTS.orderNotifyEmails,
+    campaigns: 'campaigns' in src ? parseCampaigns(src.campaigns) : STORE_DEFAULTS.campaigns,
   };
 }
 
@@ -69,11 +74,25 @@ export async function fetchStoreSettings(sb: SupabaseClient): Promise<StoreSetti
   };
 }
 
-export async function saveStoreSettings(sb: SupabaseClient, s: StoreSettings): Promise<{ error?: string }> {
-  const bad = s.orderNotifyEmails.filter((e) => !isEmail(e.trim()));
-  if (bad.length) return { error: `Неважечка адреса: ${bad.join(', ')}` };
-  if (s.orderNotifyEmails.length > MAX_ORDER_NOTIFY_EMAILS) return { error: `Најмногу ${MAX_ORDER_NOTIFY_EMAILS} адреси.` };
-  const settings: StoreSettings = { orderNotifyEmails: cleanEmails(s.orderNotifyEmails) };
+/**
+ * Saves the settings given and keeps the rest as they are in the row now: the
+ * e-mail screen and the campaign screen each save their own part, read fresh
+ * at the moment of saving, so neither puts back what the other had changed.
+ */
+export async function saveStoreSettings(sb: SupabaseClient, patch: Partial<StoreSettings>): Promise<{ error?: string }> {
+  if (patch.orderNotifyEmails) {
+    const bad = patch.orderNotifyEmails.filter((e) => !isEmail(e.trim()));
+    if (bad.length) return { error: `Неважечка адреса: ${bad.join(', ')}` };
+    if (patch.orderNotifyEmails.length > MAX_ORDER_NOTIFY_EMAILS) return { error: `Најмногу ${MAX_ORDER_NOTIFY_EMAILS} адреси.` };
+  }
+  if (patch.campaigns && patch.campaigns.length > MAX_CAMPAIGNS) return { error: `Најмногу ${MAX_CAMPAIGNS} кампањи.` };
+
+  const fresh = await sb.from(STORE_SETTINGS).select('settings').eq('id', true).maybeSingle();
+  if (fresh.error) return { error: fresh.error.message };
+  const raw = fresh.data?.settings && typeof fresh.data.settings === 'object' ? (fresh.data.settings as Record<string, unknown>) : {};
+  const settings: Record<string, unknown> = { ...raw };
+  if (patch.orderNotifyEmails) settings.orderNotifyEmails = cleanEmails(patch.orderNotifyEmails);
+  if (patch.campaigns) settings.campaigns = parseCampaigns(patch.campaigns);
   const { error } = await sb.from(STORE_SETTINGS).upsert({ id: true, settings }, { onConflict: 'id' });
   return error ? { error: error.message } : {};
 }

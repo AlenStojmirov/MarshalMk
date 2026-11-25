@@ -9,7 +9,8 @@
  * through `recordProductSale`, like the POS and the product page — stock
  * through stock.ts (D-013), the ledger row with it.
  *
- * The price starts at the price on the site today; a discount agreed at the
+ * The price starts at the price on the site today — during a campaign, its
+ * price (D-051) — ; a discount agreed at the
  * till is typed over it, and the badge and warning say whether the rule allows
  * one (D-027). Before the switchover day sales are still entered in Firebase
  * (D-012), and the page says so rather than refusing: the owner tests it first.
@@ -29,6 +30,8 @@ import DiscountBadge, { discountWarning } from '@/components/admin/DiscountBadge
 import { AlertTriangle, ArrowLeft, ArrowLeftRight, Check, ClipboardCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { fetchLine, fetchOpenCountId } from '@/lib/stock-count-db';
+import { useLiveCampaign } from '@/hooks/useLiveCampaign';
+import { applyCampaign, campaignPriceOf, shopDate } from '@/lib/campaign';
 
 const localDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Skopje' }).format(d);
 
@@ -36,6 +39,7 @@ export default function QuickSellPage() {
   const params = useParams();
   const productId = params.id as string;
   const { product, loading, error } = useProduct(productId);
+  const campaign = useLiveCampaign();
 
   const [current, setCurrent] = useState<Product | null>(null);
   const [size, setSize] = useState<string>('');
@@ -59,11 +63,11 @@ export default function QuickSellPage() {
   useEffect(() => {
     if (!product) return;
     setCurrent(product);
-    setPrice(String(getEffectivePrice(product)));
+    setPrice(String(getEffectivePrice(applyCampaign(product, campaign))));
     // One size left on the shelf: that is the one in the customer's hands.
     const live = (product.sizes ?? []).filter((s) => s.size && s.quantity >= 1);
     setSize((cur) => cur || (live.length === 1 ? live[0].size : ''));
-  }, [product]);
+  }, [product, campaign]);
 
   if (loading) {
     return (
@@ -79,7 +83,9 @@ export default function QuickSellPage() {
   const shelf = (current.sizes ?? []).filter((s) => s.size);
   const left = shelf.find((s) => s.size === size)?.quantity ?? 0;
   const amount = Math.max(0, Number(price) || 0);
-  const warning = discountWarning(current, amount);
+  // The campaign's price is the owner's own decision: no warning for it.
+  const campaignPrice = campaign ? campaignPriceOf(current, campaign) : null;
+  const warning = campaignPrice && amount === campaignPrice.price ? null : discountWarning(current, amount);
   const canSell = !selling && (shelf.length === 0 || (size !== '' && left >= 1)) && amount > 0;
 
   const sell = async () => {
@@ -193,6 +199,11 @@ export default function QuickSellPage() {
                 />
                 {amount !== current.price && (
                   <p className="text-[11px] text-slate-400 mt-1">Цена на етикета {Math.round(current.price).toLocaleString('mk-MK')} ден.</p>
+                )}
+                {campaign && campaignPrice && (
+                  <p className="text-xs font-semibold text-amber-800 mt-1">
+                    {campaign.name}: {Math.round(campaignPrice.price).toLocaleString('mk-MK')} ден. до {shopDate('mk', campaign.endsAt)} (пред акцијата {Math.round(campaignPrice.reference).toLocaleString('mk-MK')})
+                  </p>
                 )}
                 {warning && <p className="text-xs text-amber-700 mt-1">{warning}</p>}
               </div>

@@ -11,7 +11,7 @@ import { useTranslation } from '@/lib/i18n';
 import { customerShippingFor, getShippingLabel } from '@/config/shipping';
 import { STORE_MAPS_URL, storeAddress } from '@/config/store';
 import FreeShippingProgress from '@/components/FreeShippingProgress';
-import { getEffectivePrice, isOnSale, getPercentOff } from '@/lib/pricing';
+import { getEffectivePrice, getReferencePrice, isOnSale, getPercentOff } from '@/lib/pricing';
 import { ATTRIBUTION_KEY, HEARD_FROM, HEARD_LABEL, isFresh, type HeardFrom, type OrderSource } from '@/lib/attribution';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -638,7 +638,7 @@ export default function CheckoutPage() {
                                 {price(unitPrice)}
                               </span>
                               <span className="text-[10px] sm:text-[11px] text-gray-400 line-through">
-                                {price(item.product.price)}
+                                {price(getReferencePrice(item.product))}
                               </span>
                               {percentOff > 0 && (
                                 <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1 py-0.5 rounded">
@@ -671,7 +671,7 @@ export default function CheckoutPage() {
                 </div>
                 {(() => {
                   const totalSavings = items.reduce(
-                    (sum, item) => sum + (item.product.price - getEffectivePrice(item.product)) * item.quantity,
+                    (sum, item) => sum + (getReferencePrice(item.product) - getEffectivePrice(item.product)) * item.quantity,
                     0
                   );
                   return totalSavings > 0 ? (

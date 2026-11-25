@@ -12,6 +12,9 @@ import { HOME_SEARCH, HOME_SHARE, SHARE_IMAGE, SHARE_LOCALE, SHARE_SITE_NAME } f
 import { jsonLd } from "@/lib/json-ld";
 import { organizationJsonLd } from "@/lib/store-json-ld";
 import { fetchMenuEntries } from "@/lib/products-server";
+import { fetchCampaignNow } from "@/lib/campaign-server";
+import CampaignBar from "@/components/campaign/CampaignBar";
+import CampaignIntro from "@/components/campaign/CampaignIntro";
 import Footer from "@/components/Footer";
 import MiniCart from "@/components/MiniCart";
 import { Analytics } from "@vercel/analytics/next";
@@ -108,6 +111,9 @@ export default async function RootLayout({
     console.error("Menu entries could not be read:", err);
     return [];
   });
+  // Black Friday and the like (D-051): the face only, no prices; read at most
+  // once a minute, and never failing the page.
+  const { face: campaign, phase: campaignAt } = await fetchCampaignNow();
 
   return (
     <html lang="mk">
@@ -125,6 +131,7 @@ export default async function RootLayout({
         <LanguageProvider>
           <AuthProvider>
             <CartProvider>
+              <CampaignBar face={campaign} initialPhase={campaignAt} />
               <Header categories={menu} />
               <main className="min-h-screen">
                 {children}
@@ -134,6 +141,7 @@ export default async function RootLayout({
               <AttributionCapture />
               <HomeScreenGuide />
               <MiniCart />
+              <CampaignIntro face={campaign} initialPhase={campaignAt} />
               <Analytics />
             </CartProvider>
           </AuthProvider>

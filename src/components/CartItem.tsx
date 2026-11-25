@@ -8,7 +8,7 @@ import { CartItem as CartItemType } from '@/types';
 import { useCart } from '@/context/CartContext';
 import { useTranslation } from '@/lib/i18n';
 import { productTitle } from '@/lib/product-display';
-import { getEffectivePrice, getPercentOff, isOnSale } from '@/lib/pricing';
+import { campaignOf, getEffectivePrice, getPercentOff, getReferencePrice, isOnSale } from '@/lib/pricing';
 
 interface CartItemProps {
   item: CartItemType;
@@ -28,7 +28,7 @@ export default function CartItem({ item }: CartItemProps) {
   const unitPrice = getEffectivePrice(product);
   const percentOff = getPercentOff(product);
   const lineTotal = unitPrice * quantity;
-  const lineSavings = onSale ? (product.price - unitPrice) * quantity : 0;
+  const lineSavings = onSale ? (getReferencePrice(product) - unitPrice) * quantity : 0;
 
   return (
     <div className="flex gap-3 sm:gap-4 p-4 sm:p-5 group">
@@ -49,8 +49,10 @@ export default function CartItem({ item }: CartItemProps) {
             </div>
           )}
           {onSale && (
-            <span className="absolute top-1 left-1 bg-red-600 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm">
-              {t('product.sale')}
+            <span className={campaignOf(product)
+              ? 'absolute top-1 left-1 bg-stone-950 text-amber-300 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm'
+              : 'absolute top-1 left-1 bg-red-600 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm'}>
+              {campaignOf(product)?.name ?? t('product.sale')}
             </span>
           )}
         </div>
@@ -74,7 +76,7 @@ export default function CartItem({ item }: CartItemProps) {
           {onSale ? (
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 mt-1.5">
               <p className="text-sm font-semibold text-red-600">{price(unitPrice)}</p>
-              <p className="text-xs text-gray-400 line-through">{price(product.price)}</p>
+              <p className="text-xs text-gray-400 line-through">{price(getReferencePrice(product))}</p>
               {percentOff > 0 && (
                 <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
                   -{percentOff}%

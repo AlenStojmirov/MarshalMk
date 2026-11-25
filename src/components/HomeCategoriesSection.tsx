@@ -20,7 +20,8 @@ const DESKTOP_COLUMNS = ['', 'md:grid-cols-1', 'md:grid-cols-2', 'md:grid-cols-3
  * chosen on the server (`app/page.tsx`); until 2.4 they were Polos, Jeans and
  * Vests all year, with photos from an image host.
  */
-export default function HomeCategoriesSection({ cards }: { cards: HomeCard[] }) {
+/** `preloadFirst`: off when the campaign's hero is above the cards (D-051) and the first is no longer what a phone shows first. */
+export default function HomeCategoriesSection({ cards, preloadFirst = true }: { cards: HomeCard[]; preloadFirst?: boolean }) {
   const { t } = useTranslation();
 
   if (cards.length === 0) return null;
@@ -41,7 +42,7 @@ export default function HomeCategoriesSection({ cards }: { cards: HomeCard[] }) 
             title={category.title}
             href={category.href}
             imageSrc={category.imageSrc}
-            first={i === 0}
+            first={preloadFirst && i === 0}
           />
         ))}
       </div>

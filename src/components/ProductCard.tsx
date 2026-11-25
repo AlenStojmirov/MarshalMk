@@ -5,15 +5,18 @@ import Link from 'next/link';
 import { Product } from '@/types';
 import { useTranslation } from '@/lib/i18n';
 import { productTitle } from '@/lib/product-display';
+import { getReferencePrice } from '@/lib/pricing';
 
 interface ProductCardProps {
   product: Product;
   /** `eager`: on screen when the page opens, so loaded at once rather than
    * when scrolled to; `high`: and ahead of everything else (Task 16.5). */
   load?: 'eager' | 'high';
+  /** Before a campaign starts (D-051): its cut, shown as "−N% from Friday". */
+  upcoming?: { pct: number; label: string };
 }
 
-export default function ProductCard({ product, load }: ProductCardProps) {
+export default function ProductCard({ product, load, upcoming }: ProductCardProps) {
   const { t, language, price } = useTranslation();
 
   const isValidImageUrl = product.imageUrl && (
@@ -23,13 +26,16 @@ export default function ProductCard({ product, load }: ProductCardProps) {
                 );
 
   const onSale = !!product.sale?.isActive;
+  // During a campaign the price struck through is the lowest before it (D-051).
+  const reference = getReferencePrice(product);
+  const campaign = onSale ? product.sale!.campaign?.name : undefined;
   const percentOff = onSale
     ? Math.round(
         product.sale!.percentageOff ||
-          ((product.price - product.sale!.salePrice) / product.price) * 100
+          ((reference - product.sale!.salePrice) / reference) * 100
       )
     : 0;
-  const savings = onSale ? Math.max(0, product.price - product.sale!.salePrice) : 0;
+  const savings = onSale ? Math.max(0, reference - product.sale!.salePrice) : 0;
 
   return (
     <article className={onSale ? 'group/card relative' : 'group/card'}>
@@ -38,7 +44,9 @@ export default function ProductCard({ product, load }: ProductCardProps) {
         {/* Product Image */}
         <div
           className={
-            onSale
+            campaign
+              ? 'relative aspect-[3/4] overflow-hidden bg-stone-100 mb-3 ring-2 ring-stone-950 shadow-sm group-hover/card:shadow-lg group-hover/card:ring-amber-300 transition-all duration-300'
+              : onSale
               ? 'relative aspect-[3/4] overflow-hidden bg-stone-100 mb-3 ring-1 ring-red-500/20 shadow-sm group-hover/card:shadow-lg group-hover/card:ring-red-500/40 transition-all duration-300'
               : 'relative aspect-[3/4] overflow-hidden bg-stone-100 mb-3 shadow-sm group-hover/card:shadow-lg transition-shadow duration-300'
           }
@@ -65,8 +73,29 @@ export default function ProductCard({ product, load }: ProductCardProps) {
             </div>
           )}
 
+          {/* Campaign badges (D-051): the law wants an action sale labelled as one. */}
+          {campaign && product.stock > 0 && (
+            <div className="absolute top-2 left-2 z-10 flex flex-col gap-1.5 items-start">
+              <span className="campaign-shine bg-stone-950 text-amber-300 text-[10px] font-extrabold uppercase tracking-[0.18em] px-2.5 py-1 shadow-md ring-1 ring-amber-300/40">
+                {t('campaign.badge', { name: campaign })}
+              </span>
+              {percentOff > 0 && (
+                <span className="bg-amber-300 text-stone-950 text-[12px] font-black px-2 py-0.5 shadow-sm">
+                  −{percentOff}%
+                </span>
+              )}
+            </div>
+          )}
+          {!campaign && upcoming && product.stock > 0 && (
+            <div className="absolute top-2 left-2 z-10 flex flex-col gap-1.5 items-start">
+              <span className="bg-stone-950 text-amber-300 text-[10px] font-extrabold uppercase tracking-[0.18em] px-2.5 py-1 shadow-md">
+                {upcoming.label}
+              </span>
+            </div>
+          )}
+
           {/* Sale badges */}
-          {onSale && product.stock > 0 && (
+          {onSale && !campaign && !upcoming && product.stock > 0 && (
             <>
               <div className="absolute top-2 left-2 z-10 flex flex-col gap-1.5 items-start">
                 <span
@@ -107,11 +136,11 @@ export default function ProductCard({ product, load }: ProductCardProps) {
           </h3>
           {onSale ? (
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <span className="text-[14px] font-semibold text-red-600">
+              <span className={campaign ? 'text-[15px] font-extrabold text-stone-950' : 'text-[14px] font-semibold text-red-600'}>
                 {price(product.sale!.salePrice)}
               </span>
               <span className="text-[12px] text-stone-400 line-through">
-                {price(product.price)}
+                {price(reference)}
               </span>
               {savings > 0 && (
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-red-600 bg-red-50 px-1.5 py-0.5 rounded-sm">

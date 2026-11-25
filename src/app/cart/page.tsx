@@ -7,14 +7,14 @@ import CartItemComponent from '@/components/CartItem';
 import { useTranslation } from '@/lib/i18n';
 import { getShippingCost, getShippingLabel } from '@/config/shipping';
 import FreeShippingProgress from '@/components/FreeShippingProgress';
-import { getEffectivePrice } from '@/lib/pricing';
+import { getEffectivePrice, getReferencePrice } from '@/lib/pricing';
 
 export default function CartPage() {
   const { items, totalItems, totalPrice, clearCart } = useCart();
   const { t, language, price } = useTranslation();
 
   const totalSavings = items.reduce(
-    (sum, item) => sum + (item.product.price - getEffectivePrice(item.product)) * item.quantity,
+    (sum, item) => sum + (getReferencePrice(item.product) - getEffectivePrice(item.product)) * item.quantity,
     0
   );
 

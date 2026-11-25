@@ -5,6 +5,8 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { fetchLoyaltySettings } from "@/lib/loyalty-settings";
 import { canonicalCategory, groupForSlug, groupHref, groupOfCategory, menuEntries, slugOf } from "@/config/categories";
 import type { Product } from "@/types";
+import { fetchCampaigns } from "@/lib/campaign-server";
+import { shownCampaign } from "@/lib/campaign";
 
 const BASE_URL = "https://marshal.mk";
 
@@ -33,6 +35,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const products = await fetchAllVisibleProducts();
   // The wheel's page exists only while the owner has it on (13.10).
   const wheelOn = await fetchLoyaltySettings(getSupabaseAdmin()).then((r) => r.settings.wheelEnabled).catch(() => false);
+  // The campaign's page while it counts down or holds (D-051); noindex otherwise.
+  const campaignOn = !!shownCampaign(await fetchCampaigns());
 
   // The groups with something on the shelf (Task 2.4), and inside a group of
   // several kinds on the shelf each kind's chip: /mens/knitwear?type=turtlenecks is where
@@ -94,6 +98,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.4,
       })),
     ...(wheelOn ? [{ url: `${BASE_URL}/wheel`, lastModified: new Date(), changeFrequency: "weekly" as const, priority: 0.5 }] : []),
+    ...(campaignOn ? [{ url: `${BASE_URL}/black-friday`, lastModified: new Date(), changeFrequency: "daily" as const, priority: 0.9 }] : []),
   ];
 
   // Category pages

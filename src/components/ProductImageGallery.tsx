@@ -15,6 +15,8 @@ interface ProductImageGalleryProps {
   onSale?: boolean;
   saleLabel?: string;
   percentOff?: number;
+  /** A campaign's price (D-051): its badge is black and amber, not the sale's red. */
+  campaign?: boolean;
 }
 
 export default function ProductImageGallery({
@@ -26,6 +28,7 @@ export default function ProductImageGallery({
   onSale = false,
   saleLabel = 'Sale',
   percentOff = 0,
+  campaign = false,
 }: ProductImageGalleryProps) {
   const { t } = useTranslation();
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -178,11 +181,15 @@ export default function ProductImageGallery({
         {/* Sale badges */}
         {onSale && (
           <div className="absolute top-5 left-5 z-10 flex flex-col gap-2 items-start">
-            <span className="bg-red-600 text-white text-[11px] font-bold uppercase tracking-[0.2em] px-3 py-1.5 shadow-md ring-1 ring-red-700/30 animate-[pulse_2.5s_ease-in-out_infinite]">
+            <span className={campaign
+              ? 'campaign-shine bg-stone-950 text-amber-300 text-[11px] font-extrabold uppercase tracking-[0.18em] px-3 py-1.5 shadow-md ring-1 ring-amber-300/40'
+              : 'bg-red-600 text-white text-[11px] font-bold uppercase tracking-[0.2em] px-3 py-1.5 shadow-md ring-1 ring-red-700/30 animate-[pulse_2.5s_ease-in-out_infinite]'}>
               {saleLabel}
             </span>
             {percentOff > 0 && (
-              <span className="bg-stone-900 text-white text-[12px] font-semibold px-2.5 py-1 shadow-sm">
+              <span className={campaign
+                ? 'bg-amber-300 text-stone-950 text-[13px] font-black px-2.5 py-1 shadow-sm'
+                : 'bg-stone-900 text-white text-[12px] font-semibold px-2.5 py-1 shadow-sm'}>
                 -{percentOff}%
               </span>
             )}

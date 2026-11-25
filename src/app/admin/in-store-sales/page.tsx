@@ -12,6 +12,8 @@ import {
 } from '@/hooks/useInStoreSales';
 import { NonSaleReason, Product } from '@/types';
 import { getEffectivePrice } from '@/lib/pricing';
+import { useLiveCampaign } from '@/hooks/useLiveCampaign';
+import { applyCampaign } from '@/lib/campaign';
 import { NON_SALE_REASONS } from '@/lib/sales-ledger';
 import { matchesSearch, onShelf } from '@/lib/admin-search';
 import {
@@ -58,6 +60,7 @@ function RecordSaleModal({
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
+  const campaign = useLiveCampaign();
   const [items, setItems] = useState<SaleCartItem[]>([]);
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [saving, setSaving] = useState(false);
@@ -90,10 +93,11 @@ function RecordSaleModal({
         {
           product,
           size: size || '',
-          // The price actually on the tag today — an active sale included.
-          // Editable per line, because a discount given at the counter is real
-          // and the record has to say what was actually taken.
-          price: getEffectivePrice(product),
+          // The price actually on the tag today — an active sale included,
+          // and during a campaign its price (D-051). Editable per line,
+          // because a discount given at the counter is real and the record
+          // has to say what was actually taken.
+          price: getEffectivePrice(applyCampaign(product, campaign)),
           quantity: 1,
         },
       ]);

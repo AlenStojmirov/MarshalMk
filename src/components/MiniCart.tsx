@@ -8,7 +8,7 @@ import { X, ShoppingBag, ArrowRight, Minus, Plus, Trash2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useTranslation } from '@/lib/i18n';
 import { productTitle } from '@/lib/product-display';
-import { getEffectivePrice, isOnSale } from '@/lib/pricing';
+import { getEffectivePrice, getReferencePrice, isOnSale } from '@/lib/pricing';
 import FreeShippingProgress from './FreeShippingProgress';
 
 export default function MiniCart() {
@@ -210,7 +210,7 @@ export default function MiniCart() {
                         </p>
                         {onSale && (
                           <p className="text-[10px] text-gray-400 line-through tabular-nums">
-                            {price(product.price * quantity)}
+                            {price(getReferencePrice(product) * quantity)}
                           </p>
                         )}
                       </div>

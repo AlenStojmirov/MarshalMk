@@ -22,11 +22,27 @@ export interface SoldItem {
   reason?: NonSaleReason;
 }
 
+/** The campaign a sale price belongs to (D-051). */
+export interface SaleCampaign {
+  id: string;
+  /** "Black Friday": the same in both languages. */
+  name: string;
+  /** ISO instant: the price holds until then. */
+  endsAt: string;
+}
+
 // Sale information for products on discount
 export interface SaleInfo {
   isActive: boolean;
   salePrice: number;
   percentageOff: number;
+  /**
+   * Set only by the server, while a campaign holds (D-051, src/lib/campaign.ts):
+   * which campaign and until when, and the price struck through — the lowest
+   * the product had before, not necessarily its regular price. Never stored.
+   */
+  campaign?: SaleCampaign;
+  referencePrice?: number;
 }
 
 export interface Product {

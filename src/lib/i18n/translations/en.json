@@ -1238,5 +1238,68 @@
       "cottonShrink": "Pure cotton may shrink a little in a tumble dryer",
       "stretchHeat": "No high-heat drying — it keeps the elastane"
     }
+  },
+  "campaign": {
+    "badge": "{name} deal",
+    "until": "{name} · until {date}",
+    "upTo": "up to −{pct}%",
+    "startsIn": "Starts in",
+    "endsIn": "Ends in",
+    "countdownDays": "{d}d",
+    "shop": "Shop the deals",
+    "dates": "Sale from {from} to {to}",
+    "days": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    },
+    "fromDay": "−{pct}% from {day}",
+    "bar": {
+      "live": "{name} is on",
+      "teaser": "{name} starts {day}",
+      "link": "Deals",
+      "aria": "{name}: shop the deals",
+      "teaserShort": "from {day}"
+    },
+    "intro": {
+      "aria": "{name}: deals",
+      "kicker": "Three days only",
+      "liveTitle": "Prices are down",
+      "teaserTitle": "Prices drop {day}",
+      "products": "{count} products at sale prices",
+      "later": "Later",
+      "close": "Close"
+    },
+    "page": {
+      "kicker": "Sale",
+      "all": "All",
+      "count": "{count} products",
+      "sortDiscount": "Biggest discount",
+      "sortPriceAsc": "Lowest price",
+      "teaserNote": "These are the products in the sale. Prices drop when it starts and hold until it ends.",
+      "reference": "The price struck through is the lowest price of the product in the 30 days before the sale.",
+      "cod": "Cash on delivery · store pickup",
+      "empty": "Everything in the sale has sold out.",
+      "overTitle": "{name} is over",
+      "overText": "Thank you! Have a look at what is still on sale, or at what has just arrived.",
+      "toSale": "Sale",
+      "toNew": "New in",
+      "noneTitle": "No sale on at the moment",
+      "sortSeason": "Recommended"
+    },
+    "hero": {
+      "cta": "Shop now",
+      "preview": "See what is in it"
+    },
+    "units": {
+      "days": "days",
+      "hours": "hrs",
+      "minutes": "min",
+      "seconds": "sec"
+    }
   }
 }

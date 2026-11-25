@@ -7,6 +7,10 @@ import type { HomeCard } from '@/components/HomeCategoriesSection';
 import { fetchAllVisibleProducts } from '@/lib/products-server';
 import { groupHref, groupOfCategory, groupsInSeasonOrder, type GroupKey } from '@/config/categories';
 import type { Product } from '@/types';
+import type { HomeCampaign } from '@/components/HomeContent';
+import { fetchCampaignFace, fetchCampaigns } from '@/lib/campaign-server';
+import { campaignPhase, campaignShelf } from '@/lib/campaign';
+import { campaignOf } from '@/lib/pricing';
 
 /**
  * The home page reads on the server (Task 2.4): its big cards follow the
@@ -64,14 +68,47 @@ export const metadata: Metadata = {
   },
 };
 
+/** How many of the campaign's pieces the hero shows. */
+const CAMPAIGN_PICKS = 8;
+
+/**
+ * The campaign at the top of the page while it counts down or holds (D-051),
+ * with its deepest cuts that have a photo: during it, at the prices the
+ * products were read at; before it, with the cut each will get.
+ */
+async function homeCampaign(products: Product[]): Promise<HomeCampaign | null> {
+  const now = Date.now();
+  const face = await fetchCampaignFace(now);
+  if (!face) return null;
+  const phase = campaignPhase(face, now);
+  if (phase === 'live') {
+    const picks = products
+      .filter((p) => campaignOf(p)?.id === face.id && hasPhoto(p))
+      .sort((a, b) => (b.sale?.percentageOff ?? 0) - (a.sale?.percentageOff ?? 0))
+      .slice(0, CAMPAIGN_PICKS)
+      .map((product) => ({ product }));
+    return { face, phase, picks };
+  }
+  const c = (await fetchCampaigns()).find((x) => x.id === face.id);
+  const picks = c
+    ? campaignShelf(c, products)
+        .filter((s) => hasPhoto(s.product))
+        .sort((a, b) => b.cp.pct - a.cp.pct)
+        .slice(0, CAMPAIGN_PICKS)
+        .map((s) => ({ product: s.product, upcomingPct: s.cp.pct }))
+    : [];
+  return { face, phase, picks };
+}
+
 export default async function Home() {
   const products = await fetchAllVisibleProducts(); // visible, in stock, newest first
+  const campaign = await homeCampaign(products);
   return (
     <>
       {/* The website and the shop in Vinica (16.1); the organization comes from the layout. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(websiteJsonLd()) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(storeJsonLd(products)) }} />
-      <HomeContent cards={seasonCards(products)} newProducts={products.slice(0, NEW_PRODUCTS)} />
+      <HomeContent cards={seasonCards(products)} newProducts={products.slice(0, NEW_PRODUCTS)} campaign={campaign} />
     </>
   );
 }
