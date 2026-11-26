@@ -552,3 +552,99 @@ export async function renderCampaignCard(art: CampaignArt, p: CampaignCardProduc
   ctx.fillText(art.link, pad, H - 44);
   return toBlob(canvas);
 }
+
+/**
+ * One piece as a story (D-051): the campaign's frame round its photo, the
+ * cut, both prices, the dates. 1080×1920. Instagram lays its own bar over the
+ * top ~220 px and the reply field over the bottom ~250 px, so every word sits
+ * between.
+ */
+export async function renderCampaignProductStory(art: CampaignArt, p: CampaignCardProduct): Promise<Blob> {
+  const { w: W, h: H } = STORY;
+  const { canvas, ctx } = nightCanvas(STORY);
+
+  // The site's diagonal stripes, faint.
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.045)';
+  ctx.lineWidth = 3;
+  for (let x = -H; x < W; x += 30) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + H, H);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // The frame.
+  ctx.strokeStyle = 'rgba(252, 211, 77, 0.55)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(36, 36, W - 72, H - 72);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(252, 211, 77, 0.9)';
+  ctx.font = font(34, 600);
+  ctx.fillText(wrap(ctx, art.dates, W - 160, 1)[0] ?? '', W / 2, 252);
+  ctx.textAlign = 'left';
+
+  let size = 150;
+  ctx.font = font(size, 900);
+  while (ctx.measureText(art.name.toUpperCase()).width > W - 200 && size > 40) {
+    size -= 4;
+    ctx.font = font(size, 900);
+  }
+  const nameW = ctx.measureText(art.name.toUpperCase()).width;
+  campaignName(ctx, art.name, (W - nameW) / 2, 400, W - 200, size);
+
+  const px = 120;
+  const py = 450;
+  const pw = W - px * 2;
+  const ph = 860;
+  ctx.fillStyle = PAPER;
+  ctx.fillRect(px - 10, py - 10, pw + 20, ph + 20);
+  const img = await tryImage(p.photo);
+  if (img) drawCover(ctx, img, px, py, pw, ph);
+  else {
+    ctx.fillStyle = '#292524';
+    ctx.fillRect(px, py, pw, ph);
+  }
+  await drawLogo(ctx, px + pw - 128, py + 18, 110);
+  stamp(ctx, `−${p.pct}%`, px - 44, py + 120, 96);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = PAPER;
+  ctx.font = font(48, 700);
+  let y = py + ph + 90;
+  const lines = wrap(ctx, p.title, W - 200, 2);
+  lines.forEach((line, i) => ctx.fillText(line, W / 2, y + i * 58));
+  y += (lines.length - 1) * 58 + 128;
+
+  // Both prices on one line, centred together.
+  ctx.textAlign = 'left';
+  const price = den(p.price);
+  const old = den(p.before);
+  ctx.font = font(112, 900);
+  const nw = ctx.measureText(price).width;
+  ctx.font = font(52, 500);
+  const ow = ctx.measureText(old).width;
+  const x0 = (W - (nw + 34 + ow)) / 2;
+  ctx.fillStyle = GOLD;
+  ctx.font = font(112, 900);
+  ctx.fillText(price, x0, y);
+  ctx.fillStyle = '#a8a29e';
+  ctx.font = font(52, 500);
+  const ox = x0 + nw + 34;
+  ctx.fillText(old, ox, y - 12);
+  ctx.strokeStyle = '#a8a29e';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(ox - 4, y - 30);
+  ctx.lineTo(ox + ow + 4, y - 30);
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = PAPER;
+  ctx.font = font(38, 700);
+  ctx.fillText(art.link, W / 2, y + 84);
+  ctx.textAlign = 'left';
+  return toBlob(canvas);
+}

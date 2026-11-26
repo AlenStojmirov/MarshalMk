@@ -2,7 +2,8 @@
 
 /**
  * Pictures and text for Instagram from a campaign (D-051): the opening post,
- * a story, a card per piece, and the caption. Drawn in the browser like the
+ * a story, a card per piece, a story per piece (all at once in a .zip), and
+ * the caption. Drawn in the browser like the
  * marketing pack (post-images.ts); nothing is stored. Every picture carries
  * the dates and the word "акција": an action sale's advertising has to say
  * that it is one and how long it lasts.
@@ -11,20 +12,17 @@
 import { useMemo, useState } from 'react';
 import { Check, Copy, Download, Image as ImageIcon, Loader2, Share2 } from 'lucide-react';
 import type { Product } from '@/types';
-import { campaignShelf, shopDate, shopDay, type Campaign } from '@/lib/campaign';
+import { campaignShelf, type Campaign } from '@/lib/campaign';
 import { productTitle } from '@/lib/product-display';
 import {
   download, renderCampaignCard, renderCampaignCover, renderCampaignStory,
-  type CampaignArt, type CampaignCardProduct,
+  type CampaignCardProduct,
 } from '@/lib/post-images';
 import { den } from '@/lib/marketing';
+import { CAMPAIGN_LINK as LINK, campaignArt, hasPhoto, mkDay, storyFileName } from '@/lib/campaign-art';
+import { BulkStoriesButton, useCampaignStories, type StoryJob } from '@/components/admin/CampaignStories';
 
-const DAYS = ['недела', 'понеделник', 'вторник', 'среда', 'четврток', 'петок', 'сабота'];
-const LINK = 'marshal.mk/black-friday';
 const CARDS = 6;
-
-const mkDay = (iso: string, withYear = false) => `${DAYS[shopDay(iso).weekday]} ${shopDate('mk', iso, withYear)}`;
-const hasPhoto = (p: Product) => /^(https?:\/\/|\/)/.test(p.imageUrl?.trim() ?? '');
 
 function caption(c: Campaign, upTo: string, picks: { title: string }[]): string {
   const groups = c.headline.mk ? `${c.headline.mk}.` : '';
@@ -51,28 +49,22 @@ export default function CampaignInstagram({ campaign, products }: { campaign: Ca
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const picks = useMemo(
-    () =>
-      campaignShelf(campaign, products)
-        .filter((s) => hasPhoto(s.product))
-        .sort((a, b) => b.cp.pct - a.cp.pct)
-        .map((s): CampaignCardProduct & { id: string } => ({
-          id: s.product.id,
-          title: productTitle(s.product, 'mk'),
-          photo: s.product.imageUrl.trim(),
-          price: s.cp.price,
-          before: s.cp.reference,
-          pct: s.cp.pct,
-        })),
+  const shelf = useMemo(
+    () => campaignShelf(campaign, products).filter((s) => hasPhoto(s.product)).sort((a, b) => b.cp.pct - a.cp.pct),
     [campaign, products],
   );
+  const picks = shelf.map((s): CampaignCardProduct & { id: string } => ({
+    id: s.product.id,
+    title: productTitle(s.product, 'mk'),
+    photo: s.product.imageUrl.trim(),
+    price: s.cp.price,
+    before: s.cp.reference,
+    pct: s.cp.pct,
+  }));
   const maxPct = picks.reduce((m, p) => Math.max(m, p.pct), 0);
-  const art: CampaignArt = {
-    name: campaign.name,
-    upTo: maxPct > 0 ? `до −${maxPct}%` : '',
-    dates: `Акција: ${mkDay(campaign.startsAt)} – ${mkDay(campaign.endsAt, true)}`,
-    link: LINK,
-  };
+  const art = campaignArt(campaign, maxPct);
+  const stories = useCampaignStories(art, campaign.id);
+  const storyJobs: StoryJob[] = shelf.map((s, i) => ({ card: picks[i], name: storyFileName(campaign.id, s.product, i + 1) }));
   const text = caption(campaign, art.upTo, picks);
   const canShare = typeof navigator !== 'undefined' && 'canShare' in navigator;
 
@@ -143,9 +135,16 @@ export default function CampaignInstagram({ campaign, products }: { campaign: Ca
           {button('cover', 'Насловна објава', cover)}
           {button('story', 'Сторија', story)}
           {button('cards', `Картички (${Math.min(CARDS, picks.length)})`, cards)}
+          <BulkStoriesButton stories={stories} jobs={storyJobs} label="Стории по производ" />
         </div>
       )}
-      {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
+      {picks.length > 0 && (
+        <p className="mt-2 text-xs text-slate-500">
+          „Стории по производ“: по една сторија за секој производ (1080×1920), сите во еден .zip. Една по една, со преглед: копчето
+          „Сторија“ во листата на производи кај „Уреди“.
+        </p>
+      )}
+      {(error || stories.error) && <p className="mt-3 text-sm text-red-700">{error || stories.error}</p>}
 
       <div className="mt-5">
         <div className="mb-1 flex items-center justify-between">
