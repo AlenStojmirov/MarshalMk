@@ -10,6 +10,7 @@ import { productTitle } from '@/lib/product-display';
 import { useCampaignClock } from '@/hooks/useCampaignClock';
 import { useTranslation } from '@/lib/i18n';
 import { CountdownBoxes } from './CampaignCountdown';
+import CampaignName from './CampaignName';
 
 export interface CampaignPick {
   product: Product;
@@ -89,9 +90,10 @@ export default function CampaignHero({ face, initialPhase, picks }: { face: Camp
           <p className="text-[11px] uppercase tracking-[0.3em] text-amber-300/90">
             {t('campaign.page.kicker')} · {from} – {to}
           </p>
-          <h2 className="campaign-shine-text mt-3 text-6xl font-black uppercase leading-[0.85] tracking-tight sm:text-7xl lg:text-8xl">
-            {face.name}
-          </h2>
+          <CampaignName
+            name={face.name}
+            className="campaign-shine-text mt-3 font-black uppercase leading-[0.85] tracking-tight [--name-max:3.75rem] sm:[--name-max:4.5rem] lg:[--name-max:6rem]"
+          />
           {live && face.maxPct > 0 && (
             <p className="campaign-stamp mt-6 inline-block -rotate-3 bg-amber-300 px-4 py-1.5 text-3xl font-black text-stone-950 sm:text-4xl">
               {t('campaign.upTo', { pct: face.maxPct })}

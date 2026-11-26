@@ -105,6 +105,17 @@ export interface CampaignPrice {
 }
 
 /**
+ * The price struck through for one item: the price before the campaign as
+ * entered, but never above what the product sells at now. A piece on sale at
+ * 1.650 has had no price above 1.650 to compare with, whatever its regular
+ * price (the lowest in the 30 days before, D-051).
+ */
+export function campaignReference(item: CampaignItem, p: Product): number {
+  const now = standingPrice(p);
+  return Math.min(item.before > 0 ? item.before : now, now);
+}
+
+/**
  * What the campaign does to one product, or null when it does nothing: not in
  * it, or its own price is already as low. Never raises a price.
  */
@@ -112,8 +123,7 @@ export function campaignPriceOf(p: Product, c: Campaign): CampaignPrice | null {
   const item = c.items.find((i) => i.id === p.id);
   if (!item) return null;
   const price = Math.round(item.price);
-  const now = standingPrice(p);
-  const reference = Math.min(item.before > 0 ? item.before : now, now);
+  const reference = campaignReference(item, p);
   if (!(price > 0) || price >= reference) return null;
   return { price, reference, pct: Math.round((1 - price / reference) * 100) };
 }

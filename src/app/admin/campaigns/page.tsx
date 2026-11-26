@@ -20,7 +20,7 @@ import { useProducts } from '@/hooks/useProducts';
 import type { Product } from '@/types';
 import { fetchStoreSettings, saveStoreSettings, type StoreSettingsRead } from '@/lib/store-settings';
 import {
-  campaignPhase, campaignProblems, shopDate, standingPrice, MAX_CAMPAIGN_DAYS,
+  campaignPhase, campaignProblems, campaignReference, shopDate, standingPrice, MAX_CAMPAIGN_DAYS,
   type Campaign, type CampaignItem, type CampaignPhase,
 } from '@/lib/campaign';
 import {
@@ -160,7 +160,7 @@ function Editor({
     };
     const pctOf = (p: Product) => {
       const it = items.get(p.id);
-      return it && it.before > 0 ? 1 - it.price / it.before : -1;
+      return it ? 1 - it.price / campaignReference(it, p) : -1;
     };
     return shelf
       .filter((p) => (!onlyIn || items.has(p.id)) && match(p))
@@ -171,13 +171,15 @@ function Editor({
     const t: Totals = { models: 0, units: 0, revenue: 0, cost: 0, maxPct: 0, belowFloor: 0 };
     for (const it of items.values()) {
       const p = byId.get(it.id);
-      if (!p || !onShelf(p) || !(it.price < it.before)) continue;
+      if (!p || !onShelf(p)) continue;
+      const ref = campaignReference(it, p);
+      if (!(it.price < ref)) continue;
       const u = unitsOf(p);
       t.models++;
       t.units += u;
       t.revenue += u * it.price;
       t.cost += u * (p.purchasePrice ?? 0);
-      t.maxPct = Math.max(t.maxPct, Math.round((1 - it.price / it.before) * 100));
+      t.maxPct = Math.max(t.maxPct, Math.round((1 - it.price / ref) * 100));
       const floor = markdownFloorPrice(p.purchasePrice);
       if (floor !== null && it.price < floor) t.belowFloor++;
     }
@@ -203,7 +205,7 @@ function Editor({
   const margin = totals.revenue > 0 ? Math.round((1 - totals.cost / totals.revenue) * 100) : null;
   const regular = [...items.values()].reduce((a, it) => {
     const p = byId.get(it.id);
-    return p && onShelf(p) ? a + unitsOf(p) * it.before : a;
+    return p && onShelf(p) ? a + unitsOf(p) * campaignReference(it, p) : a;
   }, 0);
 
   return (
@@ -324,7 +326,9 @@ function Editor({
               {rows.map((p) => {
                 const it = items.get(p.id);
                 const v = verdicts.get(p.id);
-                const before = it?.before ?? standingPrice(p);
+                // What the site strikes through: never above the price it sells at now.
+                const before = it ? campaignReference(it, p) : standingPrice(p);
+                const capped = !!it && it.before > before;
                 const pct = it && before > 0 ? Math.round((1 - it.price / before) * 100) : 0;
                 const floor = markdownFloorPrice(p.purchasePrice);
                 const below = !!it && floor !== null && it.price < floor;
@@ -361,11 +365,12 @@ function Editor({
                         <input
                           type="number" min={1} value={it.before}
                           onChange={(e) => setItem(p, { before: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
-                          className="w-20 rounded border border-slate-300 px-2 py-1 text-right tabular-nums"
+                          className={`w-20 rounded border px-2 py-1 text-right tabular-nums ${capped ? 'border-amber-400' : 'border-slate-300'}`}
                         />
                       ) : (
                         <span className="tabular-nums text-slate-600">{mkNumber(standingPrice(p))}</span>
                       )}
+                      {capped && <div className="text-[10px] text-amber-700">на сајтот {mkNumber(before)}: сега е по таа цена</div>}
                     </td>
                     <td className="px-3 py-2 text-right">
                       {it && (

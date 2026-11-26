@@ -8,6 +8,7 @@ import { shopDate, shopDay, type CampaignFace, type CampaignPhase } from '@/lib/
 import { useCampaignClock } from '@/hooks/useCampaignClock';
 import { useTranslation } from '@/lib/i18n';
 import { CountdownBoxes } from './CampaignCountdown';
+import CampaignName from './CampaignName';
 
 /** Pages where a greeting would be in the way: the campaign's own, the purchase, the account. */
 const QUIET = ['/black-friday', '/cart', '/checkout', '/account', '/admin', '/track-order', '/wheel'];
@@ -128,13 +129,11 @@ export default function CampaignIntro({ face, initialPhase }: { face: CampaignFa
 
         <div className="relative px-6 pb-6 pt-10 text-center">
           <p className="text-[11px] uppercase tracking-[0.3em] text-amber-300/90">{from} – {to}</p>
-          <h2 className="mt-3 text-5xl sm:text-6xl font-black uppercase leading-[0.9] tracking-tight">
-            {Array.from(face.name).map((ch, i) => (
-              <span key={i} className="campaign-letter inline-block" style={{ animationDelay: `${120 + i * 55}ms` }}>
-                {ch === ' ' ? ' ' : ch}
-              </span>
-            ))}
-          </h2>
+          <CampaignName
+            name={face.name}
+            letters
+            className="mt-3 font-black uppercase leading-[0.9] tracking-tight [--name-max:3.75rem]"
+          />
           {live && face.maxPct > 0 && (
             <p className="campaign-stamp mt-5 inline-block -rotate-3 bg-amber-300 px-3 py-1 text-3xl font-black text-stone-950">
               {t('campaign.upTo', { pct: face.maxPct })}

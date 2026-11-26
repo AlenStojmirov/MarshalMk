@@ -10,6 +10,7 @@ import { useCampaignClock } from '@/hooks/useCampaignClock';
 import { useTranslation } from '@/lib/i18n';
 import ProductCard from '@/components/ProductCard';
 import { CountdownBoxes } from './CampaignCountdown';
+import CampaignName from './CampaignName';
 import { useCampaignDates } from './CampaignHero';
 
 export interface CampaignPageItem {
@@ -111,13 +112,15 @@ export default function CampaignPageContent({
           <div className="absolute inset-0 opacity-[0.06] [background-image:repeating-linear-gradient(135deg,#fff_0_2px,transparent_2px_22px)]" />
         </div>
         <div className="relative mx-auto flex max-w-7xl flex-col gap-8 px-4 py-10 sm:px-6 md:flex-row md:items-end md:justify-between md:py-14 lg:px-8">
-          <div>
+          <div className="min-w-0 md:flex-1">
             <p className="text-[11px] uppercase tracking-[0.3em] text-amber-300/90">
               {t('campaign.dates', { from: dates.from, to: dates.to })}
             </p>
-            <h1 className="campaign-shine-text mt-3 text-5xl font-black uppercase leading-[0.85] tracking-tight sm:text-7xl">
-              {face.name}
-            </h1>
+            <CampaignName
+              name={face.name}
+              as="h1"
+              className="campaign-shine-text mt-3 font-black uppercase leading-[0.85] tracking-tight [--name-max:3rem] sm:[--name-max:4.5rem]"
+            />
             {live && face.maxPct > 0 && (
               <p className="campaign-stamp mt-5 inline-block -rotate-3 bg-amber-300 px-3 py-1 text-2xl font-black text-stone-950 sm:text-3xl">
                 {t('campaign.upTo', { pct: face.maxPct })}

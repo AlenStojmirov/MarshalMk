@@ -122,6 +122,14 @@ select:focus-visible {
   pointer-events: none;
 }
 
+/* The campaign's name in one line, as big as its box allows and never over
+   --name-max (CampaignName, which sets --name-em, its width in em). Browsers
+   without container units keep --name-max and break between words. */
+.campaign-name { font-size: var(--name-max, 3rem); }
+@supports (width: 1cqi) {
+  .campaign-name { font-size: clamp(1.75rem, calc(100cqi / var(--name-em, 9)), var(--name-max, 3rem)); }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .campaign-shine-text { animation: campaign-shine 3.2s ease-in-out infinite; }
   .campaign-shine::after { animation: campaign-sweep 3.6s ease-in-out infinite; }
