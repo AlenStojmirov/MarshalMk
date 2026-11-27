@@ -7,9 +7,10 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, ImageOff, Plus, Star, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Copy, ImageOff, Plus, Star, X } from 'lucide-react';
 import { ALL_CATEGORIES, CATEGORY_GROUPS, NON_MERCHANDISE } from '@/config/categories';
 import { categoryName, groupName } from '@/lib/product-display';
+import { copyText } from '@/lib/copy-text';
 
 export const inputClass =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30';
@@ -146,13 +147,28 @@ const hostAllowed = (url: string) => {
 /**
  * The product's photos as links (there is no Storage bucket: photos are links,
  * mostly i.postimg.cc, or files in the repo). The first is the main one.
- * `repoPhotos`: files in public/images/products/ that the site shows instead.
+ * `repoUrls`: files in public/images/products/ that the site shows instead.
+ *
+ * A photo's link can be copied, or all of them at once (owner, 2026-11-27), to
+ * paste into another product's field: several links go in one paste, so "all"
+ * joins them with spaces — a single-line field would run lines together.
  */
 export function ImagesEditor({
-  urls, onChange, repoPhotos,
-}: { urls: string[]; onChange: (urls: string[]) => void; repoPhotos: number }) {
+  urls, onChange, repoUrls,
+}: { urls: string[]; onChange: (urls: string[]) => void; repoUrls: string[] }) {
   const [draft, setDraft] = useState('');
   const [broken, setBroken] = useState<Set<string>>(new Set());
+  const [copied, setCopied] = useState<string | null>(null);
+  const [copyFailed, setCopyFailed] = useState(false);
+
+  /** `key` marks which button says "copied": a link, 'all' or 'repo'. */
+  const copy = async (key: string, links: string[]) => {
+    const ok = await copyText(links.join(' '));
+    setCopyFailed(!ok);
+    if (!ok) return;
+    setCopied(key);
+    setTimeout(() => setCopied((c) => (c === key ? null : c)), 1500);
+  };
 
   const add = () => {
     const found = draft.split(/\s+/).map((u) => u.trim()).filter(Boolean).filter((u) => !urls.includes(u));
@@ -169,10 +185,16 @@ export function ImagesEditor({
 
   return (
     <div className="space-y-3">
-      {repoPhotos > 0 && (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Овој производ има {repoPhotos} фотографии во <code>public/images/products/</code>. Сајтот ги покажува тие; линковите подолу важат кога ќе се тргнат.
-        </p>
+      {repoUrls.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <p>
+            Овој производ има {repoUrls.length} фотографии во <code>public/images/products/</code>. Сајтот ги покажува тие; линковите подолу важат кога ќе се тргнат.
+          </p>
+          <button type="button" onClick={() => copy('repo', repoUrls)} className="flex shrink-0 items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-1 font-medium text-amber-900 hover:bg-amber-100">
+            {copied === 'repo' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied === 'repo' ? 'Копирани' : 'Копирај ги тие'}
+          </button>
+        </div>
       )}
 
       {urls.length > 0 ? (
@@ -192,6 +214,15 @@ export function ImagesEditor({
               {i === 0 && (
                 <span className="absolute left-1 top-1 rounded bg-slate-900/80 px-1.5 py-0.5 text-[10px] font-semibold text-white">Главна</span>
               )}
+              <button
+                type="button"
+                title={copied === u ? 'Копирано' : 'Копирај го линкот'}
+                aria-label="Копирај го линкот на сликата"
+                onClick={() => copy(u, [u])}
+                className="absolute right-1 top-1 rounded bg-white/90 p-1 text-slate-700 shadow-sm hover:bg-white"
+              >
+                {copied === u ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+              </button>
               {!hostAllowed(u) && (
                 <span className="absolute inset-x-1 bottom-9 rounded bg-red-600/90 px-1 py-0.5 text-center text-[10px] text-white">Сајтот не го прифаќа овој сервер</span>
               )}
@@ -223,7 +254,20 @@ export function ImagesEditor({
           <Plus className="h-4 w-4" /> Додај
         </button>
       </div>
-      <p className="text-xs text-slate-500">Првата е главната. Со стрелките се менува редот, со ѕвездата се става прва.</p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <p className="text-xs text-slate-500">
+          Првата е главната. Со стрелките се менува редот, со ѕвездата се става прва. Линкот се копира со копчето горе десно на сликата; во друг производ залепете го во полето и Додај.
+        </p>
+        {urls.length > 1 && (
+          <button type="button" onClick={() => copy('all', urls)} className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+            {copied === 'all' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied === 'all' ? 'Копирани' : `Копирај ги сите (${urls.length})`}
+          </button>
+        )}
+      </div>
+      {copyFailed && (
+        <p className="text-xs text-red-600">Прелистувачот не дозволи копирање. Отворете ја сликата во нов таб и копирајте ја адресата.</p>
+      )}
     </div>
   );
 }

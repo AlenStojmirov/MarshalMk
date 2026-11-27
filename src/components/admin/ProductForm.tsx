@@ -104,14 +104,14 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
   const [imgs, setImgs] = useState<string[]>(shownUrls);
   const [imgsTouched, setImgsTouched] = useState(false);
   const imgsTouchedRef = useRef(false);
-  const [repoPhotos, setRepoPhotos] = useState(0);
+  const [repoUrls, setRepoUrls] = useState<string[]>([]);
   useEffect(() => {
     if (!product?.id) return;
     let live = true;
     supabase.from('products').select('image_url, images').eq('id', product.id).maybeSingle().then(({ data }) => {
       if (!live || !data) return;
       const stored = [data.image_url as string | null, ...((data.images as string[] | null) ?? [])].filter((u): u is string => !!u);
-      if (stored.join('\n') !== shownUrls.join('\n')) setRepoPhotos(shownUrls.filter((u) => u.startsWith(REPO_PHOTO)).length);
+      if (stored.join('\n') !== shownUrls.join('\n')) setRepoUrls(shownUrls.filter((u) => u.startsWith(REPO_PHOTO)));
       if (!imgsTouchedRef.current) setImgs(stored);
     });
     return () => { live = false; };
@@ -501,7 +501,7 @@ export default function ProductForm({ product, onSave, onCancel, showCost = true
 
           {/* 4. Photos */}
           <Section id="pf-photos" n={4} title="Слики">
-            <ImagesEditor urls={imgs} onChange={editImgs} repoPhotos={repoPhotos} />
+            <ImagesEditor urls={imgs} onChange={editImgs} repoUrls={repoUrls} />
           </Section>
 
           {/* 5. Description: composition and details (EPIC 9) */}

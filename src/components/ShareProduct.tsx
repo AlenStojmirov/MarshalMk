@@ -21,6 +21,7 @@ import { useEffect, useState } from 'react';
 import { Link2, Share2 } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 import { sharedLink, type ShareChannel } from '@/lib/attribution';
+import { copyText } from '@/lib/copy-text';
 import { FacebookIcon, InstagramIcon, MessengerIcon, ViberIcon, WhatsAppIcon } from '@/components/BrandIcons';
 
 type Status = 'copied' | 'paste' | 'failed' | null;
@@ -28,29 +29,6 @@ type Status = 'copied' | 'paste' | 'failed' | null;
 const isPhone = () =>
   /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
   (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
-
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    // Older browsers, or a page not allowed the clipboard: a hidden field and the old command.
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand('copy');
-      ta.remove();
-      return ok;
-    } catch {
-      return false;
-    }
-  }
-}
 
 export default function ShareProduct({ path, title }: { path: string; title: string }) {
   const { t } = useTranslation();
